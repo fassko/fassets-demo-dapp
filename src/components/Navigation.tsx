@@ -10,7 +10,8 @@ interface NavigationProps {
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
   const tabs = [
     { id: 'asset-manager', label: 'Asset Manager Settings' },
-    { id: 'payment-portal', label: 'Cross-Chain Payment Portal' }
+    { id: 'send-fxrp', label: 'Send FXRP' },
+    { id: 'redeem-xrp', label: 'Redeem to XRP' }
   ];
 
   return (

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
 import { ethers } from 'ethers';
+import { AssetManagerContract } from '@/utils/assetManagerContract';
 
 // Extend Window interface for ethereum
 declare global {
@@ -34,25 +34,14 @@ export default function AssetManagerSettings() {
         // Create Web3 provider
         const provider = new ethers.BrowserProvider(window.ethereum);
         
-        // Get the AssetManagerFXRP contract address and ABI
-        const assetManagerInfo = coston2.products.AssetManagerFXRP;
-        const contractAddress = await assetManagerInfo.getAddress(provider);
+        // Get signer
+        const signer = await provider.getSigner();
         
-        // Create contract instance
-        const assetManagerFXRP = new ethers.Contract(
-          contractAddress,
-          assetManagerInfo.abi,
-          provider
-        );
+        // Create TruffleAssetManagerContract instance
+        const assetManagerContract = await AssetManagerContract.create(provider, signer);
         
-        console.log('Contract ABI functions:', assetManagerInfo.abi.filter((item: any) => item.type === 'function').map((item: any) => item.name));
-        
-        // Try to get settings as a struct object
-        const settingsData = await assetManagerFXRP.getSettings();
-        
-        console.log('Raw settings data:', settingsData);
-        console.log('Settings data type:', typeof settingsData);
-        console.log('Is array:', Array.isArray(settingsData));
+        // Get settings using the Truffle contract
+        const settingsData = await assetManagerContract.getSettings();
         
         setSettings(settingsData);
       } else {
@@ -69,13 +58,6 @@ export default function AssetManagerSettings() {
   useEffect(() => {
     fetchAssetManagerSettings();
   }, []);
-
-  // Log settings whenever they change
-  useEffect(() => {
-    if (settings) {
-      console.log('AssetManager Settings:', settings);
-    }
-  }, [settings]);
 
   // Helper function to create explorer link
   const createExplorerLink = (address: string) => (
@@ -116,7 +98,7 @@ export default function AssetManagerSettings() {
       {settings && (
         <div className="space-y-6">
           <h2 className="text-xl font-semibold text-gray-800">
-            Asset Manager FXRP Settings
+            Asset Manager FXRP Settings (Truffle Types)
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
