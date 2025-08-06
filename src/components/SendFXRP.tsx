@@ -45,6 +45,20 @@ export default function SendFXRP() {
     initializeConnections();
   }, []);
 
+  // Refresh balances when contracts are initialized
+  useEffect(() => {
+    if (fxrpContract && assetManagerContract) {
+      refreshBalances();
+    }
+  }, [fxrpContract, assetManagerContract]);
+
+  // Refresh balances when provider changes
+  useEffect(() => {
+    if (flareProvider) {
+      refreshBalances();
+    }
+  }, [flareProvider]);
+
   const initializeConnections = async () => {
     try {
       // Initialize Flare connection
@@ -95,6 +109,11 @@ export default function SendFXRP() {
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
     setSendFXRPState(prev => ({ ...prev, [field]: e.target.value }));
+    
+    // Refresh balances when amount changes (useful after transactions)
+    if (field === 'amount' && fxrpContract && assetManagerContract) {
+      setTimeout(() => refreshBalances(), 1000); // Small delay to avoid too frequent calls
+    }
   };
 
   const validateSendFXRPInputs = (): boolean => {
@@ -117,8 +136,7 @@ export default function SendFXRP() {
     try {
       if (!fxrpContract) { throw new Error('FXRP contract not initialized'); }
 
-      const amountInWei = ethers.parseUnits(sendFXRPState.amount, 6); // FXRP has 6 decimals
-      const tx = await fxrpContract.transfer(sendFXRPState.recipientAddress, amountInWei);
+      const tx = await fxrpContract.transfer(sendFXRPState.recipientAddress, sendFXRPState.amount);
       await tx.wait();
       
       setSendFXRPState(prev => ({ 
@@ -207,20 +225,8 @@ export default function SendFXRP() {
 
         {/* Balance Overview */}
         <div className="mb-8 p-6 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Balance Overview</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="bg-purple-50 rounded-lg p-4">
-              <h4 className="font-semibold text-purple-900">FXRP Balance</h4>
-              <p className="text-2xl font-bold text-purple-600">{fxrpBalance} FXRP</p>
-              <button 
-                onClick={refreshBalances}
-                className="text-sm text-purple-600 hover:text-purple-800 underline"
-              >
-                Refresh Balance
-              </button>
-            </div>
+          <div className="grid grid-cols-1 gap-4">
             <div className="bg-blue-50 rounded-lg p-4">
-              <h4 className="font-semibold text-blue-900">Flare Network</h4>
               <p className="text-2xl font-bold text-blue-600">{flareBalance} FLR</p>
               <button 
                 onClick={refreshBalances}

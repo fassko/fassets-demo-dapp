@@ -34,6 +34,7 @@ export default function RedeemXRP() {
   const [flareProvider, setFlareProvider] = useState<ethers.BrowserProvider | null>(null);
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
+  const [calculatedLots, setCalculatedLots] = useState<string>('0');
 
   // Validation schemas
   const xrplAddressSchema = z.string().regex(/^r[a-zA-Z0-9]{24,34}$/, 'Invalid XRPL address format');
@@ -42,6 +43,45 @@ export default function RedeemXRP() {
   useEffect(() => {
     initializeConnections();
   }, []);
+
+  // Refresh XRPL balance when client and address are available
+  useEffect(() => {
+    if (xrplClient && xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
+      refreshBalances();
+    }
+  }, [xrplClient, xrplAddress]);
+
+  // Refresh balances when contracts are initialized
+  useEffect(() => {
+    if (assetManagerContract) {
+      // Could add additional balance refresh logic here if needed
+    }
+  }, [assetManagerContract]);
+
+  // Calculate lots when amount changes
+  useEffect(() => {
+    const calculateLots = async () => {
+      if (assetManagerContract && redeemState.amount) {
+        try {
+          const settings = await assetManagerContract.getSettings();
+          const lotSizeAMG = settings.lotSizeAMG;
+
+          const xrpInDrops = parseFloat(redeemState.amount) * 1000000; // Convert XRP to drops
+          const lotSize = typeof lotSizeAMG === 'bigint'
+            ? Number(lotSizeAMG)
+            : parseFloat(lotSizeAMG.toString());
+
+          const lots = Math.floor(xrpInDrops / lotSize);
+          setCalculatedLots(lots.toString());
+        } catch (error) {
+          console.error('Error calculating lots:', error);
+          setCalculatedLots('0');
+        }
+      }
+    };
+
+    calculateLots();
+  }, [assetManagerContract, redeemState.amount]);
 
   const initializeConnections = async () => {
     try {
@@ -93,7 +133,8 @@ export default function RedeemXRP() {
   const handleRedeemInputChange = (field: keyof RedeemState) => (
     e: React.ChangeEvent<HTMLInputElement>
   ) => {
-    setRedeemState(prev => ({ ...prev, [field]: e.target.value }));
+    const value = e.target.value;
+    setRedeemState(prev => ({ ...prev, [field]: value }));
   };
 
   const handleXrplAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -101,13 +142,8 @@ export default function RedeemXRP() {
     setXrplAddress(address);
     
     // Auto-fetch balance when a valid XRPL address is entered
-    if (address && address.startsWith('r') && address.length >= 25) {
-      // Debounce the balance fetch
-      setTimeout(() => {
-        if (xrplClient && address === xrplAddress) {
-          refreshBalances();
-        }
-      }, 1000);
+    if (address && address.startsWith('r') && address.length >= 25 && xrplClient) {
+      refreshBalances();
     }
   };
 
@@ -248,6 +284,25 @@ export default function RedeemXRP() {
               <p className="text-xs text-gray-500 mt-1">
                 Amount will be converted to lots based on Asset Manager settings
               </p>
+              {redeemState.amount && (
+                <div className={`mt-2 p-2 rounded border ${
+                  calculatedLots === '0' 
+                    ? 'bg-red-100 border-red-200' 
+                    : 'bg-green-100 border-green-200'
+                }`}>
+                  <p className={`text-sm ${
+                    calculatedLots === '0' 
+                      ? 'text-red-800' 
+                      : 'text-green-800'
+                  }`}>
+                    {calculatedLots === '0' ? (
+                      <span className="font-semibold">Warning:</span>
+                    ) : (
+                      <span className="font-semibold">Calculated Lots:</span>
+                    )} {calculatedLots === '0' ? 'Amount too small to fit in a lot' : calculatedLots}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
