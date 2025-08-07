@@ -1,16 +1,11 @@
 import { ethers } from 'ethers';
 import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
-import { ERC20_ABI, IERC20 } from './erc20Types';
+import { ERC20_ABI } from './erc20Types';
 
 export class FXRPContract {
   private contract: ethers.Contract;
-  private provider: ethers.BrowserProvider;
-  private signer: ethers.Signer;
-
+  
   constructor(provider: ethers.BrowserProvider, signer: ethers.Signer, contractAddress: string) {
-    this.provider = provider;
-    this.signer = signer;
-    // Use typed ERC20 ABI
     this.contract = new ethers.Contract(contractAddress, ERC20_ABI, signer);
   }
 
@@ -39,25 +34,9 @@ export class FXRPContract {
     return ethers.formatUnits(balance, decimals);
   }
 
-  async transfer(to: string, amount: string): Promise<ethers.ContractTransactionResponse> {
+  async transfer(to: string, amount: string) {
     const decimals = await this.contract.decimals();
     const amountInWei = ethers.parseUnits(amount, decimals);
     return await this.contract.transfer(to, amountInWei);
-  }
-
-  async getDecimals(): Promise<number> {
-    return await this.contract.decimals();
-  }
-
-  async getSymbol(): Promise<string> {
-    return await this.contract.symbol();
-  }
-
-  async getName(): Promise<string> {
-    return await this.contract.name();
-  }
-
-  getContractAddress(): string {
-    return this.contract.target as string;
   }
 } 

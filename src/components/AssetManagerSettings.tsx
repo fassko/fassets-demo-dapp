@@ -75,7 +75,7 @@ export default function AssetManagerSettings() {
         <button
           onClick={fetchAssetManagerSettings}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer"
         >
           {loading ? 'Loading...' : 'Refresh Settings'}
         </button>

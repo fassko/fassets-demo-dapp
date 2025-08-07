@@ -2,18 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { Client } from 'xrpl';
-import { FXRPContract } from '@/utils/fxrpContract';
-import { AssetManagerContract } from '@/utils/assetManagerContract';
 import { z } from 'zod';
 
-interface SendFXRPState {
-  recipientAddress: string;
-  amount: string;
-  isProcessing: boolean;
-  error: string | null;
-  success: string | null;
-}
+import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { FXRPContract } from '@/utils/fxrpContract';
+import { SendFXRPState } from './interfaces/SendFXRPState';
 
 export default function SendFXRP() {
   const [sendFXRPState, setSendFXRPState] = useState<SendFXRPState>({
@@ -24,10 +17,8 @@ export default function SendFXRP() {
     success: null
   });
 
-  const [flareBalance, setFlareBalance] = useState<string>('0');
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const [flareProvider, setFlareProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [fxrpContract, setFxrpContract] = useState<FXRPContract | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
 
@@ -46,16 +37,8 @@ export default function SendFXRP() {
     }
   }, [fxrpContract, assetManagerContract]);
 
-  // Refresh balances when provider changes
-  useEffect(() => {
-    if (flareProvider) {
-      refreshBalances();
-    }
-  }, [flareProvider]);
-
-  const initializeConnections = async () => {
+  async function initializeConnections() {
     try {
-      // Initialize Flare connection
       if (typeof window !== 'undefined' && window.ethereum) {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         const provider = new ethers.BrowserProvider(window.ethereum);
@@ -68,28 +51,19 @@ export default function SendFXRP() {
         setFxrpContract(fxrpContractInstance);
         setAssetManagerContract(assetManagerContractInstance);
 
-        // Initial balance refresh
         await refreshBalances();
       }
-
-      // Initialize XRPL connection
-      const client = new Client('wss://s.altnet.rippletest.net:51233');
-      await client.connect();
-      setXrplClient(client);
     } catch (error) {
       console.error('Error initializing connections:', error);
     }
-  };
+  }
 
-  const refreshBalances = async () => {
+  async function refreshBalances() {
     try {
       if (flareProvider) {
         const signer = await flareProvider.getSigner();
         const address = await signer.getAddress();
         if (address) {
-          const flareBalance = await flareProvider.getBalance(address);
-          setFlareBalance(ethers.formatEther(flareBalance));
-          
           const fxrpBalance = await fxrpContract?.getBalance(address);
           setFxrpBalance(fxrpBalance || '0');
         }
@@ -97,23 +71,23 @@ export default function SendFXRP() {
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  };
+  }
 
-  const handleSendFXRPInputChange = (field: keyof SendFXRPState) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setSendFXRPState(prev => ({ ...prev, [field]: e.target.value }));
-    
-    // Refresh balances when amount changes (useful after transactions)
-    if (field === 'amount' && fxrpContract && assetManagerContract) {
-      setTimeout(() => refreshBalances(), 1000); // Small delay to avoid too frequent calls
-    }
-  };
+  function handleSendFXRPInputChange(field: keyof SendFXRPState) {
+    return (e: React.ChangeEvent<HTMLInputElement>) => {
+      setSendFXRPState(prev => ({ ...prev, [field]: e.target.value }));
+      
+      if (field === 'amount' && fxrpContract && assetManagerContract) {
+        setTimeout(() => refreshBalances(), 1000);
+      }
+    };
+  }
 
-  const validateSendFXRPInputs = (): boolean => {
+  function validateSendFXRPInputs(): boolean {
     try {
       flareAddressSchema.parse(sendFXRPState.recipientAddress);
       amountSchema.parse(sendFXRPState.amount);
+      
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -124,14 +98,15 @@ export default function SendFXRP() {
     }
   };
 
-  const sendFXRP = async () => {
+  async function sendFXRP() {
     if (!validateSendFXRPInputs()) return;
+
     setSendFXRPState(prev => ({ ...prev, isProcessing: true, error: null, success: null }));
+
     try {
       if (!fxrpContract) { throw new Error('FXRP contract not initialized'); }
 
-      const tx = await fxrpContract.transfer(sendFXRPState.recipientAddress, sendFXRPState.amount);
-      await tx.wait();
+      await fxrpContract.transfer(sendFXRPState.recipientAddress, sendFXRPState.amount);
       
       setSendFXRPState(prev => ({ 
         ...prev, 
@@ -149,62 +124,6 @@ export default function SendFXRP() {
     }
   };
 
-  const mintFXRP = async () => {
-    if (!validateSendFXRPInputs()) return;
-    setSendFXRPState(prev => ({ ...prev, isProcessing: true, error: null, success: null }));
-    try {
-      if (!assetManagerContract) { throw new Error('AssetManager contract not initialized'); }
-
-      const settings = await assetManagerContract.getSettings();
-      const assetMintingGranularityUBA = settings.assetMintingGranularityUBA;
-      const lotSizeAMG = settings.lotSizeAMG;
-
-      console.log('assetMintingGranularityUBA (mint):', assetMintingGranularityUBA);
-      console.log('assetMintingGranularityUBA type (mint):', typeof assetMintingGranularityUBA);
-      console.log('lotSizeAMG (mint):', lotSizeAMG);
-      console.log('lotSizeAMG type (mint):', typeof lotSizeAMG);
-
-      const xrpInDrops = parseFloat(sendFXRPState.amount) * 1000000; // Convert XRP to drops
-      console.log('xrpInDrops (mint):', xrpInDrops);
-
-      const lotSize = typeof lotSizeAMG === 'bigint'
-        ? Number(lotSizeAMG)
-        : parseFloat(lotSizeAMG.toString());
-
-      console.log('lotSize (mint):', lotSize);
-      const lots = Math.floor(xrpInDrops / lotSize);
-
-      console.log('lots (mint):', lots);
-
-      if (lots <= 0) { throw new Error('Amount too small to mint. Minimum amount required.'); }
-
-      const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
-      const agentVault = "0x0000000000000000000000000000000000000000"; // Placeholder
-      const maxMintingFeeBIPS = "1000"; // 10% fee in basis points
-
-      const tx = await assetManagerContract.reserveCollateral(
-        agentVault,
-        lots.toString(),
-        maxMintingFeeBIPS,
-        executor
-      );
-      await tx.wait();
-      
-      setSendFXRPState(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        success: `Successfully initiated minting process for ${sendFXRPState.amount} XRP (${lots} lots)` 
-      }));
-      await refreshBalances();
-    } catch (error) {
-      console.error('Error minting FXRP:', error);
-      setSendFXRPState(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        error: error instanceof Error ? error.message : 'Failed to mint FXRP' 
-      }));
-    }
-  };
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -214,14 +133,14 @@ export default function SendFXRP() {
         </h2>
         
         <p className="text-gray-600 mb-6">
-          Transfer FXRP tokens to another Flare address or mint new FXRP tokens from XRP.
+          Transfer FXRP tokens to another Flare address.
         </p>
 
         {/* Balance Overview */}
         <div className="mb-8 p-6 bg-gray-50 rounded-lg">
           <div className="grid grid-cols-1 gap-4">
             <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-blue-600">{flareBalance} FLR</p>
+              <p className="text-2xl font-bold text-blue-600">{fxrpBalance} FXRP</p>
               <button 
                 onClick={refreshBalances}
                 className="text-sm text-blue-600 hover:text-blue-800 underline"
@@ -234,9 +153,9 @@ export default function SendFXRP() {
 
         {/* Send FXRP Section */}
         <div className="mb-8 p-6 bg-blue-50 rounded-lg">
-          <h3 className="text-xl font-semibold text-blue-900 mb-4">Send FXRP Operations</h3>
+          <h3 className="text-xl font-semibold text-blue-900 mb-4">Send FXRP</h3>
           <p className="text-blue-700 mb-4">
-            Transfer FXRP tokens to another Flare address or mint new FXRP tokens from XRP.
+            Transfer FXRP tokens to another Flare address.
           </p>
           
           <div className="space-y-4 mb-4">
@@ -275,14 +194,6 @@ export default function SendFXRP() {
               className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {sendFXRPState.isProcessing ? 'Processing...' : 'Send FXRP'}
-            </button>
-            
-            <button
-              onClick={mintFXRP}
-              disabled={sendFXRPState.isProcessing}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {sendFXRPState.isProcessing ? 'Processing...' : 'Mint FXRP'}
             </button>
           </div>
 
