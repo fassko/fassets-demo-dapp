@@ -2,29 +2,35 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { z } from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
 import { FXRPContract } from '@/utils/fxrpContract';
-import { SendFXRPState } from './interfaces/SendFXRPState';
+import { SendFXRPFormDataSchema, SendFXRPFormData } from '@/types/sendFXRPFormData';
 
 export default function SendFXRP() {
-  const [sendFXRPState, setSendFXRPState] = useState<SendFXRPState>({
-    recipientAddress: '',
-    amount: '',
-    isProcessing: false,
-    error: null,
-    success: null
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const [flareProvider, setFlareProvider] = useState<ethers.BrowserProvider | null>(null);
   const [fxrpContract, setFxrpContract] = useState<FXRPContract | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
 
-  // Validation schemas
-  const flareAddressSchema = z.string().regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Flare address format');
-  const amountSchema = z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Amount must be a positive number');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<SendFXRPFormData>({
+    resolver: zodResolver(SendFXRPFormDataSchema),
+    defaultValues: {
+      recipientAddress: '',
+      amount: ''
+    }
+  });
 
   useEffect(() => {
     initializeConnections();
@@ -73,56 +79,26 @@ export default function SendFXRP() {
     }
   }
 
-  function handleSendFXRPInputChange(field: keyof SendFXRPState) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => {
-      setSendFXRPState(prev => ({ ...prev, [field]: e.target.value }));
-      
-      if (field === 'amount' && fxrpContract && assetManagerContract) {
-        setTimeout(() => refreshBalances(), 1000);
-      }
-    };
-  }
-
-  function validateSendFXRPInputs(): boolean {
-    try {
-      flareAddressSchema.parse(sendFXRPState.recipientAddress);
-      amountSchema.parse(sendFXRPState.amount);
-      
-      return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessage = error.errors.map(err => err.message).join(', ');
-        setSendFXRPState(prev => ({ ...prev, error: errorMessage }));
-      }
-      return false;
-    }
-  };
-
-  async function sendFXRP() {
-    if (!validateSendFXRPInputs()) return;
-
-    setSendFXRPState(prev => ({ ...prev, isProcessing: true, error: null, success: null }));
+  async function sendFXRP(data: SendFXRPFormData) {
+    setIsProcessing(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       if (!fxrpContract) { throw new Error('FXRP contract not initialized'); }
 
-      await fxrpContract.transfer(sendFXRPState.recipientAddress, sendFXRPState.amount);
+      await fxrpContract.transfer(data.recipientAddress, data.amount);
       
-      setSendFXRPState(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        success: `Successfully sent ${sendFXRPState.amount} FXRP to ${sendFXRPState.recipientAddress}` 
-      }));
+      setSuccess(`Successfully sent ${data.amount} FXRP to ${data.recipientAddress}`);
+      reset();
       await refreshBalances();
     } catch (error) {
       console.error('Error sending FXRP:', error);
-      setSendFXRPState(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        error: error instanceof Error ? error.message : 'Failed to send FXRP' 
-      }));
+      setError(error instanceof Error ? error.message : 'Failed to send FXRP');
+    } finally {
+      setIsProcessing(false);
     }
-  };
+  }
 
 
   return (
@@ -152,7 +128,7 @@ export default function SendFXRP() {
         </div>
 
         {/* Send FXRP Section */}
-        <div className="mb-8 p-6 bg-blue-50 rounded-lg">
+        <form onSubmit={handleSubmit(sendFXRP)} className="mb-8 p-6 bg-blue-50 rounded-lg">
           <h3 className="text-xl font-semibold text-blue-900 mb-4">Send FXRP</h3>
           <p className="text-blue-700 mb-4">
             Transfer FXRP tokens to another Flare address.
@@ -164,12 +140,14 @@ export default function SendFXRP() {
                 Recipient Flare Address
               </label>
               <input
+                {...register('recipientAddress')}
                 type="text"
-                value={sendFXRPState.recipientAddress}
-                onChange={handleSendFXRPInputChange('recipientAddress')}
                 placeholder="0x..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {errors.recipientAddress && (
+                <p className="text-red-500 text-sm mt-1">{errors.recipientAddress.message}</p>
+              )}
             </div>
 
             <div>
@@ -177,38 +155,40 @@ export default function SendFXRP() {
                 Amount (FXRP)
               </label>
               <input
+                {...register('amount')}
                 type="number"
-                value={sendFXRPState.amount}
-                onChange={handleSendFXRPInputChange('amount')}
                 placeholder="0.0"
                 step="0.000001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              {errors.amount && (
+                <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
+              )}
             </div>
           </div>
 
           <div className="flex gap-4">
             <button
-              onClick={sendFXRP}
-              disabled={sendFXRPState.isProcessing}
+              type="submit"
+              disabled={isProcessing}
               className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
-              {sendFXRPState.isProcessing ? 'Processing...' : 'Send FXRP'}
+              {isProcessing ? 'Processing...' : 'Send FXRP'}
             </button>
           </div>
 
-          {sendFXRPState.error && (
+          {error && (
             <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {sendFXRPState.error}
+              {error}
             </div>
           )}
 
-          {sendFXRPState.success && (
+          {success && (
             <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-              {sendFXRPState.success}
+              {success}
             </div>
           )}
-        </div>
+        </form>
       </div>
     </div>
   );
