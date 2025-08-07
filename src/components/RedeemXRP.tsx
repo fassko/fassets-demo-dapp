@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
@@ -39,12 +39,37 @@ export default function RedeemXRP() {
     initializeConnections();
   }, []);
 
+  const refreshBalances = useCallback(async () => {
+    try {
+      if (xrplClient && xrplAddress) {
+        try {
+          // Get account info from XRPL
+          const accountInfo = await xrplClient.request({
+            command: 'account_info',
+            account: xrplAddress,
+            ledger_index: 'validated'
+          });
+          
+          // Convert balance from drops to XRP
+          const balanceInDrops = accountInfo.result.account_data.Balance;
+          const balanceInXRP = parseFloat(balanceInDrops) / 1000000; // 1 XRP = 1,000,000 drops
+          setXrplBalance(balanceInXRP.toString());
+        } catch (error) {
+          console.error('Error fetching XRPL balance:', error);
+          setXrplBalance('0');
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing balances:', error);
+    }
+  }, [xrplClient, xrplAddress]);
+
   // Refresh XRPL balance when client and address are available
   useEffect(() => {
     if (xrplClient && xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
       refreshBalances();
     }
-  }, [xrplClient, xrplAddress]);
+  }, [xrplClient, xrplAddress, refreshBalances]);
 
   // Refresh balances when contracts are initialized
   useEffect(() => {
@@ -96,31 +121,6 @@ export default function RedeemXRP() {
       setXrplClient(client);
     } catch (error) {
       console.error('Error initializing connections:', error);
-    }
-  };
-
-  const refreshBalances = async () => {
-    try {
-      if (xrplClient && xrplAddress) {
-        try {
-          // Get account info from XRPL
-          const accountInfo = await xrplClient.request({
-            command: 'account_info',
-            account: xrplAddress,
-            ledger_index: 'validated'
-          });
-          
-          // Convert balance from drops to XRP
-          const balanceInDrops = accountInfo.result.account_data.Balance;
-          const balanceInXRP = parseFloat(balanceInDrops) / 1000000; // 1 XRP = 1,000,000 drops
-          setXrplBalance(balanceInXRP.toString());
-        } catch (error) {
-          console.error('Error fetching XRPL balance:', error);
-          setXrplBalance('0');
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing balances:', error);
     }
   };
 
@@ -189,12 +189,12 @@ export default function RedeemXRP() {
 
       const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
 
-      const tx = await assetManagerContract.redeem(
+      await assetManagerContract.redeem(
         lots.toString(),
         data.xrplAddress,
         executor
       );
-      await tx.wait();
+      
       setSuccess(`Successfully redeemed ${data.amount} XRP (${lots} lots) to ${data.xrplAddress}`);
       reset();
     } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -35,14 +35,13 @@ export default function MintXRP() {
   }>>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
-  const [assetDecimals, setAssetDecimals] = useState<number>(6);
+
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset,
-    watch
+    reset
   } = useForm<MintXRPFormData>({
     resolver: zodResolver(MintXRPFormDataSchema),
     defaultValues: {
@@ -51,11 +50,7 @@ export default function MintXRP() {
     }
   });
 
-  useEffect(() => {
-    initializeConnections();
-  }, []);
-
-  async function initializeConnections() {
+  const initializeConnections = useCallback(async () => {
     try {
       if (typeof window !== 'undefined' && window.ethereum) {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -73,7 +68,11 @@ export default function MintXRP() {
     } catch (error) {
       console.error('Error initializing connections:', error);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    initializeConnections();
+  }, [initializeConnections]);
 
   async function fetchAssetManagerSettings(contract: AssetManagerContract) {
     try {
@@ -92,7 +91,6 @@ export default function MintXRP() {
       const lotSizeHumanReadable = ethers.formatUnits(lotSizeRaw, decimals);
       
       setLotSizeAMG(lotSizeHumanReadable);
-      setAssetDecimals(decimals);
       console.log('Lot size AMG (human readable):', lotSizeHumanReadable);
       console.log('Asset decimals:', decimals);
     } catch (error) {
@@ -142,14 +140,13 @@ export default function MintXRP() {
         executor
       });
 
-      const tx = await assetManagerContract.reserveCollateral(
+      await assetManagerContract.reserveCollateral(
         data.agentVault,
         data.lots,
         agentFeeBIPS,
         executor
       );
 
-      await tx.wait();
       setSuccess(`Successfully reserved collateral for ${data.lots} lots with agent fee ${Number(agentFeeBIPS) / 100}%`);
       reset();
     } catch (error) {

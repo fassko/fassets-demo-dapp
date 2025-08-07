@@ -34,7 +34,7 @@ export class AssetManagerContract {
     if (typeof assetManagerAddressResult === 'string') {
       assetManagerAddress = assetManagerAddressResult;
     } else if (assetManagerAddressResult && typeof assetManagerAddressResult === 'object' && 'data' in assetManagerAddressResult) {
-      assetManagerAddress = (assetManagerAddressResult as any).data;
+      assetManagerAddress = (assetManagerAddressResult as { data: string }).data;
     } else {
       throw new Error('Invalid address format returned from getAddress');
     }
@@ -51,7 +51,7 @@ export class AssetManagerContract {
     _lots: string, 
     _redeemerUnderlyingAddressString: string, 
     _executor: string
-  ): Promise<ethers.ContractTransactionResponse> {
+  ): Promise<unknown> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     
@@ -65,7 +65,7 @@ export class AssetManagerContract {
     _lots: string,
     _maxMintingFeeBIPS: string,
     _executor: string
-  ): Promise<ethers.ContractTransactionResponse> {
+  ): Promise<unknown> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     const maxMintingFeeBIPS = ethers.parseUnits(_maxMintingFeeBIPS, 0); // BIPS is typically in basis points
@@ -183,14 +183,14 @@ export class AssetManagerContract {
     try {
       const result = await this.contract.getAvailableAgentsDetailedList(start, end);
       return {
-        agents: result[0].map((agent: any) => ({
-          agentVault: agent.agentVault,
-          ownerManagementAddress: agent.ownerManagementAddress,
-          feeBIPS: agent.feeBIPS,
-          mintingVaultCollateralRatioBIPS: agent.mintingVaultCollateralRatioBIPS,
-          mintingPoolCollateralRatioBIPS: agent.mintingPoolCollateralRatioBIPS,
-          freeCollateralLots: agent.freeCollateralLots,
-          status: agent.status
+        agents: result[0].map((agent: unknown) => ({
+          agentVault: (agent as { agentVault: string }).agentVault,
+          ownerManagementAddress: (agent as { ownerManagementAddress: string }).ownerManagementAddress,
+          feeBIPS: (agent as { feeBIPS: bigint }).feeBIPS,
+          mintingVaultCollateralRatioBIPS: (agent as { mintingVaultCollateralRatioBIPS: bigint }).mintingVaultCollateralRatioBIPS,
+          mintingPoolCollateralRatioBIPS: (agent as { mintingPoolCollateralRatioBIPS: bigint }).mintingPoolCollateralRatioBIPS,
+          freeCollateralLots: (agent as { freeCollateralLots: bigint }).freeCollateralLots,
+          status: (agent as { status: bigint }).status
         })),
         totalCount: result[1]
       };

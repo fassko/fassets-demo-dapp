@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -32,18 +32,22 @@ export default function SendFXRP() {
     }
   });
 
-  useEffect(() => {
-    initializeConnections();
-  }, []);
-
-  // Refresh balances when contracts are initialized
-  useEffect(() => {
-    if (fxrpContract && assetManagerContract) {
-      refreshBalances();
+  const refreshBalances = useCallback(async () => {
+    try {
+      if (flareProvider) {
+        const signer = await flareProvider.getSigner();
+        const address = await signer.getAddress();
+        if (address) {
+          const fxrpBalance = await fxrpContract?.getBalance(address);
+          setFxrpBalance(fxrpBalance || '0');
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing balances:', error);
     }
-  }, [fxrpContract, assetManagerContract]);
+  }, [flareProvider, fxrpContract]);
 
-  async function initializeConnections() {
+  const initializeConnections = useCallback(async () => {
     try {
       if (typeof window !== 'undefined' && window.ethereum) {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
@@ -62,22 +66,18 @@ export default function SendFXRP() {
     } catch (error) {
       console.error('Error initializing connections:', error);
     }
-  }
+  }, [refreshBalances]);
 
-  async function refreshBalances() {
-    try {
-      if (flareProvider) {
-        const signer = await flareProvider.getSigner();
-        const address = await signer.getAddress();
-        if (address) {
-          const fxrpBalance = await fxrpContract?.getBalance(address);
-          setFxrpBalance(fxrpBalance || '0');
-        }
-      }
-    } catch (error) {
-      console.error('Error refreshing balances:', error);
+  useEffect(() => {
+    initializeConnections();
+  }, [initializeConnections]);
+
+  // Refresh balances when contracts are initialized
+  useEffect(() => {
+    if (fxrpContract && assetManagerContract) {
+      refreshBalances();
     }
-  }
+  }, [fxrpContract, assetManagerContract, refreshBalances]);
 
   async function sendFXRP(data: SendFXRPFormData) {
     setIsProcessing(true);

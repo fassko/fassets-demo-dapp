@@ -35,7 +35,7 @@ export class AssetManagerContract {
     if (typeof assetManagerAddressResult === 'string') {
       assetManagerAddress = assetManagerAddressResult;
     } else if (assetManagerAddressResult && typeof assetManagerAddressResult === 'object' && 'data' in assetManagerAddressResult) {
-      assetManagerAddress = (assetManagerAddressResult as any).data;
+      assetManagerAddress = (assetManagerAddressResult as { data: string }).data;
     } else {
       throw new Error('Invalid address format returned from getAddress');
     }
@@ -52,7 +52,7 @@ export class AssetManagerContract {
     _lots: string, 
     _redeemerUnderlyingAddressString: string, 
     _executor: string
-  ): Promise<any> {
+  ): Promise<unknown> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     
@@ -66,7 +66,7 @@ export class AssetManagerContract {
     _lots: string,
     _maxMintingFeeBIPS: string,
     _executor: string
-  ): Promise<any> {
+  ): Promise<unknown> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     const maxMintingFeeBIPS = ethers.parseUnits(_maxMintingFeeBIPS, 0); // BIPS is typically in basis points
@@ -76,7 +76,7 @@ export class AssetManagerContract {
   }
 
   // Helper method to get available agents (for minting)
-  async getAvailableAgents(): Promise<any[]> {
+  async getAvailableAgents(): Promise<unknown[]> {
     // This would need to be implemented based on the actual contract methods
     // For now, returning empty array as placeholder
     return [];
