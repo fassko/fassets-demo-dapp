@@ -7,13 +7,6 @@ import { z } from 'zod';
 import { FXRPContract } from '@/utils/fxrpContract';
 import { AssetManagerContract } from '@/utils/assetManagerContract';
 
-// Extend Window interface for ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 // Zod schemas for form validation
 const flareAddressSchema = z.string()
   .min(42, 'Flare address must be 42 characters')

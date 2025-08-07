@@ -6,12 +6,6 @@ import { Client } from 'xrpl';
 import { AssetManagerContract } from '@/utils/assetManagerContract';
 import { z } from 'zod';
 
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
 interface RedeemState {
   xrplAddress: string;
   amount: string;

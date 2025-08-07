@@ -1,11 +1,12 @@
 import { ethers } from 'ethers';
 import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
+import { IAssetManagerInstance, IAssetManagerContract } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
 // Import Truffle types for better type safety
-import type { IAssetManagerInstance } from '../types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
+// import type { IAssetManagerInstance } from '../types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
 export class AssetManagerContract {
-  private contract: ethers.Contract;
+  private contract: ethers.Contract & IAssetManagerInstance;
   private provider: ethers.BrowserProvider;
   private signer: ethers.Signer;
 
@@ -19,7 +20,7 @@ export class AssetManagerContract {
     
     // Use the actual AssetManager ABI from the package
     const assetManagerInfo = coston2.products.AssetManagerFXRP;
-    this.contract = new ethers.Contract(contractAddress, assetManagerInfo.abi, signer);
+    this.contract = new ethers.Contract(contractAddress, assetManagerInfo.abi, signer) as ethers.Contract & IAssetManagerInstance;
   }
 
   static async create(
@@ -42,7 +43,7 @@ export class AssetManagerContract {
     return new AssetManagerContract(provider, signer, assetManagerAddress);
   }
 
-  async getSettings(): Promise<any> {
+  async getSettings(): Promise<Awaited<ReturnType<IAssetManagerInstance['getSettings']>>> {
     return await this.contract.getSettings();
   }
 
@@ -51,7 +52,7 @@ export class AssetManagerContract {
     _lots: string, 
     _redeemerUnderlyingAddressString: string, 
     _executor: string
-  ): Promise<ethers.ContractTransactionResponse> {
+  ): Promise<any> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     
@@ -65,7 +66,7 @@ export class AssetManagerContract {
     _lots: string,
     _maxMintingFeeBIPS: string,
     _executor: string
-  ): Promise<ethers.ContractTransactionResponse> {
+  ): Promise<any> {
     // Convert amount to wei (assuming 6 decimals like XRP)
     const lotsInWei = ethers.parseUnits(_lots, 6);
     const maxMintingFeeBIPS = ethers.parseUnits(_maxMintingFeeBIPS, 0); // BIPS is typically in basis points

@@ -2,45 +2,29 @@
 
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { AssetManagerContract } from '@/utils/assetManagerContract';
+import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import type { IAssetManagerInstance } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
-// Extend Window interface for ethereum
-declare global {
-  interface Window {
-    ethereum?: any;
-  }
-}
-
-interface AssetManagerSettings {
-  // The settings might be returned as an array, so we'll handle both cases
-  [key: string]: any;
-}
+// Type for the return value of getSettings() method
+type AssetManagerSettings = Awaited<ReturnType<IAssetManagerInstance['getSettings']>>;
 
 export default function AssetManagerSettings() {
   const [settings, setSettings] = useState<AssetManagerSettings | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchAssetManagerSettings = async () => {
+  async function fetchAssetManagerSettings() {
     setLoading(true);
     setError(null);
     
     try {
-      // Check if MetaMask is available
-      if (typeof window !== 'undefined' && window.ethereum) {
-        // Request account access
+      
+      if (typeof window !== 'undefined' && window.ethereum) {  
         await window.ethereum.request({ method: 'eth_requestAccounts' });
-        
-        // Create Web3 provider
         const provider = new ethers.BrowserProvider(window.ethereum);
-        
-        // Get signer
         const signer = await provider.getSigner();
-        
-        // Create TruffleAssetManagerContract instance
         const assetManagerContract = await AssetManagerContract.create(provider, signer);
         
-        // Get settings using the Truffle contract
         const settingsData = await assetManagerContract.getSettings();
         
         setSettings(settingsData);
@@ -53,23 +37,37 @@ export default function AssetManagerSettings() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
     fetchAssetManagerSettings();
   }, []);
 
   // Helper function to create explorer link
-  const createExplorerLink = (address: string) => (
-    <a 
+  function createExplorerLink(address: string) {
+    return <a 
       href={`https://coston2-explorer.flare.network/address/${address}`}
       target="_blank"
-      rel="noopener noreferrer"
-      className="text-blue-600 font-mono hover:text-blue-800 underline ml-1"
+      className="text-blue-600 font-mono hover:underline ml-1"
     >
       {address}
     </a>
-  );
+  }
+
+  function settingsBox(title: string, items: Array<{ title: string; value: React.ReactNode }>) {
+    return (
+      <div className="border border-gray-200 rounded-lg p-4">
+        <h3 className="font-semibold mb-3">{title}</h3>
+        <div className="space-y-2 text-sm">
+          {items.map((item, index) => (
+            <div key={index}>
+              <span className="font-medium">{item.title}:</span> {item.value}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -77,7 +75,7 @@ export default function AssetManagerSettings() {
         <button
           onClick={fetchAssetManagerSettings}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg"
         >
           {loading ? 'Loading...' : 'Refresh Settings'}
         </button>
@@ -102,73 +100,53 @@ export default function AssetManagerSettings() {
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Contract Addresses */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Contract Addresses</h3>
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium">Asset Manager Controller:</span> 
-                  {createExplorerLink(settings.assetManagerController)}
-                </div>
-                <div><span className="font-medium">F-Asset:</span> {createExplorerLink(settings.fAsset)}</div>
-                <div><span className="font-medium">Agent Vault Factory:</span> {createExplorerLink(settings.agentVaultFactory)}</div>
-                <div><span className="font-medium">Collateral Pool Factory:</span> {createExplorerLink(settings.collateralPoolFactory)}</div>
-                <div><span className="font-medium">Price Reader:</span> {createExplorerLink(settings.priceReader)}</div>
-              </div>
-            </div>
+            {settingsBox("Contract Addresses", [
+              {
+                title: "Asset Manager Controller",
+                value: createExplorerLink(settings.assetManagerController)
+              },
+              {
+                title: "FXRP Token",
+                value: createExplorerLink(settings.fAsset)
+              }
+            ])}
 
-            {/* Asset Configuration */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Asset Configuration</h3>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Asset Decimals:</span> {settings.assetDecimals}</div>
-                <div><span className="font-medium">Asset Minting Decimals:</span> {settings.assetMintingDecimals}</div>
-                <div><span className="font-medium">Chain ID:</span> <span className="font-mono">{settings.chainId}</span></div>
-                <div><span className="font-medium">Asset Unit UBA:</span> <span className="font-mono">{settings.assetUnitUBA}</span></div>
-                <div><span className="font-medium">Asset Minting Granularity UBA:</span> <span className="font-mono">{settings.assetMintingGranularityUBA}</span></div>
-              </div>
-            </div>
+            {settingsBox("Asset Configuration", [
+              {
+                title: "Asset Decimals",
+                value: settings.assetDecimals
+              },
+              {
+                title: "Asset Minting Decimals",
+                value: settings.assetMintingDecimals
+              },
+              {
+                title: "Asset Unit UBA",
+                value: settings.assetUnitUBA
+              },
+              {
+                title: "Asset Minting Granularity UBA",
+                value: settings.assetMintingGranularityUBA
+              }
+            ])}
 
-            {/* Minting Settings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Minting Settings</h3>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Minting Cap AMG:</span> <span className="font-mono">{settings.mintingCapAMG}</span></div>
-                <div><span className="font-medium">Lot Size AMG:</span> <span className="font-mono">{settings.lotSizeAMG}</span></div>
-                <div><span className="font-medium">Minting Pool Holdings Required (BIPS):</span> {settings.mintingPoolHoldingsRequiredBIPS}</div>
-                <div><span className="font-medium">Collateral Reservation Fee (BIPS):</span> {settings.collateralReservationFeeBIPS}</div>
-              </div>
-            </div>
+            {settingsBox("Minting Settings", [
+              {
+                title: "Lot Size AMG",
+                value: settings.lotSizeAMG
+              },
+              {
+                title: "Collateral Reservation Fee (BIPS)",
+                value: settings.collateralReservationFeeBIPS
+              }
+            ])}
 
-            {/* Redemption Settings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Redemption Settings</h3>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Redemption Fee (BIPS):</span> {settings.redemptionFeeBIPS}</div>
-                <div><span className="font-medium">Redemption Default Factor Vault Collateral (BIPS):</span> {settings.redemptionDefaultFactorVaultCollateralBIPS}</div>
-                <div><span className="font-medium">Max Redeemed Tickets:</span> {settings.maxRedeemedTickets}</div>
-              </div>
-            </div>
-
-            {/* Timelock Settings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Timelock Settings</h3>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Agent Exit Available Timelock (seconds):</span> <span className="font-mono">{settings.agentExitAvailableTimelockSeconds}</span></div>
-                <div><span className="font-medium">Agent Fee Change Timelock (seconds):</span> <span className="font-mono">{settings.agentFeeChangeTimelockSeconds}</span></div>
-                <div><span className="font-medium">Agent Minting CR Change Timelock (seconds):</span> <span className="font-mono">{settings.agentMintingCRChangeTimelockSeconds}</span></div>
-                <div><span className="font-medium">Pool Exit CR Change Timelock (seconds):</span> <span className="font-mono">{settings.poolExitCRChangeTimelockSeconds}</span></div>
-              </div>
-            </div>
-
-            {/* Liquidation Settings */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold text-gray-800 mb-3">Liquidation Settings</h3>
-              <div className="space-y-2 text-sm">
-                <div><span className="font-medium">Liquidation Step (seconds):</span> <span className="font-mono">{settings.liquidationStepSeconds}</span></div>
-                <div><span className="font-medium">Collateral Pool Token Timelock (seconds):</span> {settings.collateralPoolTokenTimelockSeconds}</div>
-              </div>
-            </div>
+            {settingsBox("Redemption Settings", [
+              {
+                title: "Redemption Fee (BIPS)",
+                value: settings.redemptionFeeBIPS
+              }
+            ])}
           </div>
         </div>
       )}

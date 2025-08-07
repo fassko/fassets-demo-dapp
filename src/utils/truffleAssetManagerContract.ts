@@ -42,7 +42,7 @@ export class AssetManagerContract {
     return new AssetManagerContract(provider, signer, assetManagerAddress);
   }
 
-  async getSettings(): Promise<any> {
+  async getSettings(): Promise<Awaited<ReturnType<IAssetManagerInstance['getSettings']>>> {
     return await this.contract.getSettings();
   }
 
