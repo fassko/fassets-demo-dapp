@@ -4,6 +4,10 @@ import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
 import type { IAssetManagerInstance } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RefreshCw } from "lucide-react";
 
 // Type for the return value of getSettings() method
 type AssetManagerSettings = Awaited<ReturnType<IAssetManagerInstance['getSettings']>>;
@@ -56,100 +60,114 @@ export default function AssetManagerSettings() {
 
   function settingsBox(title: string, items: Array<{ title: string; value: React.ReactNode }>) {
     return (
-      <div className="border border-slate-200 rounded-lg p-4">
-        <h3 className="font-semibold mb-3 text-slate-700">{title}</h3>
-        <div className="space-y-2 text-sm text-slate-600">
-          {items.map((item, index) => (
-            <div key={index}>
-              <span className="font-medium text-slate-700">{item.title}:</span> {item.value}
-            </div>
-          ))}
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-slate-700">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 text-sm text-slate-600">
+            {items.map((item, index) => (
+              <div key={index} className="flex justify-between">
+                <span className="font-medium text-slate-700">{item.title}:</span> 
+                <span>{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="w-full mt-8">
-      <div className="mb-6">
-        <button
-          onClick={fetchAssetManagerSettings}
-          disabled={loading}
-          className="bg-slate-500 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer"
-        >
-          {loading ? 'Loading...' : 'Refresh Settings'}
-        </button>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-          <strong>Error:</strong> {error}
-        </div>
-      )}
-
-      {loading && (
-        <div className="mb-6 p-4 bg-slate-100 border border-slate-400 text-slate-700 rounded-lg">
-          Loading AssetManager settings...
-        </div>
-      )}
-
-      {settings && (
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-slate-800">
-            Asset Manager FXRP Settings (Truffle Types)
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {settingsBox("Contract Addresses", [
-              {
-                title: "Asset Manager Controller",
-                value: createExplorerLink(settings.assetManagerController)
-              },
-              {
-                title: "FXRP Token",
-                value: createExplorerLink(settings.fAsset)
-              }
-            ])}
-
-            {settingsBox("Asset Configuration", [
-              {
-                title: "Asset Decimals",
-                value: settings.assetDecimals
-              },
-              {
-                title: "Asset Minting Decimals",
-                value: settings.assetMintingDecimals
-              },
-              {
-                title: "Asset Unit UBA",
-                value: settings.assetUnitUBA
-              },
-              {
-                title: "Asset Minting Granularity UBA",
-                value: settings.assetMintingGranularityUBA
-              }
-            ])}
-
-            {settingsBox("Minting Settings", [
-              {
-                title: "Lot Size AMG",
-                value: settings.lotSizeAMG
-              },
-              {
-                title: "Collateral Reservation Fee (BIPS)",
-                value: settings.collateralReservationFeeBIPS
-              }
-            ])}
-
-            {settingsBox("Redemption Settings", [
-              {
-                title: "Redemption Fee (BIPS)",
-                value: settings.redemptionFeeBIPS
-              }
-            ])}
+    <div className="w-full mt-8 space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <CardTitle className="text-2xl font-semibold text-slate-800">
+              Asset Manager FXRP Settings
+            </CardTitle>
+            <Button 
+              onClick={fetchAssetManagerSettings}
+              disabled={loading}
+              variant="outline"
+              size="sm"
+              className="border-slate-300 hover:bg-slate-100"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Loading...' : 'Refresh Settings'}
+            </Button>
           </div>
-        </div>
-      )}
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                <strong>Error:</strong> {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {loading && (
+            <Alert className="bg-slate-50 border-slate-200 text-slate-700">
+              <AlertDescription>
+                Loading AssetManager settings...
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {settings && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {settingsBox("Contract Addresses", [
+                {
+                  title: "Asset Manager Controller",
+                  value: createExplorerLink(settings.assetManagerController)
+                },
+                {
+                  title: "FXRP Token",
+                  value: createExplorerLink(settings.fAsset)
+                }
+              ])}
+
+              {settingsBox("Asset Configuration", [
+                {
+                  title: "Asset Decimals",
+                  value: settings.assetDecimals
+                },
+                {
+                  title: "Asset Minting Decimals",
+                  value: settings.assetMintingDecimals
+                },
+                {
+                  title: "Asset Unit UBA",
+                  value: settings.assetUnitUBA
+                },
+                {
+                  title: "Asset Minting Granularity UBA",
+                  value: settings.assetMintingGranularityUBA
+                }
+              ])}
+
+              {settingsBox("Minting Settings", [
+                {
+                  title: "Lot Size AMG",
+                  value: settings.lotSizeAMG
+                },
+                {
+                  title: "Collateral Reservation Fee (BIPS)",
+                  value: settings.collateralReservationFeeBIPS
+                }
+              ])}
+
+              {settingsBox("Redemption Settings", [
+                {
+                  title: "Redemption Fee (BIPS)",
+                  value: settings.redemptionFeeBIPS
+                }
+              ])}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 } 

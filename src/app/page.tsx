@@ -12,7 +12,6 @@ export default function Home() {
   return (
     <div className="font-sans p-8">
       <main className="flex flex-col gap-2">
-        <h1 className="text-4xl font-bold">Flare Network FAssets Demo App</h1>
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === 'asset-manager' && <AssetManagerSettings />}
         {activeTab === 'mint-xrp' && <MintXRP />}

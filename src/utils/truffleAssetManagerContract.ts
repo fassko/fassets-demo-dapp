@@ -65,13 +65,20 @@ export class AssetManagerContract {
     _lots: string,
     _maxMintingFeeBIPS: string,
     _executor: string
-  ): Promise<unknown> {
-    // Convert amount to wei (assuming 6 decimals like XRP)
-    const lotsInWei = ethers.parseUnits(_lots, 6);
-    const maxMintingFeeBIPS = ethers.parseUnits(_maxMintingFeeBIPS, 0); // BIPS is typically in basis points
+  ): Promise<Awaited<ReturnType<IAssetManagerInstance['reserveCollateral']>>> {
+    // Convert lots to BigInt (lots are typically integers)
+    const lotsBigInt = BigInt(_lots);
+    const maxMintingFeeBIPS = BigInt(_maxMintingFeeBIPS);
+
+    console.log('Reserving collateral with:', {
+      agentVault: _agentVault,
+      lots: lotsBigInt,
+      maxMintingFeeBIPS: maxMintingFeeBIPS,
+      executor: _executor
+    });
     
     // Call the AssetManager's reserveCollateral function using the Truffle interface signature
-    return await this.contract.reserveCollateral(_agentVault, lotsInWei, maxMintingFeeBIPS, _executor);
+    return await this.contract.reserveCollateral(_agentVault, lotsBigInt, maxMintingFeeBIPS, _executor);
   }
 
   // Get agent information including fee

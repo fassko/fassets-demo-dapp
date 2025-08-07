@@ -8,6 +8,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
 import { FXRPContract } from '@/utils/fxrpContract';
 import { SendFXRPFormDataSchema, SendFXRPFormData } from '@/types/sendFXRPFormData';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Send, RefreshCw, Loader2 } from "lucide-react";
 
 export default function SendFXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -100,96 +107,105 @@ export default function SendFXRP() {
     }
   }
 
-
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
-      <div className="bg-white rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Send FXRP on Flare Network
-        </h2>
-        
-        <p className="text-gray-600 mb-6">
-          Transfer FXRP tokens to another Flare address.
-        </p>
-
-        {/* Balance Overview */}
-        <div className="mb-8 p-6 bg-gray-50 rounded-lg">
-          <div className="grid grid-cols-1 gap-4">
-            <div className="bg-amber-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-amber-500">{fxrpBalance} FXRP</p>
-              <button 
-                onClick={refreshBalances}
-                className="text-sm text-amber-500 hover:text-amber-700 underline"
-              >
-                Refresh Balance
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Send FXRP Section */}
-        <form onSubmit={handleSubmit(sendFXRP)} className="mb-8 p-6 bg-amber-50 rounded-lg">
-          <h3 className="text-xl font-semibold text-amber-900 mb-4">Send FXRP</h3>
-          <p className="text-amber-700 mb-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-amber-900">
+            <Send className="h-5 w-5 text-amber-600" />
+            Send FXRP on Flare Network
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-amber-700 mb-6">
             Transfer FXRP tokens to another Flare address.
           </p>
-          
-          <div className="space-y-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Recipient Flare Address
-              </label>
-              <input
-                {...register('recipientAddress')}
-                type="text"
-                placeholder="0x..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              {errors.recipientAddress && (
-                <p className="text-red-500 text-sm mt-1">{errors.recipientAddress.message}</p>
-              )}
+
+          {/* Balance Overview */}
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="text-lg bg-amber-100 text-amber-800">
+                    {fxrpBalance} FXRP
+                  </Badge>
+                </div>
+                <Button 
+                  onClick={refreshBalances}
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-300 hover:bg-amber-100"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Refresh Balance
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Send FXRP Section */}
+          <form onSubmit={handleSubmit(sendFXRP)} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="recipientAddress" className="text-amber-900">Recipient Flare Address</Label>
+                <Input
+                  {...register('recipientAddress')}
+                  type="text"
+                  placeholder="0x..."
+                  className="border-amber-300 focus:ring-amber-500 focus:border-amber-500"
+                />
+                {errors.recipientAddress && (
+                  <p className="text-sm text-destructive">{errors.recipientAddress.message}</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="amount" className="text-amber-900">Amount (FXRP)</Label>
+                <Input
+                  {...register('amount')}
+                  type="number"
+                  placeholder="0.0"
+                  step="0.000001"
+                  className="border-amber-300 focus:ring-amber-500 focus:border-amber-500"
+                />
+                {errors.amount && (
+                  <p className="text-sm text-destructive">{errors.amount.message}</p>
+                )}
+              </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Amount (FXRP)
-              </label>
-              <input
-                {...register('amount')}
-                type="number"
-                placeholder="0.0"
-                step="0.000001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-              {errors.amount && (
-                <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-4">
-            <button
+            <Button
               type="submit"
               disabled={isProcessing}
-              className="bg-amber-500 hover:bg-amber-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400"
             >
-              {isProcessing ? 'Processing...' : 'Send FXRP'}
-            </button>
-          </div>
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Send FXRP
+                </>
+              )}
+            </Button>
 
-          {error && (
-            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {success && (
-            <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-              {success}
-            </div>
-          )}
-        </form>
-      </div>
+            {success && (
+              <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

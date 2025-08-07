@@ -2,15 +2,21 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { ethers } from 'ethers';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Coins, Loader2 } from "lucide-react";
 
-// Zod schema for MintXRP form
 const MintXRPFormDataSchema = z.object({
-  agentVault: z.string()
-    .min(1, 'Agent vault address is required'),
+  agentVault: z.string().min(1, 'Agent vault address is required'),
   lots: z.string()
     .min(1, 'Lots amount is required')
     .refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Lots must be a positive number')
@@ -36,12 +42,13 @@ export default function MintXRP() {
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
 
-
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
+    control,
+    watch
   } = useForm<MintXRPFormData>({
     resolver: zodResolver(MintXRPFormDataSchema),
     defaultValues: {
@@ -49,6 +56,8 @@ export default function MintXRP() {
       lots: ''
     }
   });
+
+  const watchedLots = watch('lots');
 
   const initializeConnections = useCallback(async () => {
     try {
@@ -136,7 +145,22 @@ export default function MintXRP() {
       console.log('Minting XRP with parameters:', {
         agentVault: data.agentVault,
         lots: data.lots,
+        lotsType: typeof data.lots,
         agentFeeBIPS,
+        agentFeeBIPSType: typeof agentFeeBIPS,
+        executor
+      });
+
+      // Validate that lots is a positive integer
+      const lotsNumber = parseInt(data.lots);
+      if (isNaN(lotsNumber) || lotsNumber <= 0) {
+        throw new Error('Lots must be a positive integer');
+      }
+
+      console.log('Calling reserveCollateral with:', {
+        agentVault: data.agentVault,
+        lots: lotsNumber,
+        agentFeeBIPS: parseInt(agentFeeBIPS),
         executor
       });
 
@@ -151,7 +175,21 @@ export default function MintXRP() {
       reset();
     } catch (error) {
       console.error('Error minting XRP:', error);
-      setError(error instanceof Error ? error.message : 'Failed to mint XRP');
+      
+      // Provide more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('execution reverted')) {
+          setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.');
+        } else if (error.message.includes('insufficient funds')) {
+          setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+        } else if (error.message.includes('user rejected')) {
+          setError('Transaction was cancelled by the user.');
+        } else {
+          setError(`Failed to mint XRP: ${error.message}`);
+        }
+      } else {
+        setError('Failed to mint XRP: An unexpected error occurred');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -159,94 +197,148 @@ export default function MintXRP() {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
-      <div className="rounded-lg shadow-lg p-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">
-          Mint XRP to FXRP
-        </h2>
-        
-        <p className="text-gray-600 mb-6">
-          Reserve collateral and mint FXRP tokens by providing XRP to the Asset Manager.
-        </p>
-
-        {/* Mint XRP Section */}
-        <form onSubmit={handleSubmit(mintXRP)} className="mb-8 p-6 bg-blue-50 rounded-lg">
-          <h3 className="text-xl font-semibold text-blue-900 mb-4">Mint XRP to FXRP</h3>
-          <p className="text-blue-700 mb-4">
-            Reserve collateral with an agent vault to mint FXRP tokens.
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <Coins className="h-5 w-5 text-blue-600" />
+            Mint XRP to FXRP
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-blue-700 mb-6">
+            Reserve collateral and mint FXRP tokens by providing XRP to the Asset Manager.
           </p>
-          
-          <div className="space-y-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Agent Vault
-              </label>
-              {isLoadingAgents ? (
-                <div className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50">
-                  <p className="text-gray-500">Loading available agents...</p>
-                </div>
+
+          <form onSubmit={handleSubmit(mintXRP)} className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="agentVault" className="text-blue-900">Agent Vault</Label>
+                {isLoadingAgents ? (
+                  <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 border-blue-200">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                    <span className="text-sm text-blue-700">Loading available agents...</span>
+                  </div>
+                ) : (
+                  <Controller
+                    name="agentVault"
+                    control={control}
+                    render={({ field }) => (
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[60px]">
+                          <SelectValue placeholder="Select an agent vault">
+                            {field.value && (
+                              <div className="flex flex-col items-start space-y-1">
+                                <span className="font-mono text-sm text-blue-900 truncate">
+                                  {field.value}
+                                </span>
+                                {availableAgents.find(agent => agent.agentVault === field.value) && (
+                                  <div className="flex gap-2">
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                      Fee: {Number(availableAgents.find(agent => agent.agentVault === field.value)?.feeBIPS) / 100}%
+                                    </Badge>
+                                    <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">
+                                      Free: {availableAgents.find(agent => agent.agentVault === field.value)?.freeCollateralLots.toString()} lots
+                                    </Badge>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableAgents.map((agent, index) => (
+                            <SelectItem key={index} value={agent.agentVault} className="py-3">
+                              <div className="flex flex-col space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-mono text-sm text-blue-900 truncate">
+                                    {agent.agentVault}
+                                  </span>
+                                </div>
+                                <div className="flex gap-2">
+                                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                    Fee: {Number(agent.feeBIPS) / 100}%
+                                  </Badge>
+                                  <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">
+                                    Free: {agent.freeCollateralLots.toString()} lots
+                                  </Badge>
+                                </div>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                )}
+                {errors.agentVault && (
+                  <p className="text-sm text-destructive">{errors.agentVault.message}</p>
+                )}
+                {availableAgents.length === 0 && !isLoadingAgents && (
+                  <p className="text-sm text-blue-600">No available agents found</p>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lots" className="text-blue-900">Lots Amount</Label>
+                <Input
+                  {...register('lots')}
+                  type="number"
+                  placeholder="1"
+                  step="1"
+                  min="1"
+                  className="border-blue-300 focus:ring-blue-500 focus:border-blue-500"
+                />
+                {errors.lots && (
+                  <p className="text-sm text-destructive">{errors.lots.message}</p>
+                )}
+                <p className="text-xs text-blue-600">
+                  Amount in lots (1 lot = {lotSizeAMG} XRP)
+                </p>
+                {watchedLots && watchedLots !== '' && !isNaN(parseFloat(watchedLots)) && (
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800">
+                      <span className="font-semibold">FXRP to be minted:</span> {parseFloat(watchedLots) * parseFloat(lotSizeAMG)} FXRP
+                    </p>
+                    <p className="text-xs text-blue-600 mt-1">
+                      ({watchedLots} lots × {lotSizeAMG} XRP per lot)
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              disabled={isProcessing}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
               ) : (
-                <select
-                  {...register('agentVault')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select an agent vault</option>
-                  {availableAgents.map((agent, index) => (
-                    <option key={index} value={agent.agentVault}>
-                      {agent.agentVault} (Fee: {Number(agent.feeBIPS) / 100}%, Free Collateral: {agent.freeCollateralLots.toString()} lots)
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <Coins className="mr-2 h-4 w-4" />
+                  Mint XRP to FXRP
+                </>
               )}
-              {errors.agentVault && (
-                <p className="text-red-500 text-sm mt-1">{errors.agentVault.message}</p>
-              )}
-              {availableAgents.length === 0 && !isLoadingAgents && (
-                <p className="text-blue-600 text-sm mt-1">No available agents found</p>
-              )}
-            </div>
+            </Button>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Lots Amount
-              </label>
-              <input
-                {...register('lots')}
-                type="number"
-                placeholder="1"
-                step="1"
-                min="1"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              {errors.lots && (
-                <p className="text-red-500 text-sm mt-1">{errors.lots.message}</p>
-              )}
-              <p className="text-xs text-gray-500 mt-1">
-                Amount in lots (1 lot = {lotSizeAMG} XRP)
-              </p>
-            </div>
-          </div>
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          <button
-            type="submit"
-            disabled={isProcessing}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-          >
-            {isProcessing ? 'Processing...' : 'Mint XRP to FXRP'}
-          </button>
-
-          {error && (
-            <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {error}
-            </div>
-          )}
-
-          {success && (
-            <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-              {success}
-            </div>
-          )}
-        </form>
-      </div>
+            {success && (
+              <Alert className="bg-blue-50 border-blue-200 text-blue-800">
+                <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }
