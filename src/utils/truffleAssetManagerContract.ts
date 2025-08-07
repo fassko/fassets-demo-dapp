@@ -74,11 +74,130 @@ export class AssetManagerContract {
     return await this.contract.reserveCollateral(_agentVault, lotsInWei, maxMintingFeeBIPS, _executor);
   }
 
+  // Get agent information including fee
+  async getAgentInfo(_agentVault: string): Promise<{
+    status: bigint;
+    ownerManagementAddress: string;
+    ownerWorkAddress: string;
+    collateralPool: string;
+    collateralPoolToken: string;
+    underlyingAddressString: string;
+    publiclyAvailable: boolean;
+    feeBIPS: bigint;
+    poolFeeShareBIPS: bigint;
+    vaultCollateralToken: string;
+    mintingVaultCollateralRatioBIPS: bigint;
+    mintingPoolCollateralRatioBIPS: bigint;
+    freeCollateralLots: bigint;
+    totalVaultCollateralWei: bigint;
+    freeVaultCollateralWei: bigint;
+    vaultCollateralRatioBIPS: bigint;
+    poolWNatToken: string;
+    totalPoolCollateralNATWei: bigint;
+    freePoolCollateralNATWei: bigint;
+    poolCollateralRatioBIPS: bigint;
+    totalAgentPoolTokensWei: bigint;
+    announcedVaultCollateralWithdrawalWei: bigint;
+    announcedPoolTokensWithdrawalWei: bigint;
+    freeAgentPoolTokensWei: bigint;
+    mintedUBA: bigint;
+    reservedUBA: bigint;
+    redeemingUBA: bigint;
+    poolRedeemingUBA: bigint;
+    dustUBA: bigint;
+    liquidationStartTimestamp: bigint;
+    maxLiquidationAmountUBA: bigint;
+    liquidationPaymentFactorVaultBIPS: bigint;
+    liquidationPaymentFactorPoolBIPS: bigint;
+    underlyingBalanceUBA: bigint;
+    requiredUnderlyingBalanceUBA: bigint;
+    freeUnderlyingBalanceUBA: bigint;
+    announcedUnderlyingWithdrawalId: bigint;
+    buyFAssetByAgentFactorBIPS: bigint;
+    poolExitCollateralRatioBIPS: bigint;
+    redemptionPoolFeeShareBIPS: bigint;
+  }> {
+    try {
+      const result = await this.contract.getAgentInfo(_agentVault);
+      return {
+        status: result.status,
+        ownerManagementAddress: result.ownerManagementAddress,
+        ownerWorkAddress: result.ownerWorkAddress,
+        collateralPool: result.collateralPool,
+        collateralPoolToken: result.collateralPoolToken,
+        underlyingAddressString: result.underlyingAddressString,
+        publiclyAvailable: result.publiclyAvailable,
+        feeBIPS: result.feeBIPS,
+        poolFeeShareBIPS: result.poolFeeShareBIPS,
+        vaultCollateralToken: result.vaultCollateralToken,
+        mintingVaultCollateralRatioBIPS: result.mintingVaultCollateralRatioBIPS,
+        mintingPoolCollateralRatioBIPS: result.mintingPoolCollateralRatioBIPS,
+        freeCollateralLots: result.freeCollateralLots,
+        totalVaultCollateralWei: result.totalVaultCollateralWei,
+        freeVaultCollateralWei: result.freeVaultCollateralWei,
+        vaultCollateralRatioBIPS: result.vaultCollateralRatioBIPS,
+        poolWNatToken: result.poolWNatToken,
+        totalPoolCollateralNATWei: result.totalPoolCollateralNATWei,
+        freePoolCollateralNATWei: result.freePoolCollateralNATWei,
+        poolCollateralRatioBIPS: result.poolCollateralRatioBIPS,
+        totalAgentPoolTokensWei: result.totalAgentPoolTokensWei,
+        announcedVaultCollateralWithdrawalWei: result.announcedVaultCollateralWithdrawalWei,
+        announcedPoolTokensWithdrawalWei: result.announcedPoolTokensWithdrawalWei,
+        freeAgentPoolTokensWei: result.freeAgentPoolTokensWei,
+        mintedUBA: result.mintedUBA,
+        reservedUBA: result.reservedUBA,
+        redeemingUBA: result.redeemingUBA,
+        poolRedeemingUBA: result.poolRedeemingUBA,
+        dustUBA: result.dustUBA,
+        liquidationStartTimestamp: result.liquidationStartTimestamp,
+        maxLiquidationAmountUBA: result.maxLiquidationAmountUBA,
+        liquidationPaymentFactorVaultBIPS: result.liquidationPaymentFactorVaultBIPS,
+        liquidationPaymentFactorPoolBIPS: result.liquidationPaymentFactorPoolBIPS,
+        underlyingBalanceUBA: result.underlyingBalanceUBA,
+        requiredUnderlyingBalanceUBA: result.requiredUnderlyingBalanceUBA,
+        freeUnderlyingBalanceUBA: result.freeUnderlyingBalanceUBA,
+        announcedUnderlyingWithdrawalId: result.announcedUnderlyingWithdrawalId,
+        buyFAssetByAgentFactorBIPS: result.buyFAssetByAgentFactorBIPS,
+        poolExitCollateralRatioBIPS: result.poolExitCollateralRatioBIPS,
+        redemptionPoolFeeShareBIPS: result.redemptionPoolFeeShareBIPS
+      };
+    } catch (error) {
+      console.error('Error fetching agent info:', error);
+      throw error;
+    }
+  }
+
   // Helper method to get available agents (for minting)
-  async getAvailableAgents(): Promise<any[]> {
-    // This would need to be implemented based on the actual contract methods
-    // For now, returning empty array as placeholder
-    return [];
+  async getAvailableAgentsDetailedList(start: number = 0, end: number = 100): Promise<{
+    agents: Array<{
+      agentVault: string;
+      ownerManagementAddress: string;
+      feeBIPS: bigint;
+      mintingVaultCollateralRatioBIPS: bigint;
+      mintingPoolCollateralRatioBIPS: bigint;
+      freeCollateralLots: bigint;
+      status: bigint;
+    }>;
+    totalCount: bigint;
+  }> {
+    try {
+      const result = await this.contract.getAvailableAgentsDetailedList(start, end);
+      return {
+        agents: result[0].map((agent: any) => ({
+          agentVault: agent.agentVault,
+          ownerManagementAddress: agent.ownerManagementAddress,
+          feeBIPS: agent.feeBIPS,
+          mintingVaultCollateralRatioBIPS: agent.mintingVaultCollateralRatioBIPS,
+          mintingPoolCollateralRatioBIPS: agent.mintingPoolCollateralRatioBIPS,
+          freeCollateralLots: agent.freeCollateralLots,
+          status: agent.status
+        })),
+        totalCount: result[1]
+      };
+    } catch (error) {
+      console.error('Error fetching available agents:', error);
+      return { agents: [], totalCount: BigInt(0) };
+    }
   }
 
   getContractAddress(): string {

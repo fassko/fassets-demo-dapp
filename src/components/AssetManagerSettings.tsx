@@ -48,7 +48,7 @@ export default function AssetManagerSettings() {
     return <a 
       href={`https://coston2-explorer.flare.network/address/${address}`}
       target="_blank"
-      className="text-blue-600 font-mono hover:underline ml-1"
+      className="text-slate-500 font-mono hover:underline ml-1"
     >
       {address}
     </a>
@@ -56,12 +56,12 @@ export default function AssetManagerSettings() {
 
   function settingsBox(title: string, items: Array<{ title: string; value: React.ReactNode }>) {
     return (
-      <div className="border border-gray-200 rounded-lg p-4">
-        <h3 className="font-semibold mb-3">{title}</h3>
-        <div className="space-y-2 text-sm">
+      <div className="border border-slate-200 rounded-lg p-4">
+        <h3 className="font-semibold mb-3 text-slate-700">{title}</h3>
+        <div className="space-y-2 text-sm text-slate-600">
           {items.map((item, index) => (
             <div key={index}>
-              <span className="font-medium">{item.title}:</span> {item.value}
+              <span className="font-medium text-slate-700">{item.title}:</span> {item.value}
             </div>
           ))}
         </div>
@@ -70,12 +70,12 @@ export default function AssetManagerSettings() {
   }
 
   return (
-    <div className="w-full">
+    <div className="w-full mt-8">
       <div className="mb-6">
         <button
           onClick={fetchAssetManagerSettings}
           disabled={loading}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer"
+          className="bg-slate-500 hover:bg-slate-600 text-white font-semibold py-2 px-4 rounded-lg cursor-pointer"
         >
           {loading ? 'Loading...' : 'Refresh Settings'}
         </button>
@@ -88,14 +88,14 @@ export default function AssetManagerSettings() {
       )}
 
       {loading && (
-        <div className="mb-6 p-4 bg-blue-100 border border-blue-400 text-blue-700 rounded-lg">
+        <div className="mb-6 p-4 bg-slate-100 border border-slate-400 text-slate-700 rounded-lg">
           Loading AssetManager settings...
         </div>
       )}
 
       {settings && (
         <div className="space-y-6">
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl font-semibold text-slate-800">
             Asset Manager FXRP Settings (Truffle Types)
           </h2>
 

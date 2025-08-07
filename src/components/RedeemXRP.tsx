@@ -3,36 +3,37 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { Client } from 'xrpl';
-import { AssetManagerContract } from '@/utils/assetManagerContract';
-import { z } from 'zod';
-
-interface RedeemState {
-  xrplAddress: string;
-  amount: string;
-  isProcessing: boolean;
-  error: string | null;
-  success: string | null;
-}
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
 
 export default function RedeemXRP() {
-  const [redeemState, setRedeemState] = useState<RedeemState>({
-    xrplAddress: '',
-    amount: '',
-    isProcessing: false,
-    error: null,
-    success: null
-  });
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
-  const [flareProvider, setFlareProvider] = useState<ethers.BrowserProvider | null>(null);
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
 
-  // Validation schemas
-  const xrplAddressSchema = z.string().regex(/^r[a-zA-Z0-9]{24,34}$/, 'Invalid XRPL address format');
-  const amountSchema = z.string().refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Amount must be a positive number');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch
+  } = useForm<RedeemXRPFormData>({
+    resolver: zodResolver(RedeemXRPFormDataSchema),
+    defaultValues: {
+      xrplAddress: '',
+      amount: ''
+    }
+  });
+
+  const watchedAmount = watch('amount');
 
   useEffect(() => {
     initializeConnections();
@@ -55,12 +56,12 @@ export default function RedeemXRP() {
   // Calculate lots when amount changes
   useEffect(() => {
     const calculateLots = async () => {
-      if (assetManagerContract && redeemState.amount) {
+      if (assetManagerContract && watchedAmount) {
         try {
           const settings = await assetManagerContract.getSettings();
           const lotSizeAMG = settings.lotSizeAMG;
 
-          const xrpInDrops = parseFloat(redeemState.amount) * 1000000; // Convert XRP to drops
+          const xrpInDrops = parseFloat(watchedAmount) * 1000000; // Convert XRP to drops
           const lotSize = typeof lotSizeAMG === 'bigint'
             ? Number(lotSizeAMG)
             : parseFloat(lotSizeAMG.toString());
@@ -75,7 +76,7 @@ export default function RedeemXRP() {
     };
 
     calculateLots();
-  }, [assetManagerContract, redeemState.amount]);
+  }, [assetManagerContract, watchedAmount]);
 
   const initializeConnections = async () => {
     try {
@@ -83,7 +84,6 @@ export default function RedeemXRP() {
       if (typeof window !== 'undefined' && window.ethereum) {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         const provider = new ethers.BrowserProvider(window.ethereum);
-        setFlareProvider(provider);
 
         const signer = await provider.getSigner();
         const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
@@ -124,40 +124,43 @@ export default function RedeemXRP() {
     }
   };
 
-  const handleRedeemInputChange = (field: keyof RedeemState) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const value = e.target.value;
-    setRedeemState(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleXrplAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const address = e.target.value;
-    setXrplAddress(address);
-    
-    // Auto-fetch balance when a valid XRPL address is entered
-    if (address && address.startsWith('r') && address.length >= 25 && xrplClient) {
-      refreshBalances();
-    }
-  };
-
-  const validateRedeemInputs = (): boolean => {
+  const isValidXrplAddress = (address: string): boolean => {
     try {
-      xrplAddressSchema.parse(redeemState.xrplAddress);
-      amountSchema.parse(redeemState.amount);
+      RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({ xrplAddress: address });
+      console.log('Valid XRPL address:', address);
       return true;
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        const errorMessage = error.errors.map(err => err.message).join(', ');
-        setRedeemState(prev => ({ ...prev, error: errorMessage }));
-      }
+    } catch {
+      console.log('Invalid XRPL address:', address);
       return false;
     }
   };
 
-  const redeemToXRP = async () => {
-    if (!validateRedeemInputs()) return;
-    setRedeemState(prev => ({ ...prev, isProcessing: true, error: null, success: null }));
+  const handleXrplAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const address = e.target.value;
+    
+    // Validate XRPL address format and auto-fetch balance when valid
+    const isValid = isValidXrplAddress(address);
+    
+    if (isValid) {
+      console.log('Valid XRPL address:', address);
+      setXrplAddress(address);
+      
+      // Refresh balances only if address is valid and client exists
+      if (xrplClient) {
+        refreshBalances();
+      }
+    } else {
+      // Invalid XRPL address: still update state for UI feedback, but skip refresh
+      console.warn("Invalid XRPL address:", address);
+      setXrplAddress(address);
+    }
+  };
+
+  const redeemToXRP = async (data: RedeemXRPFormData) => {
+    setIsProcessing(true);
+    setError(null);
+    setSuccess(null);
+
     try {
       if (!assetManagerContract) { throw new Error('AssetManager contract not initialized'); }
 
@@ -170,7 +173,7 @@ export default function RedeemXRP() {
       console.log('lotSizeAMG:', lotSizeAMG);
       console.log('lotSizeAMG type:', typeof lotSizeAMG);
 
-      const xrpInDrops = parseFloat(redeemState.amount) * 1000000; // Convert XRP to drops
+      const xrpInDrops = parseFloat(data.amount) * 1000000; // Convert XRP to drops
       console.log('xrpInDrops:', xrpInDrops);
 
       const lotSize = typeof lotSizeAMG === 'bigint'
@@ -188,22 +191,17 @@ export default function RedeemXRP() {
 
       const tx = await assetManagerContract.redeem(
         lots.toString(),
-        redeemState.xrplAddress,
+        data.xrplAddress,
         executor
       );
       await tx.wait();
-      setRedeemState(prev => ({
-        ...prev,
-        isProcessing: false,
-        success: `Successfully redeemed ${redeemState.amount} XRP (${lots} lots) to ${redeemState.xrplAddress}`
-      }));
+      setSuccess(`Successfully redeemed ${data.amount} XRP (${lots} lots) to ${data.xrplAddress}`);
+      reset();
     } catch (error) {
       console.error('Error redeeming to XRP:', error);
-      setRedeemState(prev => ({ 
-        ...prev, 
-        isProcessing: false, 
-        error: error instanceof Error ? error.message : 'Failed to redeem to XRP' 
-      }));
+      setError(error instanceof Error ? error.message : 'Failed to redeem to XRP');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -232,10 +230,10 @@ export default function RedeemXRP() {
                 className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-500"
               />
             </div>
-            <p className="text-2xl font-bold text-green-600">{xrplBalance} XRP</p>
+            <p className="text-2xl font-bold text-green-500">{xrplBalance} XRP</p>
             <button 
               onClick={refreshBalances}
-              className="text-sm text-green-600 hover:text-green-800 underline"
+              className="text-sm text-green-500 hover:text-green-700 underline"
             >
               Refresh Balance
             </button>
@@ -243,7 +241,7 @@ export default function RedeemXRP() {
         </div>
 
         {/* Redeem to XRP Section */}
-        <div className="mb-8 p-6 bg-green-50 rounded-lg">
+        <form onSubmit={handleSubmit(redeemToXRP)} className="mb-8 p-6 bg-green-50 rounded-lg">
           <h3 className="text-xl font-semibold text-green-900 mb-4">Redeem FXRP to XRP</h3>
           <p className="text-green-700 mb-4">
             Convert your FXRP tokens back to native XRP on the XRP Ledger.
@@ -255,12 +253,14 @@ export default function RedeemXRP() {
                 XRPL Address (Destination)
               </label>
               <input
+                {...register('xrplAddress')}
                 type="text"
-                value={redeemState.xrplAddress}
-                onChange={handleRedeemInputChange('xrplAddress')}
                 placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+              {errors.xrplAddress && (
+                <p className="text-red-500 text-sm mt-1">{errors.xrplAddress.message}</p>
+              )}
             </div>
 
             <div>
@@ -268,17 +268,19 @@ export default function RedeemXRP() {
                 Amount (XRP)
               </label>
               <input
+                {...register('amount')}
                 type="number"
-                value={redeemState.amount}
-                onChange={handleRedeemInputChange('amount')}
                 placeholder="0.0"
                 step="0.000001"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
               />
+              {errors.amount && (
+                <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
+              )}
               <p className="text-xs text-gray-500 mt-1">
                 Amount will be converted to lots based on Asset Manager settings
               </p>
-              {redeemState.amount && (
+              {watchedAmount && (
                 <div className={`mt-2 p-2 rounded border ${
                   calculatedLots === '0' 
                     ? 'bg-red-100 border-red-200' 
@@ -301,25 +303,25 @@ export default function RedeemXRP() {
           </div>
 
           <button
-            onClick={redeemToXRP}
-            disabled={redeemState.isProcessing}
-            className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            type="submit"
+            disabled={isProcessing}
+            className="bg-green-500 hover:bg-green-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
-            {redeemState.isProcessing ? 'Processing...' : 'Redeem to XRP'}
+            {isProcessing ? 'Processing...' : 'Redeem to XRP'}
           </button>
 
-          {redeemState.error && (
+          {error && (
             <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
-              {redeemState.error}
+              {error}
             </div>
           )}
 
-          {redeemState.success && (
+          {success && (
             <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded">
-              {redeemState.success}
+              {success}
             </div>
           )}
-        </div>
+        </form>
       </div>
     </div>
   );

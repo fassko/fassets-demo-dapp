@@ -8,12 +8,13 @@ interface NavigationProps {
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
   const tabs = [
     { id: 'asset-manager', label: 'Asset Manager Settings' },
+    { id: 'mint-xrp', label: 'Mint XRP' },
     { id: 'send-fxrp', label: 'Send FXRP' },
     { id: 'redeem-fxrp', label: 'Redeem to XRP' }
   ];
 
   return (
-    <nav className="mb-6">
+    <nav>
       <div className="px-4">
         <div className="flex space-x-8">
           {tabs.map((tab) => (

@@ -115,11 +115,11 @@ export default function SendFXRP() {
         {/* Balance Overview */}
         <div className="mb-8 p-6 bg-gray-50 rounded-lg">
           <div className="grid grid-cols-1 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
-              <p className="text-2xl font-bold text-blue-600">{fxrpBalance} FXRP</p>
+            <div className="bg-amber-50 rounded-lg p-4">
+              <p className="text-2xl font-bold text-amber-500">{fxrpBalance} FXRP</p>
               <button 
                 onClick={refreshBalances}
-                className="text-sm text-blue-600 hover:text-blue-800 underline"
+                className="text-sm text-amber-500 hover:text-amber-700 underline"
               >
                 Refresh Balance
               </button>
@@ -128,9 +128,9 @@ export default function SendFXRP() {
         </div>
 
         {/* Send FXRP Section */}
-        <form onSubmit={handleSubmit(sendFXRP)} className="mb-8 p-6 bg-blue-50 rounded-lg">
-          <h3 className="text-xl font-semibold text-blue-900 mb-4">Send FXRP</h3>
-          <p className="text-blue-700 mb-4">
+        <form onSubmit={handleSubmit(sendFXRP)} className="mb-8 p-6 bg-amber-50 rounded-lg">
+          <h3 className="text-xl font-semibold text-amber-900 mb-4">Send FXRP</h3>
+          <p className="text-amber-700 mb-4">
             Transfer FXRP tokens to another Flare address.
           </p>
           
@@ -143,7 +143,7 @@ export default function SendFXRP() {
                 {...register('recipientAddress')}
                 type="text"
                 placeholder="0x..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               {errors.recipientAddress && (
                 <p className="text-red-500 text-sm mt-1">{errors.recipientAddress.message}</p>
@@ -159,7 +159,7 @@ export default function SendFXRP() {
                 type="number"
                 placeholder="0.0"
                 step="0.000001"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
               {errors.amount && (
                 <p className="text-red-500 text-sm mt-1">{errors.amount.message}</p>
@@ -171,7 +171,7 @@ export default function SendFXRP() {
             <button
               type="submit"
               disabled={isProcessing}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+              className="bg-amber-500 hover:bg-amber-600 disabled:bg-gray-400 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
             >
               {isProcessing ? 'Processing...' : 'Send FXRP'}
             </button>
