@@ -98,7 +98,15 @@ export class AssetManagerContract {
       // Get all available agents by using a large range
       const result = await this.contract.getAvailableAgentsDetailedList(0, 1000);
       // Convert BN to bigint and restructure the result
-      const agents = result[0].map((agent: any) => ({
+      const agents = result[0].map((agent: {
+        agentVault: string;
+        ownerManagementAddress: string;
+        feeBIPS: { toString(): string };
+        mintingVaultCollateralRatioBIPS: { toString(): string };
+        mintingPoolCollateralRatioBIPS: { toString(): string };
+        freeCollateralLots: { toString(): string };
+        status: { toString(): string };
+      }) => ({
         agentVault: agent.agentVault,
         ownerManagementAddress: agent.ownerManagementAddress,
         feeBIPS: BigInt(agent.feeBIPS.toString()),
