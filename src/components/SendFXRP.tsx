@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Send, RefreshCw, Loader2 } from "lucide-react";
+import { Send, RefreshCw, Loader2, Coins } from "lucide-react";
 
 export default function SendFXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -123,6 +123,12 @@ export default function SendFXRP() {
 
           {/* Balance Overview */}
           <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-amber-900">
+                <Coins className="h-5 w-5 text-amber-600" />
+                FXRP Balance
+              </CardTitle>
+            </CardHeader>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -134,7 +140,7 @@ export default function SendFXRP() {
                   onClick={refreshBalances}
                   variant="outline"
                   size="sm"
-                  className="border-amber-300 hover:bg-amber-100"
+                  className="border-amber-300 hover:bg-amber-100 cursor-pointer"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Balance
@@ -177,7 +183,7 @@ export default function SendFXRP() {
             <Button
               type="submit"
               disabled={isProcessing}
-              className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400"
+              className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>

@@ -91,7 +91,7 @@ export default function AssetManagerSettings() {
               disabled={loading}
               variant="outline"
               size="sm"
-              className="border-slate-300 hover:bg-slate-100"
+              className="border-slate-300 hover:bg-slate-100 cursor-pointer"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
               {loading ? 'Loading...' : 'Refresh Settings'}

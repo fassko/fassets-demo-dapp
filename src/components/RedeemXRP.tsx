@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { FXRPContract } from '@/utils/fxrpContract';
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, RefreshCw, Loader2, Wallet } from "lucide-react";
+import { ArrowRight, RefreshCw, Loader2, Wallet, Coins } from "lucide-react";
 
 export default function RedeemXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -22,9 +23,12 @@ export default function RedeemXRP() {
   const [success, setSuccess] = useState<string | null>(null);
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
+  const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
+  const [userAddress, setUserAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
+  const [fxrpContract, setFxrpContract] = useState<FXRPContract | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
 
   const {
@@ -76,8 +80,14 @@ export default function RedeemXRP() {
         const provider = new ethers.BrowserProvider(window.ethereum);
 
         const signer = await provider.getSigner();
+        const userAddress = await signer.getAddress();
+        setUserAddress(userAddress);
+        
         const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
         setAssetManagerContract(assetManagerContractInstance);
+        
+        const fxrpContractInstance = await FXRPContract.create(provider, signer);
+        setFxrpContract(fxrpContractInstance);
       }
 
       // Initialize XRPL connection
@@ -91,6 +101,7 @@ export default function RedeemXRP() {
 
   const refreshBalances = useCallback(async () => {
     try {
+      // Refresh XRPL balance
       if (xrplClient && xrplAddress) {
         try {
           // Get account info from XRPL
@@ -109,10 +120,21 @@ export default function RedeemXRP() {
           setXrplBalance('0');
         }
       }
+      
+      // Refresh FXRP balance
+      if (fxrpContract && userAddress) {
+        try {
+          const balance = await fxrpContract.getBalance(userAddress);
+          setFxrpBalance(balance);
+        } catch (error) {
+          console.error('Error fetching FXRP balance:', error);
+          setFxrpBalance('0');
+        }
+      }
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  }, [xrplClient, xrplAddress]);
+  }, [xrplClient, xrplAddress, fxrpContract, userAddress]);
 
   // Refresh XRPL balance when client and address are available
   useEffect(() => {
@@ -123,10 +145,10 @@ export default function RedeemXRP() {
 
   // Refresh balances when contracts are initialized
   useEffect(() => {
-    if (assetManagerContract) {
-      // Could add additional balance refresh logic here if needed
+    if (assetManagerContract && fxrpContract && userAddress) {
+      refreshBalances();
     }
-  }, [assetManagerContract]);
+  }, [assetManagerContract, fxrpContract, userAddress, refreshBalances]);
 
   useEffect(() => {
     initializeConnections();
@@ -227,28 +249,68 @@ export default function RedeemXRP() {
             Convert your FXRP tokens back to native XRP on the XRP Ledger.
           </p>
 
-          {/* XRPL Balance Overview */}
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+          {/* Balance Overview Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            {/* XRPL Balance Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-green-900">
                   <Wallet className="h-5 w-5 text-green-600" />
-                  <Badge variant="secondary" className="text-lg bg-green-100 text-green-800">
-                    {xrplBalance} XRP
-                  </Badge>
+                  XRPL Balance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-green-600" />
+                    <Badge variant="secondary" className="text-lg bg-green-100 text-green-800">
+                      {xrplBalance} XRP
+                    </Badge>
+                  </div>
+                  <Button 
+                    onClick={refreshBalances}
+                    variant="outline"
+                    size="sm"
+                    className="border-green-300 hover:bg-green-100 cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
                 </div>
-                <Button 
-                  onClick={refreshBalances}
-                  variant="outline"
-                  size="sm"
-                  className="border-green-300 hover:bg-green-100"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Balance
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <p className="text-xs text-green-600 mt-2">XRPL Balance</p>
+              </CardContent>
+            </Card>
+
+            {/* FXRP Balance Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-blue-900">
+                  <Coins className="h-5 w-5 text-blue-600" />
+                  FXRP Balance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-5 w-5 text-blue-600" />
+                    <Badge variant="secondary" className="text-lg bg-blue-100 text-blue-800">
+                      {fxrpBalance} FXRP
+                    </Badge>
+                  </div>
+                  <Button 
+                    onClick={refreshBalances}
+                    variant="outline"
+                    size="sm"
+                    className="border-blue-300 hover:bg-blue-100 cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+                <p className="text-xs text-blue-600 mt-2">FXRP Token Balance</p>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Redeem to XRP Section */}
           <form onSubmit={handleSubmit(redeemToXRP)} className="space-y-6">
@@ -307,7 +369,7 @@ export default function RedeemXRP() {
             <Button
               type="submit"
               disabled={isProcessing}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>

@@ -224,7 +224,7 @@ export default function MintXRP() {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[60px]">
+                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[60px] cursor-pointer">
                           <SelectValue placeholder="Select an agent vault">
                             {field.value && (
                               <div className="flex flex-col items-start space-y-1">
@@ -310,7 +310,7 @@ export default function MintXRP() {
             <Button
               type="submit"
               disabled={isProcessing}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>

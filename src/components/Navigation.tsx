@@ -23,7 +23,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
             <TabsTrigger 
               key={tab.id} 
               value={tab.id} 
-              className={`text-sm transition-colors ${
+              className={`text-sm transition-colors cursor-pointer ${
                 tab.color === 'slate' 
                   ? 'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300'
                   : tab.color === 'blue'
