@@ -217,12 +217,9 @@ export default function RedeemXRP() {
 
       if (lots <= 0) { throw new Error('Amount too small to redeem. Minimum amount required.'); }
 
-      const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
-
       await assetManagerContract.redeem(
         lots.toString(),
         data.xrplAddress,
-        executor
       );
       
       setSuccess(`Successfully redeemed ${data.amount} XRP (${lots} lots) to ${data.xrplAddress}`);

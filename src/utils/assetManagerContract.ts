@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
 import { IAssetManagerInstance } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
 // Import Truffle types for better type safety

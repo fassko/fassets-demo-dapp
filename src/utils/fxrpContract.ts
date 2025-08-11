@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
 import { ERC20_ABI } from './erc20Types';
 
 export class FXRPContract {

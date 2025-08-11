@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { coston2 } from 'flare-periphery-contract-artifacts-test-fassets';
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
 
 // Import Truffle types for better type safety
 import type { IAssetManagerInstance } from '../types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
@@ -49,14 +49,24 @@ export class AssetManagerContract {
   // Updated to match Truffle interface: redeem(_lots, _redeemerUnderlyingAddressString, _executor)
   async redeem(
     _lots: string, 
-    _redeemerUnderlyingAddressString: string, 
-    _executor: string
+    _redeemerUnderlyingAddressString: string,
   ): Promise<unknown> {
-    // Convert amount to wei (assuming 6 decimals like XRP)
-    const lotsInWei = ethers.parseUnits(_lots, 6);
+
+    const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
     
     // Call the AssetManager's redeem function using the Truffle interface signature
-    return await this.contract.redeem(lotsInWei, _redeemerUnderlyingAddressString, _executor);
+    return await this.contract.redeem(_lots, _redeemerUnderlyingAddressString, executor);
+  }
+
+  // Calculate collateral reservation fee for given lots
+  async collateralReservationFee(_lots: string): Promise<bigint> {
+    try {
+      const fee = await this.contract.collateralReservationFee(_lots);
+      return fee;
+    } catch (error) {
+      console.error('Error calculating collateral reservation fee:', error);
+      throw error;
+    }
   }
 
   // Updated to match Truffle interface: reserveCollateral(_agentVault, _lots, _maxMintingFeeBIPS, _executor)
@@ -64,21 +74,25 @@ export class AssetManagerContract {
     _agentVault: string,
     _lots: string,
     _maxMintingFeeBIPS: string,
-    _executor: string
   ): Promise<Awaited<ReturnType<IAssetManagerInstance['reserveCollateral']>>> {
-    // Convert lots to BigInt (lots are typically integers)
-    const lotsBigInt = BigInt(_lots);
-    const maxMintingFeeBIPS = BigInt(_maxMintingFeeBIPS);
 
+    const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
+
+    // Calculate the collateral reservation fee
+    const reservationFee = await this.collateralReservationFee(_lots);
+    
     console.log('Reserving collateral with:', {
       agentVault: _agentVault,
-      lots: lotsBigInt,
-      maxMintingFeeBIPS: maxMintingFeeBIPS,
-      executor: _executor
+      lots: _lots,
+      maxMintingFeeBIPS: _maxMintingFeeBIPS,
+      executor: executor,
+      reservationFee: reservationFee.toString()
     });
     
-    // Call the AssetManager's reserveCollateral function using the Truffle interface signature
-    return await this.contract.reserveCollateral(_agentVault, lotsBigInt, maxMintingFeeBIPS, _executor);
+    // Call the AssetManager's reserveCollateral function with the fee value
+    return await this.contract.reserveCollateral(_agentVault, _lots, _maxMintingFeeBIPS, executor, {
+      value: reservationFee
+    });
   }
 
   // Get agent information including fee

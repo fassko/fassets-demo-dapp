@@ -6,6 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { AgentOwnerRegistryContract } from '@/utils/agentOwnerRegistryContract';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ export default function MintXRP() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
+  const [agentOwnerRegistryContract, setAgentOwnerRegistryContract] = useState<AgentOwnerRegistryContract | null>(null);
   const [availableAgents, setAvailableAgents] = useState<Array<{
     agentVault: string;
     ownerManagementAddress: string;
@@ -38,9 +40,11 @@ export default function MintXRP() {
     mintingPoolCollateralRatioBIPS: bigint;
     freeCollateralLots: bigint;
     status: bigint;
+    agentName?: string;
   }>>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
+  const [reservationFee, setReservationFee] = useState<string>('0');
 
   const {
     register,
@@ -58,6 +62,27 @@ export default function MintXRP() {
   });
 
   const watchedLots = watch('lots');
+  const watchedAgentVault = watch('agentVault');
+
+  // Calculate reservation fee when lots or agent vault changes
+  useEffect(() => {
+    const calculateReservationFee = async () => {
+      if (assetManagerContract && watchedLots && watchedAgentVault && !isNaN(parseInt(watchedLots))) {
+        try {
+          const fee = await assetManagerContract.collateralReservationFee(watchedLots);
+          const feeInFLR = ethers.formatEther(fee);
+          setReservationFee(feeInFLR);
+        } catch (error) {
+          console.error('Error calculating reservation fee:', error);
+          setReservationFee('0');
+        }
+      } else {
+        setReservationFee('0');
+      }
+    };
+
+    calculateReservationFee();
+  }, [assetManagerContract, watchedLots, watchedAgentVault]);
 
   const initializeConnections = useCallback(async () => {
     try {
@@ -68,9 +93,21 @@ export default function MintXRP() {
         const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
         setAssetManagerContract(assetManagerContractInstance);
         
+        // Get agent owner registry address from settings
+        const settings = await assetManagerContractInstance.getSettings();
+        const agentOwnerRegistryAddress = settings.agentOwnerRegistry;
+        
+        // Initialize agent owner registry contract
+        const agentOwnerRegistryInstance = await AgentOwnerRegistryContract.create(
+          provider, 
+          signer, 
+          agentOwnerRegistryAddress
+        );
+        setAgentOwnerRegistryContract(agentOwnerRegistryInstance);
+        
         // Fetch available agents and settings after contract is initialized
         await Promise.all([
-          fetchAvailableAgents(assetManagerContractInstance),
+          fetchAvailableAgents(assetManagerContractInstance, agentOwnerRegistryInstance),
           fetchAssetManagerSettings(assetManagerContractInstance)
         ]);
       }
@@ -108,7 +145,7 @@ export default function MintXRP() {
     }
   }
 
-  async function fetchAvailableAgents(contract: AssetManagerContract) {
+  async function fetchAvailableAgents(contract: AssetManagerContract, agentOwnerRegistry: AgentOwnerRegistryContract) {
     setIsLoadingAgents(true);
     try {
       const result = await contract.getAvailableAgentsDetailedList();
@@ -116,8 +153,28 @@ export default function MintXRP() {
       const availableAgentsWithCollateral = result.agents.filter(agent => 
         agent.freeCollateralLots > BigInt(0)
       );
-      setAvailableAgents(availableAgentsWithCollateral);
-      console.log('Available agents with collateral:', availableAgentsWithCollateral);
+      
+      // Fetch agent names for each agent
+      const agentsWithNames = await Promise.all(
+        availableAgentsWithCollateral.map(async (agent) => {
+          try {
+            const agentName = await agentOwnerRegistry.getAgentName(agent.ownerManagementAddress);
+            return {
+              ...agent,
+              agentName
+            };
+          } catch (error) {
+            console.error(`Error fetching name for agent ${agent.agentVault}:`, error);
+            return {
+              ...agent,
+              agentName: 'Unknown Agent'
+            };
+          }
+        })
+      );
+      
+      setAvailableAgents(agentsWithNames);
+      console.log('Available agents with names:', agentsWithNames);
     } catch (error) {
       console.error('Error fetching available agents:', error);
       setError('Failed to fetch available agents');
@@ -140,15 +197,12 @@ export default function MintXRP() {
       const agentInfo = await assetManagerContract.getAgentInfo(data.agentVault);
       const agentFeeBIPS = agentInfo.feeBIPS.toString();
 
-      const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
-
       console.log('Minting XRP with parameters:', {
         agentVault: data.agentVault,
         lots: data.lots,
         lotsType: typeof data.lots,
         agentFeeBIPS,
         agentFeeBIPSType: typeof agentFeeBIPS,
-        executor
       });
 
       // Validate that lots is a positive integer
@@ -157,21 +211,25 @@ export default function MintXRP() {
         throw new Error('Lots must be a positive integer');
       }
 
+      // Validate reservation fee
+      const feeAmount = parseFloat(reservationFee);
+      if (isNaN(feeAmount) || feeAmount <= 0) {
+        throw new Error('Invalid reservation fee calculated');
+      }
+
       console.log('Calling reserveCollateral with:', {
         agentVault: data.agentVault,
         lots: lotsNumber,
-        agentFeeBIPS: parseInt(agentFeeBIPS),
-        executor
+        agentFeeBIPS: parseInt(agentFeeBIPS)
       });
 
       await assetManagerContract.reserveCollateral(
         data.agentVault,
         data.lots,
         agentFeeBIPS,
-        executor
       );
 
-      setSuccess(`Successfully reserved collateral for ${data.lots} lots with agent fee ${Number(agentFeeBIPS) / 100}%`);
+      setSuccess(`Successfully reserved collateral for ${data.lots} lots with agent fee ${Number(agentFeeBIPS) / 100}% and reservation fee ${reservationFee} FLR`);
       reset();
     } catch (error) {
       console.error('Error minting XRP:', error);
@@ -224,43 +282,59 @@ export default function MintXRP() {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[60px] cursor-pointer">
+                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[140px] cursor-pointer p-6">
                           <SelectValue placeholder="Select an agent vault">
                             {field.value && (
-                              <div className="flex flex-col items-start space-y-1">
-                                <span className="font-mono text-sm text-blue-900 truncate">
-                                  {field.value}
-                                </span>
+                              <div className="flex flex-col items-start space-y-5 w-full">
                                 {availableAgents.find(agent => agent.agentVault === field.value) && (
-                                  <div className="flex gap-2">
-                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                                      Fee: {Number(availableAgents.find(agent => agent.agentVault === field.value)?.feeBIPS) / 100}%
-                                    </Badge>
-                                    <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">
-                                      Free: {availableAgents.find(agent => agent.agentVault === field.value)?.freeCollateralLots.toString()} lots
-                                    </Badge>
-                                  </div>
+                                  <>
+                                    <div className="w-full space-y-4">
+                                      <div className="flex items-center justify-between">
+                                        <span className="font-bold text-blue-900 text-xl">
+                                          {availableAgents.find(agent => agent.agentVault === field.value)?.agentName || 'Unknown Agent'}
+                                        </span>
+                                        <div className="flex gap-2">
+                                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-sm px-3 py-1.5">
+                                            Fee: {Number(availableAgents.find(agent => agent.agentVault === field.value)?.feeBIPS) / 100}%
+                                          </Badge>
+                                          <Badge variant="outline" className="border-blue-300 text-blue-700 text-sm px-3 py-1.5">
+                                            Free: {availableAgents.find(agent => agent.agentVault === field.value)?.freeCollateralLots.toString()} lots
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                      <div className="bg-blue-50 p-3 rounded-md">
+                                        <span className="font-mono text-sm text-blue-700 break-all leading-relaxed">
+                                          {field.value}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </>
                                 )}
                               </div>
                             )}
                           </SelectValue>
                         </SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="max-w-2xl">
                           {availableAgents.map((agent, index) => (
-                            <SelectItem key={index} value={agent.agentVault} className="py-3">
-                              <div className="flex flex-col space-y-2">
+                            <SelectItem key={index} value={agent.agentVault} className="py-6 cursor-pointer">
+                              <div className="flex flex-col space-y-4 w-full">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-mono text-sm text-blue-900 truncate">
+                                  <span className="font-bold text-blue-900 text-xl">
+                                    {agent.agentName || 'Unknown Agent'}
+                                  </span>
+                                  <div className="flex gap-2">
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-sm px-3 py-1.5">
+                                      Fee: {Number(agent.feeBIPS) / 100}%
+                                    </Badge>
+                                    <Badge variant="outline" className="border-blue-300 text-blue-700 text-sm px-3 py-1.5">
+                                      Free: {agent.freeCollateralLots.toString()} lots
+                                    </Badge>
+                                  </div>
+                                </div>
+                                <div className="bg-blue-50 p-3 rounded-md">
+                                  <span className="font-mono text-sm text-blue-700 break-all leading-relaxed">
                                     {agent.agentVault}
                                   </span>
-                                </div>
-                                <div className="flex gap-2">
-                                  <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                                    Fee: {Number(agent.feeBIPS) / 100}%
-                                  </Badge>
-                                  <Badge variant="outline" className="border-blue-300 text-blue-700 text-xs">
-                                    Free: {agent.freeCollateralLots.toString()} lots
-                                  </Badge>
                                 </div>
                               </div>
                             </SelectItem>
@@ -295,13 +369,23 @@ export default function MintXRP() {
                   Amount in lots (1 lot = {lotSizeAMG} XRP)
                 </p>
                 {watchedLots && watchedLots !== '' && !isNaN(parseFloat(watchedLots)) && (
-                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md space-y-2">
                     <p className="text-sm text-blue-800">
                       <span className="font-semibold">FXRP to be minted:</span> {parseFloat(watchedLots) * parseFloat(lotSizeAMG)} FXRP
                     </p>
-                    <p className="text-xs text-blue-600 mt-1">
+                    <p className="text-xs text-blue-600">
                       ({watchedLots} lots × {lotSizeAMG} XRP per lot)
                     </p>
+                    {parseFloat(reservationFee) > 0 && (
+                      <div className="pt-2 border-t border-blue-200">
+                        <p className="text-sm text-blue-800">
+                          <span className="font-semibold">Reservation Fee:</span> {reservationFee} FLR
+                        </p>
+                        <p className="text-xs text-blue-600">
+                          This fee will be sent with the transaction
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

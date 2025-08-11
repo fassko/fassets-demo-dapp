@@ -16,7 +16,7 @@ type AllEvents = never;
 
 export interface IWeb2JsonVerificationInstance
   extends Truffle.ContractInstance {
-  verifyJsonApi(
+  verifyWeb2Json(
     _proof: {
       merkleProof: string[];
       data: {
@@ -40,7 +40,7 @@ export interface IWeb2JsonVerificationInstance
   ): Promise<boolean>;
 
   methods: {
-    verifyJsonApi(
+    verifyWeb2Json(
       _proof: {
         merkleProof: string[];
         data: {

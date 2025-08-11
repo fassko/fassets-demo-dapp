@@ -463,97 +463,6 @@ export interface FdcVerificationInstance extends Truffle.ContractInstance {
     ): Promise<number>;
   };
 
-  verifyJsonApi: {
-    (
-      _proof: {
-        merkleProof: string[];
-        data: {
-          attestationType: string;
-          sourceId: string;
-          votingRound: number | BN | string;
-          lowestUsedTimestamp: number | BN | string;
-          requestBody: {
-            url: string;
-            httpMethod: string;
-            headers: string;
-            queryParams: string;
-            body: string;
-            postProcessJq: string;
-            abiSignature: string;
-          };
-          responseBody: { abiEncodedData: string };
-        };
-      },
-      txDetails?: Truffle.TransactionDetails
-    ): Promise<Truffle.TransactionResponse<AllEvents>>;
-    call(
-      _proof: {
-        merkleProof: string[];
-        data: {
-          attestationType: string;
-          sourceId: string;
-          votingRound: number | BN | string;
-          lowestUsedTimestamp: number | BN | string;
-          requestBody: {
-            url: string;
-            httpMethod: string;
-            headers: string;
-            queryParams: string;
-            body: string;
-            postProcessJq: string;
-            abiSignature: string;
-          };
-          responseBody: { abiEncodedData: string };
-        };
-      },
-      txDetails?: Truffle.TransactionDetails
-    ): Promise<boolean>;
-    sendTransaction(
-      _proof: {
-        merkleProof: string[];
-        data: {
-          attestationType: string;
-          sourceId: string;
-          votingRound: number | BN | string;
-          lowestUsedTimestamp: number | BN | string;
-          requestBody: {
-            url: string;
-            httpMethod: string;
-            headers: string;
-            queryParams: string;
-            body: string;
-            postProcessJq: string;
-            abiSignature: string;
-          };
-          responseBody: { abiEncodedData: string };
-        };
-      },
-      txDetails?: Truffle.TransactionDetails
-    ): Promise<string>;
-    estimateGas(
-      _proof: {
-        merkleProof: string[];
-        data: {
-          attestationType: string;
-          sourceId: string;
-          votingRound: number | BN | string;
-          lowestUsedTimestamp: number | BN | string;
-          requestBody: {
-            url: string;
-            httpMethod: string;
-            headers: string;
-            queryParams: string;
-            body: string;
-            postProcessJq: string;
-            abiSignature: string;
-          };
-          responseBody: { abiEncodedData: string };
-        };
-      },
-      txDetails?: Truffle.TransactionDetails
-    ): Promise<number>;
-  };
-
   verifyPayment: {
     (
       _proof: {
@@ -790,6 +699,97 @@ export interface FdcVerificationInstance extends Truffle.ContractInstance {
             firstOverflowBlockNumber: number | BN | string;
             firstOverflowBlockTimestamp: number | BN | string;
           };
+        };
+      },
+      txDetails?: Truffle.TransactionDetails
+    ): Promise<number>;
+  };
+
+  verifyWeb2Json: {
+    (
+      _proof: {
+        merkleProof: string[];
+        data: {
+          attestationType: string;
+          sourceId: string;
+          votingRound: number | BN | string;
+          lowestUsedTimestamp: number | BN | string;
+          requestBody: {
+            url: string;
+            httpMethod: string;
+            headers: string;
+            queryParams: string;
+            body: string;
+            postProcessJq: string;
+            abiSignature: string;
+          };
+          responseBody: { abiEncodedData: string };
+        };
+      },
+      txDetails?: Truffle.TransactionDetails
+    ): Promise<Truffle.TransactionResponse<AllEvents>>;
+    call(
+      _proof: {
+        merkleProof: string[];
+        data: {
+          attestationType: string;
+          sourceId: string;
+          votingRound: number | BN | string;
+          lowestUsedTimestamp: number | BN | string;
+          requestBody: {
+            url: string;
+            httpMethod: string;
+            headers: string;
+            queryParams: string;
+            body: string;
+            postProcessJq: string;
+            abiSignature: string;
+          };
+          responseBody: { abiEncodedData: string };
+        };
+      },
+      txDetails?: Truffle.TransactionDetails
+    ): Promise<boolean>;
+    sendTransaction(
+      _proof: {
+        merkleProof: string[];
+        data: {
+          attestationType: string;
+          sourceId: string;
+          votingRound: number | BN | string;
+          lowestUsedTimestamp: number | BN | string;
+          requestBody: {
+            url: string;
+            httpMethod: string;
+            headers: string;
+            queryParams: string;
+            body: string;
+            postProcessJq: string;
+            abiSignature: string;
+          };
+          responseBody: { abiEncodedData: string };
+        };
+      },
+      txDetails?: Truffle.TransactionDetails
+    ): Promise<string>;
+    estimateGas(
+      _proof: {
+        merkleProof: string[];
+        data: {
+          attestationType: string;
+          sourceId: string;
+          votingRound: number | BN | string;
+          lowestUsedTimestamp: number | BN | string;
+          requestBody: {
+            url: string;
+            httpMethod: string;
+            headers: string;
+            queryParams: string;
+            body: string;
+            postProcessJq: string;
+            abiSignature: string;
+          };
+          responseBody: { abiEncodedData: string };
         };
       },
       txDetails?: Truffle.TransactionDetails
@@ -1243,97 +1243,6 @@ export interface FdcVerificationInstance extends Truffle.ContractInstance {
       ): Promise<number>;
     };
 
-    verifyJsonApi: {
-      (
-        _proof: {
-          merkleProof: string[];
-          data: {
-            attestationType: string;
-            sourceId: string;
-            votingRound: number | BN | string;
-            lowestUsedTimestamp: number | BN | string;
-            requestBody: {
-              url: string;
-              httpMethod: string;
-              headers: string;
-              queryParams: string;
-              body: string;
-              postProcessJq: string;
-              abiSignature: string;
-            };
-            responseBody: { abiEncodedData: string };
-          };
-        },
-        txDetails?: Truffle.TransactionDetails
-      ): Promise<Truffle.TransactionResponse<AllEvents>>;
-      call(
-        _proof: {
-          merkleProof: string[];
-          data: {
-            attestationType: string;
-            sourceId: string;
-            votingRound: number | BN | string;
-            lowestUsedTimestamp: number | BN | string;
-            requestBody: {
-              url: string;
-              httpMethod: string;
-              headers: string;
-              queryParams: string;
-              body: string;
-              postProcessJq: string;
-              abiSignature: string;
-            };
-            responseBody: { abiEncodedData: string };
-          };
-        },
-        txDetails?: Truffle.TransactionDetails
-      ): Promise<boolean>;
-      sendTransaction(
-        _proof: {
-          merkleProof: string[];
-          data: {
-            attestationType: string;
-            sourceId: string;
-            votingRound: number | BN | string;
-            lowestUsedTimestamp: number | BN | string;
-            requestBody: {
-              url: string;
-              httpMethod: string;
-              headers: string;
-              queryParams: string;
-              body: string;
-              postProcessJq: string;
-              abiSignature: string;
-            };
-            responseBody: { abiEncodedData: string };
-          };
-        },
-        txDetails?: Truffle.TransactionDetails
-      ): Promise<string>;
-      estimateGas(
-        _proof: {
-          merkleProof: string[];
-          data: {
-            attestationType: string;
-            sourceId: string;
-            votingRound: number | BN | string;
-            lowestUsedTimestamp: number | BN | string;
-            requestBody: {
-              url: string;
-              httpMethod: string;
-              headers: string;
-              queryParams: string;
-              body: string;
-              postProcessJq: string;
-              abiSignature: string;
-            };
-            responseBody: { abiEncodedData: string };
-          };
-        },
-        txDetails?: Truffle.TransactionDetails
-      ): Promise<number>;
-    };
-
     verifyPayment: {
       (
         _proof: {
@@ -1570,6 +1479,97 @@ export interface FdcVerificationInstance extends Truffle.ContractInstance {
               firstOverflowBlockNumber: number | BN | string;
               firstOverflowBlockTimestamp: number | BN | string;
             };
+          };
+        },
+        txDetails?: Truffle.TransactionDetails
+      ): Promise<number>;
+    };
+
+    verifyWeb2Json: {
+      (
+        _proof: {
+          merkleProof: string[];
+          data: {
+            attestationType: string;
+            sourceId: string;
+            votingRound: number | BN | string;
+            lowestUsedTimestamp: number | BN | string;
+            requestBody: {
+              url: string;
+              httpMethod: string;
+              headers: string;
+              queryParams: string;
+              body: string;
+              postProcessJq: string;
+              abiSignature: string;
+            };
+            responseBody: { abiEncodedData: string };
+          };
+        },
+        txDetails?: Truffle.TransactionDetails
+      ): Promise<Truffle.TransactionResponse<AllEvents>>;
+      call(
+        _proof: {
+          merkleProof: string[];
+          data: {
+            attestationType: string;
+            sourceId: string;
+            votingRound: number | BN | string;
+            lowestUsedTimestamp: number | BN | string;
+            requestBody: {
+              url: string;
+              httpMethod: string;
+              headers: string;
+              queryParams: string;
+              body: string;
+              postProcessJq: string;
+              abiSignature: string;
+            };
+            responseBody: { abiEncodedData: string };
+          };
+        },
+        txDetails?: Truffle.TransactionDetails
+      ): Promise<boolean>;
+      sendTransaction(
+        _proof: {
+          merkleProof: string[];
+          data: {
+            attestationType: string;
+            sourceId: string;
+            votingRound: number | BN | string;
+            lowestUsedTimestamp: number | BN | string;
+            requestBody: {
+              url: string;
+              httpMethod: string;
+              headers: string;
+              queryParams: string;
+              body: string;
+              postProcessJq: string;
+              abiSignature: string;
+            };
+            responseBody: { abiEncodedData: string };
+          };
+        },
+        txDetails?: Truffle.TransactionDetails
+      ): Promise<string>;
+      estimateGas(
+        _proof: {
+          merkleProof: string[];
+          data: {
+            attestationType: string;
+            sourceId: string;
+            votingRound: number | BN | string;
+            lowestUsedTimestamp: number | BN | string;
+            requestBody: {
+              url: string;
+              httpMethod: string;
+              headers: string;
+              queryParams: string;
+              body: string;
+              postProcessJq: string;
+              abiSignature: string;
+            };
+            responseBody: { abiEncodedData: string };
           };
         },
         txDetails?: Truffle.TransactionDetails

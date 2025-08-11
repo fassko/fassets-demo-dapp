@@ -58,16 +58,6 @@ export interface AgentDestroyed {
   };
 }
 
-export interface AgentInCCB {
-  name: "AgentInCCB";
-  args: {
-    agentVault: string;
-    timestamp: BN;
-    0: string;
-    1: BN;
-  };
-}
-
 export interface AgentSettingChangeAnnounced {
   name: "AgentSettingChangeAnnounced";
   args: {
@@ -111,9 +101,7 @@ export interface AgentVaultCreated {
       mintingPoolCollateralRatioBIPS: BN;
       buyFAssetByAgentFactorBIPS: BN;
       poolExitCollateralRatioBIPS: BN;
-      poolTopupCollateralRatioBIPS: BN;
-      poolTopupTokenPriceFactorBIPS: BN;
-      handshakeType: BN;
+      redemptionPoolFeeShareBIPS: BN;
     };
     0: string;
     1: string;
@@ -129,9 +117,7 @@ export interface AgentVaultCreated {
       mintingPoolCollateralRatioBIPS: BN;
       buyFAssetByAgentFactorBIPS: BN;
       poolExitCollateralRatioBIPS: BN;
-      poolTopupCollateralRatioBIPS: BN;
-      poolTopupTokenPriceFactorBIPS: BN;
-      handshakeType: BN;
+      redemptionPoolFeeShareBIPS: BN;
     };
   };
 }
@@ -160,25 +146,11 @@ export interface CollateralRatiosChanged {
     collateralClass: BN;
     collateralToken: string;
     minCollateralRatioBIPS: BN;
-    ccbMinCollateralRatioBIPS: BN;
     safetyMinCollateralRatioBIPS: BN;
     0: BN;
     1: string;
     2: BN;
     3: BN;
-    4: BN;
-  };
-}
-
-export interface CollateralReservationCancelled {
-  name: "CollateralReservationCancelled";
-  args: {
-    agentVault: string;
-    minter: string;
-    collateralReservationId: BN;
-    0: string;
-    1: string;
-    2: BN;
   };
 }
 
@@ -193,18 +165,6 @@ export interface CollateralReservationDeleted {
     1: string;
     2: BN;
     3: BN;
-  };
-}
-
-export interface CollateralReservationRejected {
-  name: "CollateralReservationRejected";
-  args: {
-    agentVault: string;
-    minter: string;
-    collateralReservationId: BN;
-    0: string;
-    1: string;
-    2: BN;
   };
 }
 
@@ -248,7 +208,6 @@ export interface CollateralTypeAdded {
     assetFtsoSymbol: string;
     tokenFtsoSymbol: string;
     minCollateralRatioBIPS: BN;
-    ccbMinCollateralRatioBIPS: BN;
     safetyMinCollateralRatioBIPS: BN;
     0: BN;
     1: string;
@@ -258,7 +217,6 @@ export interface CollateralTypeAdded {
     5: string;
     6: BN;
     7: BN;
-    8: BN;
   };
 }
 
@@ -351,24 +309,6 @@ export interface FullLiquidationStarted {
     timestamp: BN;
     0: string;
     1: BN;
-  };
-}
-
-export interface HandshakeRequired {
-  name: "HandshakeRequired";
-  args: {
-    agentVault: string;
-    minter: string;
-    collateralReservationId: BN;
-    minterUnderlyingAddresses: string[];
-    valueUBA: BN;
-    feeUBA: BN;
-    0: string;
-    1: string;
-    2: BN;
-    3: string[];
-    4: BN;
-    5: BN;
   };
 }
 
@@ -580,40 +520,6 @@ export interface RedemptionRequestIncomplete {
   };
 }
 
-export interface RedemptionRequestRejected {
-  name: "RedemptionRequestRejected";
-  args: {
-    agentVault: string;
-    redeemer: string;
-    requestId: BN;
-    paymentAddress: string;
-    valueUBA: BN;
-    0: string;
-    1: string;
-    2: BN;
-    3: string;
-    4: BN;
-  };
-}
-
-export interface RedemptionRequestTakenOver {
-  name: "RedemptionRequestTakenOver";
-  args: {
-    agentVault: string;
-    redeemer: string;
-    requestId: BN;
-    valueTakenOverUBA: BN;
-    newAgentVault: string;
-    newRequestId: BN;
-    0: string;
-    1: string;
-    2: BN;
-    3: BN;
-    4: string;
-    5: BN;
-  };
-}
-
 export interface RedemptionRequested {
   name: "RedemptionRequested";
   args: {
@@ -811,16 +717,13 @@ type AllEvents =
   | AgentCollateralTypeChanged
   | AgentDestroyAnnounced
   | AgentDestroyed
-  | AgentInCCB
   | AgentSettingChangeAnnounced
   | AgentSettingChanged
   | AgentVaultCreated
   | AvailableAgentExitAnnounced
   | AvailableAgentExited
   | CollateralRatiosChanged
-  | CollateralReservationCancelled
   | CollateralReservationDeleted
-  | CollateralReservationRejected
   | CollateralReserved
   | CollateralTypeAdded
   | CollateralTypeDeprecated
@@ -833,7 +736,6 @@ type AllEvents =
   | EmergencyPauseTransfersTriggered
   | EmergencyPauseTriggered
   | FullLiquidationStarted
-  | HandshakeRequired
   | IllegalPaymentConfirmed
   | LiquidationEnded
   | LiquidationPerformed
@@ -849,8 +751,6 @@ type AllEvents =
   | RedemptionPoolFeeMinted
   | RedemptionRejected
   | RedemptionRequestIncomplete
-  | RedemptionRequestRejected
-  | RedemptionRequestTakenOver
   | RedemptionRequested
   | RedemptionTicketCreated
   | RedemptionTicketDeleted
