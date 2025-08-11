@@ -6,7 +6,7 @@ import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { AssetManagerContract } from '@/utils/assetManagerContract';
 import { FXRPContract } from '@/utils/fxrpContract';
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

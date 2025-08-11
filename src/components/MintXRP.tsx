@@ -5,7 +5,7 @@ import { ethers } from 'ethers';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AssetManagerContract } from '@/utils/truffleAssetManagerContract';
+import { AssetManagerContract } from '@/utils/assetManagerContract';
 import { AgentOwnerRegistryContract } from '@/utils/agentOwnerRegistryContract';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -99,7 +99,7 @@ export default function MintXRP() {
         
         // Initialize agent owner registry contract
         const agentOwnerRegistryInstance = await AgentOwnerRegistryContract.create(
-          provider, 
+
           signer, 
           agentOwnerRegistryAddress
         );
@@ -226,7 +226,6 @@ export default function MintXRP() {
       await assetManagerContract.reserveCollateral(
         data.agentVault,
         data.lots,
-        agentFeeBIPS,
       );
 
       setSuccess(`Successfully reserved collateral for ${data.lots} lots with agent fee ${Number(agentFeeBIPS) / 100}% and reservation fee ${reservationFee} FLR`);
@@ -282,7 +281,11 @@ export default function MintXRP() {
                     control={control}
                     render={({ field }) => (
                       <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger className="border-blue-300 focus:ring-blue-500 h-auto min-h-[140px] cursor-pointer p-6">
+                        <SelectTrigger className={`border-blue-300 focus:ring-blue-500 cursor-pointer transition-all duration-200 ${
+                          field.value 
+                            ? 'h-auto min-h-[140px] p-6' 
+                            : 'h-12 px-4'
+                        }`}>
                           <SelectValue placeholder="Select an agent vault">
                             {field.value && (
                               <div className="flex flex-col items-start space-y-5 w-full">
@@ -290,7 +293,7 @@ export default function MintXRP() {
                                   <>
                                     <div className="w-full space-y-4">
                                       <div className="flex items-center justify-between">
-                                        <span className="font-bold text-blue-900 text-xl">
+                                        <span className="font-bold text-blue-900 text-lg">
                                           {availableAgents.find(agent => agent.agentVault === field.value)?.agentName || 'Unknown Agent'}
                                         </span>
                                         <div className="flex gap-2">
@@ -319,7 +322,7 @@ export default function MintXRP() {
                             <SelectItem key={index} value={agent.agentVault} className="py-6 cursor-pointer">
                               <div className="flex flex-col space-y-4 w-full">
                                 <div className="flex items-center justify-between">
-                                  <span className="font-bold text-blue-900 text-xl">
+                                  <span className="font-bold text-blue-900 text-lg">
                                     {agent.agentName || 'Unknown Agent'}
                                   </span>
                                   <div className="flex gap-2">

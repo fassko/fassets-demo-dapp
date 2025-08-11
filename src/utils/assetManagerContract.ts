@@ -1,26 +1,18 @@
 import { ethers } from 'ethers';
 import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
-import { IAssetManagerInstance } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
 // Import Truffle types for better type safety
-// import type { IAssetManagerInstance } from '../types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
+import type { IAssetManagerInstance } from '../types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
 
 export class AssetManagerContract {
-  private contract: ethers.Contract & IAssetManagerInstance;
-  private provider: ethers.BrowserProvider;
-  private signer: ethers.Signer;
+  private contract: ethers.Contract;
 
   constructor(
-    provider: ethers.BrowserProvider,
     signer: ethers.Signer,
     contractAddress: string
   ) {
-    this.provider = provider;
-    this.signer = signer;
-    
-    // Use the actual AssetManager ABI from the package
     const assetManagerInfo = coston2.products.AssetManagerFXRP;
-    this.contract = new ethers.Contract(contractAddress, assetManagerInfo.abi, signer) as ethers.Contract & IAssetManagerInstance;
+    this.contract = new ethers.Contract(contractAddress, assetManagerInfo.abi, signer);
   }
 
   static async create(
@@ -40,7 +32,7 @@ export class AssetManagerContract {
       throw new Error('Invalid address format returned from getAddress');
     }
     
-    return new AssetManagerContract(provider, signer, assetManagerAddress);
+    return new AssetManagerContract(signer, assetManagerAddress);
   }
 
   async getSettings(): Promise<Awaited<ReturnType<IAssetManagerInstance['getSettings']>>> {
@@ -50,40 +42,55 @@ export class AssetManagerContract {
   // Updated to match Truffle interface: redeem(_lots, _redeemerUnderlyingAddressString, _executor)
   async redeem(
     _lots: string, 
-    _redeemerUnderlyingAddressString: string, 
-    _executor: string
+    _redeemerUnderlyingAddressString: string,
   ): Promise<unknown> {
-    // Convert amount to wei (assuming 6 decimals like XRP)
-    const lotsInWei = ethers.parseUnits(_lots, 6);
+
+    const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
     
     // Call the AssetManager's redeem function using the Truffle interface signature
-    return await this.contract.redeem(lotsInWei, _redeemerUnderlyingAddressString, _executor);
+    return await this.contract.redeem(_lots, _redeemerUnderlyingAddressString, executor);
+  }
+
+  // Calculate collateral reservation fee for given lots
+  async collateralReservationFee(_lots: string): Promise<bigint> {
+    try {
+      const fee = await this.contract.collateralReservationFee(_lots);
+      return fee;
+    } catch (error) {
+      console.error('Error calculating collateral reservation fee:', error);
+      throw error;
+    }
   }
 
   // Updated to match Truffle interface: reserveCollateral(_agentVault, _lots, _maxMintingFeeBIPS, _executor)
   async reserveCollateral(
     _agentVault: string,
     _lots: string,
-    _maxMintingFeeBIPS: string,
-    _executor: string
-  ): Promise<unknown> {
-    // Convert lots to BigInt (lots are typically integers)
-    const lotsBigInt = BigInt(_lots);
-    const maxMintingFeeBIPS = BigInt(_maxMintingFeeBIPS);
+  ): Promise<Awaited<ReturnType<IAssetManagerInstance['reserveCollateral']>>> {
+
+    const agentInfo = await this.contract.getAgentInfo(_agentVault);
+    const agentFeeBIPS = agentInfo.feeBIPS.toString();
+    const executor = "0x0000000000000000000000000000000000000000"; // Use zero address
+
+    // Calculate the collateral reservation fee
+    const reservationFee = await this.collateralReservationFee(_lots);
     
-    // Call the AssetManager's reserveCollateral function using the Truffle interface signature
-    return await this.contract.reserveCollateral(_agentVault, lotsBigInt, maxMintingFeeBIPS, _executor);
+    console.log('Reserving collateral with:', {
+      agentVault: _agentVault,
+      lots: _lots,
+      maxMintingFeeBIPS: agentFeeBIPS.toString(),
+      executor: executor,
+      reservationFee: reservationFee.toString()
+    });
+    
+    // Call the AssetManager's reserveCollateral function with the fee value
+    return await this.contract.reserveCollateral(_agentVault, _lots, agentFeeBIPS, executor, {
+      value: reservationFee
+    });
   }
 
   // Helper method to get available agents (for minting)
-  async getAvailableAgents(): Promise<unknown[]> {
-    // This would need to be implemented based on the actual contract methods
-    // For now, returning empty array as placeholder
-    return [];
-  }
-
-  // Get detailed list of available agents
-  async getAvailableAgentsDetailedList(): Promise<{
+  async getAvailableAgentsDetailedList(start: number = 0, end: number = 100): Promise<{
     agents: Array<{
       agentVault: string;
       ownerManagementAddress: string;
@@ -93,31 +100,35 @@ export class AssetManagerContract {
       freeCollateralLots: bigint;
       status: bigint;
     }>;
+    totalCount: bigint;
   }> {
     try {
-      // Get all available agents by using a large range
-      const result = await this.contract.getAvailableAgentsDetailedList(0, 1000);
-      // Convert BN to bigint and restructure the result
-      const agents = result[0].map((agent: {
-        agentVault: string;
-        ownerManagementAddress: string;
-        feeBIPS: { toString(): string };
-        mintingVaultCollateralRatioBIPS: { toString(): string };
-        mintingPoolCollateralRatioBIPS: { toString(): string };
-        freeCollateralLots: { toString(): string };
-        status: { toString(): string };
-      }) => ({
-        agentVault: agent.agentVault,
-        ownerManagementAddress: agent.ownerManagementAddress,
-        feeBIPS: BigInt(agent.feeBIPS.toString()),
-        mintingVaultCollateralRatioBIPS: BigInt(agent.mintingVaultCollateralRatioBIPS.toString()),
-        mintingPoolCollateralRatioBIPS: BigInt(agent.mintingPoolCollateralRatioBIPS.toString()),
-        freeCollateralLots: BigInt(agent.freeCollateralLots.toString()),
-        status: BigInt(agent.status.toString())
-      }));
-      return { agents };
+      const result = await this.contract.getAvailableAgentsDetailedList(start, end);
+      return {
+        agents: result[0].map((agent: unknown) => ({
+          agentVault: (agent as { agentVault: string }).agentVault,
+          ownerManagementAddress: (agent as { ownerManagementAddress: string }).ownerManagementAddress,
+          feeBIPS: (agent as { feeBIPS: bigint }).feeBIPS,
+          mintingVaultCollateralRatioBIPS: (agent as { mintingVaultCollateralRatioBIPS: bigint }).mintingVaultCollateralRatioBIPS,
+          mintingPoolCollateralRatioBIPS: (agent as { mintingPoolCollateralRatioBIPS: bigint }).mintingPoolCollateralRatioBIPS,
+          freeCollateralLots: (agent as { freeCollateralLots: bigint }).freeCollateralLots,
+          status: (agent as { status: bigint }).status
+        })),
+        totalCount: result[1]
+      };
     } catch (error) {
-      console.error('Error fetching available agents detailed list:', error);
+      console.error('Error fetching available agents:', error);
+      return { agents: [], totalCount: BigInt(0) };
+    }
+  }
+
+  // Get agent fee only
+  async getAgentFee(_agentVault: string): Promise<bigint> {
+    try {
+      const result = await this.contract.getAgentInfo(_agentVault);
+      return result.feeBIPS;
+    } catch (error) {
+      console.error('Error fetching agent fee:', error);
       throw error;
     }
   }
@@ -145,7 +156,7 @@ export class AssetManagerContract {
         status: BigInt(result.status.toString())
       };
     } catch (error) {
-      console.error('Error fetching agent info:', error);
+      console.error('Error fetching available agents:', error);
       throw error;
     }
   }
@@ -155,7 +166,7 @@ export class AssetManagerContract {
   }
 
   // Type-safe method signatures based on Truffle types
-  getTypedContract(): ethers.Contract & Partial<IAssetManagerInstance> {
-    return this.contract as ethers.Contract & Partial<IAssetManagerInstance>;
+  getTypedContract(): ethers.Contract {
+    return this.contract;
   }
 } 
