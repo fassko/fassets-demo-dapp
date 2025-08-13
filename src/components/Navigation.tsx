@@ -12,7 +12,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
     { id: 'asset-manager', label: 'Asset Manager Settings', color: 'slate' },
     { id: 'mint-xrp', label: 'Mint XRP', color: 'blue' },
     { id: 'send-fxrp', label: 'Send FXRP', color: 'amber' },
-    { id: 'redeem-fxrp', label: 'Redeem to XRP', color: 'green' }
+    { id: 'redeem-fxrp', label: 'Redeem to XRP', color: 'green' },
   ];
 
   return (

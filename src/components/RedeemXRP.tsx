@@ -1,21 +1,27 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
+import { useState, useEffect } from 'react';
 import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { erc20Abi } from 'viem';
 
-import { AssetManagerContract } from '@/utils/assetManagerContract';
-import { FXRPContract } from '@/utils/fxrpContract';
+// Form data schema
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
+
+// UI components
+import { ArrowRight, RefreshCw, Loader2, Wallet, Coins } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRight, RefreshCw, Loader2, Wallet, Coins } from "lucide-react";
+
+// Contract functions
+import { getAssetManagerAddress } from '@/lib/assetManager';
+import { iAssetManagerAbi } from "../generated";
 
 export default function RedeemXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -25,11 +31,11 @@ export default function RedeemXRP() {
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
-  const [userAddress, setUserAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
-  const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
-  const [fxrpContract, setFxrpContract] = useState<FXRPContract | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
+  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
+
+  const { address: userAddress, isConnected } = useAccount();
 
   const {
     register,
@@ -47,19 +53,57 @@ export default function RedeemXRP() {
 
   const watchedAmount = watch('amount');
 
+  // Get FXRP AssetManager address
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const address = await getAssetManagerAddress();
+        setAssetManagerAddress(address);
+      } catch (error) {
+        console.error('Error fetching AssetManager address:', error);
+      }
+    };
+
+    fetchAddress();
+  }, []);
+
+  // Read AssetManager settings
+  const { data: settings, isLoading: isLoadingSettings, error: settingsError } = useReadContract({
+    address: assetManagerAddress!,
+    abi: iAssetManagerAbi,
+    functionName: 'getSettings',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+  });
+
+  // Read FXRP balance using wagmi
+  const { data: fxrpBalanceData, refetch: refetchFxrpBalance } = useReadContract({
+    address: settings?.fAsset as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [userAddress as `0x${string}`],
+    query: {
+      enabled: !!userAddress && !!settings?.fAsset && !!assetManagerAddress,
+    },
+  });
+
+  // Write contract for redeem function
+  const { data: redeemHash, writeContract: redeemContract, isPending: isRedeemPending } = useWriteContract();
+
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isRedeemSuccess } = useWaitForTransactionReceipt({
+    hash: redeemHash,
+  });
+
   // Calculate lots when amount changes
   useEffect(() => {
     const calculateLots = async () => {
-      if (assetManagerContract && watchedAmount) {
+      if (settings && watchedAmount) {
         try {
-          const settings = await assetManagerContract.getSettings();
           const lotSizeAMG = settings.lotSizeAMG;
-
           const xrpInDrops = parseFloat(watchedAmount) * 1000000; // Convert XRP to drops
-          const lotSize = typeof lotSizeAMG === 'bigint'
-            ? Number(lotSizeAMG)
-            : parseFloat(lotSizeAMG.toString());
-
+          const lotSize = Number(lotSizeAMG);
           const lots = Math.floor(xrpInDrops / lotSize);
           setCalculatedLots(lots.toString());
         } catch (error) {
@@ -70,50 +114,55 @@ export default function RedeemXRP() {
     };
 
     calculateLots();
-  }, [assetManagerContract, watchedAmount]);
+  }, [settings, watchedAmount]);
 
-  const initializeConnections = async () => {
-    try {
-      // Initialize Flare connection
-      if (typeof window !== 'undefined' && window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-
-        const signer = await provider.getSigner();
-        const userAddress = await signer.getAddress();
-        setUserAddress(userAddress);
-        
-        const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
-        setAssetManagerContract(assetManagerContractInstance);
-        
-        const fxrpContractInstance = await FXRPContract.create(provider, signer);
-        setFxrpContract(fxrpContractInstance);
-      }
-
-      // Initialize XRPL connection
-      const client = new Client('wss://s.altnet.rippletest.net:51233');
-      await client.connect();
-      setXrplClient(client);
-    } catch (error) {
-      console.error('Error initializing connections:', error);
+  // Update FXRP balance when data changes
+  useEffect(() => {
+    if (fxrpBalanceData && settings) {
+      const decimals = Number(settings.assetDecimals);
+      const formattedBalance = (Number(fxrpBalanceData) / Math.pow(10, decimals)).toFixed(decimals);
+      
+      setFxrpBalance(formattedBalance);
     }
-  };
+  }, [fxrpBalanceData, settings]);
 
-  const refreshBalances = useCallback(async () => {
+  // Handle successful redemption
+  useEffect(() => {
+    if (isRedeemSuccess) {
+      setSuccess(`Successfully redeemed ${watchedAmount} XRP to ${xrplAddress}`);
+      reset();
+      refetchFxrpBalance();
+    }
+  }, [isRedeemSuccess, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
+
+  // Initialize XRPL connection
+  useEffect(() => {
+    const initXrpl = async () => {
+      try {
+        const client = new Client('wss://s.altnet.rippletest.net:51233');
+        await client.connect();
+        setXrplClient(client);
+      } catch (error) {
+        console.error('Error initializing XRPL connection:', error);
+      }
+    };
+
+    initXrpl();
+  }, []);
+
+  const refreshBalances = async () => {
     try {
       // Refresh XRPL balance
       if (xrplClient && xrplAddress) {
         try {
-          // Get account info from XRPL
           const accountInfo = await xrplClient.request({
             command: 'account_info',
             account: xrplAddress,
             ledger_index: 'validated'
           });
           
-          // Convert balance from drops to XRP
           const balanceInDrops = accountInfo.result.account_data.Balance;
-          const balanceInXRP = parseFloat(balanceInDrops) / 1000000; // 1 XRP = 1,000,000 drops
+          const balanceInXRP = parseFloat(balanceInDrops) / 1000000;
           setXrplBalance(balanceInXRP.toString());
         } catch (error) {
           console.error('Error fetching XRPL balance:', error);
@@ -121,67 +170,41 @@ export default function RedeemXRP() {
         }
       }
       
-      // Refresh FXRP balance
-      if (fxrpContract && userAddress) {
-        try {
-          const balance = await fxrpContract.getBalance(userAddress);
-          setFxrpBalance(balance);
-        } catch (error) {
-          console.error('Error fetching FXRP balance:', error);
-          setFxrpBalance('0');
-        }
+      // Refresh FXRP balance - only if query is enabled
+      if (userAddress && settings?.fAsset && assetManagerAddress) {
+        refetchFxrpBalance();
       }
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  }, [xrplClient, xrplAddress, fxrpContract, userAddress]);
+  };
 
   // Refresh XRPL balance when client and address are available
   useEffect(() => {
     if (xrplClient && xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
       refreshBalances();
     }
-  }, [xrplClient, xrplAddress, refreshBalances]);
-
-  // Refresh balances when contracts are initialized
-  useEffect(() => {
-    if (assetManagerContract && fxrpContract && userAddress) {
-      refreshBalances();
-    }
-  }, [assetManagerContract, fxrpContract, userAddress, refreshBalances]);
-
-  useEffect(() => {
-    initializeConnections();
-  }, []);
+  }, [xrplClient, xrplAddress]);
 
   const isValidXrplAddress = (address: string): boolean => {
     try {
       RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({ xrplAddress: address });
-      console.log('Valid XRPL address:', address);
       return true;
     } catch {
-      console.log('Invalid XRPL address:', address);
       return false;
     }
   };
 
   const handleXrplAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const address = e.target.value;
-    
-    // Validate XRPL address format and auto-fetch balance when valid
     const isValid = isValidXrplAddress(address);
     
     if (isValid) {
-      console.log('Valid XRPL address:', address);
       setXrplAddress(address);
-      
-      // Refresh balances only if address is valid and client exists
       if (xrplClient) {
         refreshBalances();
       }
     } else {
-      // Invalid XRPL address: still update state for UI feedback, but skip refresh
-      console.warn("Invalid XRPL address:", address);
       setXrplAddress(address);
     }
   };
@@ -192,45 +215,42 @@ export default function RedeemXRP() {
     setSuccess(null);
 
     try {
-      if (!assetManagerContract) { throw new Error('AssetManager contract not initialized'); }
+      if (!settings) {
+        throw new Error('AssetManager settings not loaded');
+      }
 
-      const settings = await assetManagerContract.getSettings();
-      const assetMintingGranularityUBA = settings.assetMintingGranularityUBA;
+      if (!isConnected) {
+        throw new Error('Please connect your wallet');
+      }
+
       const lotSizeAMG = settings.lotSizeAMG;
-
-      console.log('assetMintingGranularityUBA:', assetMintingGranularityUBA);
-      console.log('assetMintingGranularityUBA type:', typeof assetMintingGranularityUBA);
-      console.log('lotSizeAMG:', lotSizeAMG);
-      console.log('lotSizeAMG type:', typeof lotSizeAMG);
-
-      const xrpInDrops = parseFloat(data.amount) * 1000000; // Convert XRP to drops
-      console.log('xrpInDrops:', xrpInDrops);
-
-      const lotSize = typeof lotSizeAMG === 'bigint'
-        ? Number(lotSizeAMG)
-        : parseFloat(lotSizeAMG.toString());
-
-      console.log('lotSize:', lotSize);
+      const xrpInDrops = parseFloat(data.amount) * 1000000;
+      const lotSize = Number(lotSizeAMG);
       const lots = Math.floor(xrpInDrops / lotSize);
 
-      console.log('lots', lots);
+      if (lots <= 0) {
+        throw new Error('Amount too small to redeem. Minimum amount required.');
+      }
 
-      if (lots <= 0) { throw new Error('Amount too small to redeem. Minimum amount required.'); }
+      // Call the redeem function using wagmi - Diamond proxy approach
+      redeemContract({
+        address: assetManagerAddress!,
+        abi: iAssetManagerAbi,
+        functionName: 'redeem',
+        args: [BigInt(lots), data.xrplAddress, assetManagerAddress!],
+      });
 
-      await assetManagerContract.redeem(
-        lots.toString(),
-        data.xrplAddress,
-      );
-      
-      setSuccess(`Successfully redeemed ${data.amount} XRP (${lots} lots) to ${data.xrplAddress}`);
-      reset();
     } catch (error) {
       console.error('Error redeeming to XRP:', error);
       setError(error instanceof Error ? error.message : 'Failed to redeem to XRP');
-    } finally {
       setIsProcessing(false);
     }
   };
+
+  // Update processing state based on transaction status
+  useEffect(() => {
+    setIsProcessing(isRedeemPending || isConfirming);
+  }, [isRedeemPending, isConfirming]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -365,13 +385,13 @@ export default function RedeemXRP() {
 
             <Button
               type="submit"
-              disabled={isProcessing}
+              disabled={isProcessing || !isConnected || isLoadingSettings}
               className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  {isRedeemPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Processing...'}
                 </>
               ) : (
                 <>

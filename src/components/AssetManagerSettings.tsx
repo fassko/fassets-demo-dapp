@@ -22,7 +22,6 @@ export default function AssetManagerSettings() {
     setError(null);
     
     try {
-      
       if (typeof window !== 'undefined' && window.ethereum) {  
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         const provider = new ethers.BrowserProvider(window.ethereum);
