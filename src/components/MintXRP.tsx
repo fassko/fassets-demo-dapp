@@ -43,12 +43,12 @@ export default function MintXRP() {
     status: bigint;
     agentName?: string;
   }>>([]);
-  const [isLoadingAgents, setIsLoadingAgents] = useState(false);
+
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
   const [reservationFee, setReservationFee] = useState<string>('0');
   const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
 
-  const { address: userAddress, isConnected } = useAccount();
+  const { isConnected } = useAccount();
 
   const {
     register,
@@ -126,13 +126,13 @@ export default function MintXRP() {
     const fetchAgentsWithNames = async () => {
       if (availableAgentsData && settings) {
         const agents = availableAgentsData[0]; // First element is the agents array
-        const availableAgentsWithCollateral = agents.filter((agent: any) => 
+        const availableAgentsWithCollateral = agents.filter((agent) => 
           agent.freeCollateralLots > BigInt(0)
         );
 
         // Fetch agent names using manual contract calls
         const agentsWithNames = await Promise.all(
-          availableAgentsWithCollateral.map(async (agent: any) => {
+          availableAgentsWithCollateral.map(async (agent) => {
             try {
               // Create a contract instance for manual calls
               const { createPublicClient, http } = await import('viem');
@@ -258,10 +258,10 @@ export default function MintXRP() {
                   setSuccess(`Successfully reserved collateral! Reservation ID: ${decodedLog.args.collateralReservationId.toString()}\n You need to make a payment of ${totalXRP} XRP to ${decodedLog.args.paymentAddress}`);
                   break;
                 }
-              } catch (decodeError) {
-                // This log is not a CollateralReserved event, continue to next log
-                console.log('Log is not a CollateralReserved event:', log);
-              }
+                             } catch {
+                 // This log is not a CollateralReserved event, continue to next log
+                 console.log('Log is not a CollateralReserved event:', log);
+               }
             }
           }
           

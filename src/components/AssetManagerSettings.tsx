@@ -1,50 +1,61 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ethers } from 'ethers';
-import { AssetManagerContract } from '@/utils/assetManagerContract';
-import type { IAssetManagerInstance } from '@/types/truffle-types/flare-periphery-contracts-fassets-test/coston2/IAssetManager';
+import { useReadContract } from 'wagmi';
+
+// Contract functions
+import { getAssetManagerAddress } from '@/lib/assetManager';
+import { iAssetManagerAbi } from '../generated';
+
+// UI components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw } from "lucide-react";
 
-// Type for the return value of getSettings() method
-type AssetManagerSettings = Awaited<ReturnType<IAssetManagerInstance['getSettings']>>;
 
 export default function AssetManagerSettings() {
-  const [settings, setSettings] = useState<AssetManagerSettings | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function fetchAssetManagerSettings() {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      if (typeof window !== 'undefined' && window.ethereum) {  
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const assetManagerContract = await AssetManagerContract.create(provider, signer);
-        
-        const settingsData = await assetManagerContract.getSettings();
-        
-        setSettings(settingsData);
-      } else {
-        throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
-      }
-    } catch (err) {
-      console.error('Error fetching AssetManager settings:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch settings');
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  // Get AssetManager address
   useEffect(() => {
-    fetchAssetManagerSettings();
+    const fetchAddress = async () => {
+      try {
+        const address = await getAssetManagerAddress();
+        setAssetManagerAddress(address);
+      } catch (error) {
+        console.error('Error fetching AssetManager address:', error);
+        setError('Failed to fetch AssetManager address');
+      }
+    };
+
+    fetchAddress();
   }, []);
+
+  // Read AssetManager settings using wagmi
+  const { 
+    data: settings, 
+    isLoading: loading, 
+    error: readError,
+    refetch: refetchSettings 
+  } = useReadContract({
+    address: assetManagerAddress!,
+    abi: iAssetManagerAbi,
+    functionName: 'getSettings',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+  });
+
+  // Handle read errors
+  useEffect(() => {
+    if (readError) {
+      setError(readError.message);
+    } else {
+      setError(null);
+    }
+  }, [readError]);
 
   // Helper function to create explorer link
   function createExplorerLink(address: string) {
@@ -86,7 +97,7 @@ export default function AssetManagerSettings() {
               Asset Manager FXRP Settings
             </CardTitle>
             <Button 
-              onClick={fetchAssetManagerSettings}
+              onClick={() => refetchSettings()}
               disabled={loading}
               variant="outline"
               size="sm"
@@ -130,37 +141,44 @@ export default function AssetManagerSettings() {
               {settingsBox("Asset Configuration", [
                 {
                   title: "Asset Decimals",
-                  value: settings.assetDecimals
+                  value: settings.assetDecimals.toString()
                 },
                 {
                   title: "Asset Minting Decimals",
-                  value: settings.assetMintingDecimals
+                  value: settings.assetMintingDecimals.toString()
                 },
                 {
                   title: "Asset Unit UBA",
-                  value: settings.assetUnitUBA
+                  value: settings.assetUnitUBA.toString()
                 },
                 {
                   title: "Asset Minting Granularity UBA",
-                  value: settings.assetMintingGranularityUBA
+                  value: settings.assetMintingGranularityUBA.toString()
                 }
               ])}
 
               {settingsBox("Minting Settings", [
                 {
                   title: "Lot Size AMG",
-                  value: settings.lotSizeAMG
+                  value: settings.lotSizeAMG.toString()
                 },
                 {
                   title: "Collateral Reservation Fee (BIPS)",
-                  value: settings.collateralReservationFeeBIPS
+                  value: settings.collateralReservationFeeBIPS.toString()
                 }
               ])}
 
               {settingsBox("Redemption Settings", [
                 {
                   title: "Redemption Fee (BIPS)",
-                  value: settings.redemptionFeeBIPS
+                  value: settings.redemptionFeeBIPS.toString()
+                }
+              ])}
+
+              {settingsBox("Registry Addresses", [
+                {
+                  title: "Agent Owner Registry",
+                  value: createExplorerLink(settings.agentOwnerRegistry)
                 }
               ])}
             </div>

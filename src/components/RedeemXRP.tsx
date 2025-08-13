@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -68,7 +68,7 @@ export default function RedeemXRP() {
   }, []);
 
   // Read AssetManager settings
-  const { data: settings, isLoading: isLoadingSettings, error: settingsError } = useReadContract({
+  const { data: settings, isLoading: isLoadingSettings } = useReadContract({
     address: assetManagerAddress!,
     abi: iAssetManagerAbi,
     functionName: 'getSettings',
@@ -150,7 +150,7 @@ export default function RedeemXRP() {
     initXrpl();
   }, []);
 
-  const refreshBalances = async () => {
+  const refreshBalances = useCallback(async () => {
     try {
       // Refresh XRPL balance
       if (xrplClient && xrplAddress) {
@@ -177,14 +177,14 @@ export default function RedeemXRP() {
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  };
+  }, [xrplClient, xrplAddress, userAddress, settings, assetManagerAddress, refetchFxrpBalance]);
 
   // Refresh XRPL balance when client and address are available
   useEffect(() => {
     if (xrplClient && xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
       refreshBalances();
     }
-  }, [xrplClient, xrplAddress]);
+  }, [xrplClient, xrplAddress, refreshBalances]);
 
   const isValidXrplAddress = (address: string): boolean => {
     try {
