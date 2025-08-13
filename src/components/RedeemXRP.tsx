@@ -4,11 +4,15 @@ import { useState, useEffect, useCallback } from 'react';
 import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { erc20Abi } from 'viem';
+import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 
 // Form data schema
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
+
+// Hooks and contract functions
+import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { iAssetManagerAbi } from "../generated";
 
 // UI components
 import { ArrowRight, RefreshCw, Loader2, Wallet, Coins } from "lucide-react";
@@ -19,23 +23,18 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 
-// Contract functions
-import { getAssetManagerAddress } from '@/lib/assetManager';
-import { iAssetManagerAbi } from "../generated";
-
 export default function RedeemXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
-  const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
-  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
 
-  const { address: userAddress, isConnected } = useAccount();
+  const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
+  const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
 
   const {
     register,
@@ -53,43 +52,8 @@ export default function RedeemXRP() {
 
   const watchedAmount = watch('amount');
 
-  // Get FXRP AssetManager address
-  useEffect(() => {
-    const fetchAddress = async () => {
-      try {
-        const address = await getAssetManagerAddress();
-        setAssetManagerAddress(address);
-      } catch (error) {
-        console.error('Error fetching AssetManager address:', error);
-      }
-    };
-
-    fetchAddress();
-  }, []);
-
-  // Read AssetManager settings
-  const { data: settings, isLoading: isLoadingSettings } = useReadContract({
-    address: assetManagerAddress!,
-    abi: iAssetManagerAbi,
-    functionName: 'getSettings',
-    query: {
-      enabled: !!assetManagerAddress,
-    },
-  });
-
-  // Read FXRP balance using wagmi
-  const { data: fxrpBalanceData, refetch: refetchFxrpBalance } = useReadContract({
-    address: settings?.fAsset as `0x${string}`,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: [userAddress as `0x${string}`],
-    query: {
-      enabled: !!userAddress && !!settings?.fAsset && !!assetManagerAddress,
-    },
-  });
-
   // Write contract for redeem function
-  const { data: redeemHash, writeContract: redeemContract, isPending: isRedeemPending } = useWriteContract();
+  const { data: redeemHash, writeContract: redeemContract, isPending: isRedeemPending, error: writeError } = useWriteContract();
 
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isRedeemSuccess } = useWaitForTransactionReceipt({
@@ -116,15 +80,7 @@ export default function RedeemXRP() {
     calculateLots();
   }, [settings, watchedAmount]);
 
-  // Update FXRP balance when data changes
-  useEffect(() => {
-    if (fxrpBalanceData && settings) {
-      const decimals = Number(settings.assetDecimals);
-      const formattedBalance = (Number(fxrpBalanceData) / Math.pow(10, decimals)).toFixed(decimals);
-      
-      setFxrpBalance(formattedBalance);
-    }
-  }, [fxrpBalanceData, settings]);
+
 
   // Handle successful redemption
   useEffect(() => {
@@ -246,6 +202,25 @@ export default function RedeemXRP() {
       setIsProcessing(false);
     }
   };
+
+  // Handle write contract errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('Write contract error:', writeError);
+      
+      // Handle specific error types
+      if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
+        setError('Transaction was cancelled by the user.');
+      } else if (writeError.message.includes('execution reverted')) {
+        setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient funds, invalid parameters, or network issues.');
+      } else if (writeError.message.includes('insufficient funds')) {
+        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+      } else {
+        setError(`Transaction failed: ${writeError.message}`);
+      }
+      setIsProcessing(false);
+    }
+  }, [writeError]);
 
   // Update processing state based on transaction status
   useEffect(() => {
@@ -401,11 +376,13 @@ export default function RedeemXRP() {
               )}
             </Button>
 
-            {error && (
-              <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
+                      {(error || assetManagerError || balanceError || writeError) && (
+            <Alert variant="destructive">
+              <AlertDescription>
+                {error || assetManagerError || (balanceError?.message || 'Balance error') || (writeError?.message || 'Transaction error')}
+              </AlertDescription>
+            </Alert>
+          )}
 
             {success && (
               <Alert className="bg-green-50 border-green-200 text-green-800">

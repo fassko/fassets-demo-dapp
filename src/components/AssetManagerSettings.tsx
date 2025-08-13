@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useReadContract } from 'wagmi';
 
-// Contract functions
-import { getAssetManagerAddress } from '@/lib/assetManager';
-import { iAssetManagerAbi } from '../generated';
+// Hooks and contract functions
+import { useAssetManager } from '@/hooks/useAssetManager';
 
 // UI components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,47 +13,7 @@ import { RefreshCw } from "lucide-react";
 
 
 export default function AssetManagerSettings() {
-  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  // Get AssetManager address
-  useEffect(() => {
-    const fetchAddress = async () => {
-      try {
-        const address = await getAssetManagerAddress();
-        setAssetManagerAddress(address);
-      } catch (error) {
-        console.error('Error fetching AssetManager address:', error);
-        setError('Failed to fetch AssetManager address');
-      }
-    };
-
-    fetchAddress();
-  }, []);
-
-  // Read AssetManager settings using wagmi
-  const { 
-    data: settings, 
-    isLoading: loading, 
-    error: readError,
-    refetch: refetchSettings 
-  } = useReadContract({
-    address: assetManagerAddress!,
-    abi: iAssetManagerAbi,
-    functionName: 'getSettings',
-    query: {
-      enabled: !!assetManagerAddress,
-    },
-  });
-
-  // Handle read errors
-  useEffect(() => {
-    if (readError) {
-      setError(readError.message);
-    } else {
-      setError(null);
-    }
-  }, [readError]);
+  const { assetManagerAddress, settings, isLoading: loading, error, refetchSettings } = useAssetManager();
 
   // Helper function to create explorer link
   function createExplorerLink(address: string) {

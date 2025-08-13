@@ -15,8 +15,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Coins, Loader2 } from "lucide-react";
 
-// Contract functions
-import { getAssetManagerAddress } from '@/lib/assetManager';
+// Hooks and contract functions
+import { useAssetManager } from '@/hooks/useAssetManager';
 import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
 import { decodeEventLog } from 'viem';
 
@@ -46,7 +46,7 @@ export default function MintXRP() {
 
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
   const [reservationFee, setReservationFee] = useState<string>('0');
-  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
+  const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
 
   const { isConnected } = useAccount();
 
@@ -68,29 +68,9 @@ export default function MintXRP() {
   const watchedLots = watch('lots');
   const watchedAgentVault = watch('agentVault');
 
-  // Get AssetManager address
-  useEffect(() => {
-    const fetchAddress = async () => {
-      try {
-        const address = await getAssetManagerAddress();
-        setAssetManagerAddress(address);
-      } catch (error) {
-        console.error('Error fetching AssetManager address:', error);
-      }
-    };
 
-    fetchAddress();
-  }, []);
 
-  // Read AssetManager settings
-  const { data: settings, isLoading: isLoadingSettings } = useReadContract({
-    address: assetManagerAddress!,
-    abi: iAssetManagerAbi,
-    functionName: 'getSettings',
-    query: {
-      enabled: !!assetManagerAddress,
-    },
-  });
+
 
   // Read available agents
   const { data: availableAgentsData, isLoading: isLoadingAgentsData } = useReadContract({
@@ -367,7 +347,7 @@ export default function MintXRP() {
           setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.');
         } else if (error.message.includes('insufficient funds')) {
           setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
-        } else if (error.message.includes('user rejected')) {
+        } else if (error.message.includes('user rejected') || error.message.includes('User denied transaction signature')) {
           setError('Transaction was cancelled by the user.');
         } else {
           setError(`Failed to mint XRP: ${error.message}`);
@@ -380,6 +360,24 @@ export default function MintXRP() {
 
   const isProcessing = isReservePending || isConfirming;
   const isLoading = isLoadingSettings || isLoadingAgentsData;
+
+  // Handle write contract errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('Write contract error:', writeError);
+      
+      // Handle specific error types
+      if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
+        setError('Transaction was cancelled by the user.');
+      } else if (writeError.message.includes('execution reverted')) {
+        setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.');
+      } else if (writeError.message.includes('insufficient funds')) {
+        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+      } else {
+        setError(`Transaction failed: ${writeError.message}`);
+      }
+    }
+  }, [writeError]);
 
   // Debug: Monitor write contract state
   useEffect(() => {
@@ -556,9 +554,9 @@ export default function MintXRP() {
               )}
             </Button>
 
-            {error && (
+            {(error || assetManagerError) && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{error || assetManagerError}</AlertDescription>
               </Alert>
             )}
 
