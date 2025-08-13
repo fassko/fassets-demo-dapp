@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { AssetManagerContract } from '@/utils/assetManagerContract';
-import { AgentOwnerRegistryContract } from '@/utils/agentOwnerRegistryContract';
+import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Coins, Loader2 } from "lucide-react";
+
+// Contract functions
+import { getAssetManagerAddress } from '@/lib/assetManager';
+import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
+import { decodeEventLog } from 'viem';
 
 const MintXRPFormDataSchema = z.object({
   agentVault: z.string().min(1, 'Agent vault address is required'),
@@ -27,11 +31,8 @@ const MintXRPFormDataSchema = z.object({
 type MintXRPFormData = z.infer<typeof MintXRPFormDataSchema>;
 
 export default function MintXRP() {
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
-  const [agentOwnerRegistryContract, setAgentOwnerRegistryContract] = useState<AgentOwnerRegistryContract | null>(null);
   const [availableAgents, setAvailableAgents] = useState<Array<{
     agentVault: string;
     ownerManagementAddress: string;
@@ -45,6 +46,9 @@ export default function MintXRP() {
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
   const [reservationFee, setReservationFee] = useState<string>('0');
+  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
+
+  const { address: userAddress, isConnected } = useAccount();
 
   const {
     register,
@@ -64,14 +68,140 @@ export default function MintXRP() {
   const watchedLots = watch('lots');
   const watchedAgentVault = watch('agentVault');
 
+  // Get AssetManager address
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const address = await getAssetManagerAddress();
+        setAssetManagerAddress(address);
+      } catch (error) {
+        console.error('Error fetching AssetManager address:', error);
+      }
+    };
+
+    fetchAddress();
+  }, []);
+
+  // Read AssetManager settings
+  const { data: settings, isLoading: isLoadingSettings } = useReadContract({
+    address: assetManagerAddress!,
+    abi: iAssetManagerAbi,
+    functionName: 'getSettings',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+  });
+
+  // Read available agents
+  const { data: availableAgentsData, isLoading: isLoadingAgentsData } = useReadContract({
+    address: assetManagerAddress!,
+    abi: iAssetManagerAbi,
+    functionName: 'getAvailableAgentsDetailedList',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+    args: [BigInt(1), BigInt(100)],
+  });
+
+  // Write contract for reserveCollateral function
+  const { data: reserveHash, writeContract: reserveContract, isPending: isReservePending, error: writeError } = useWriteIAssetManagerReserveCollateral();
+
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isReserveSuccess, data: receipt } = useWaitForTransactionReceipt({
+    hash: reserveHash,
+  });
+
+  // Process settings when loaded
+  useEffect(() => {
+    if (settings) {
+      const lotSizeRaw = settings.lotSizeAMG.toString();
+      const decimals = Number(settings.assetDecimals);
+      const lotSizeHumanReadable = (Number(lotSizeRaw) / Math.pow(10, decimals)).toFixed(decimals);
+      setLotSizeAMG(lotSizeHumanReadable);
+    }
+  }, [settings]);
+
+  // Process available agents when loaded
+  useEffect(() => {
+    const fetchAgentsWithNames = async () => {
+      if (availableAgentsData && settings) {
+        const agents = availableAgentsData[0]; // First element is the agents array
+        const availableAgentsWithCollateral = agents.filter((agent: any) => 
+          agent.freeCollateralLots > BigInt(0)
+        );
+
+        // Fetch agent names using manual contract calls
+        const agentsWithNames = await Promise.all(
+          availableAgentsWithCollateral.map(async (agent: any) => {
+            try {
+              // Create a contract instance for manual calls
+              const { createPublicClient, http } = await import('viem');
+              const { flareTestnet } = await import('wagmi/chains');
+              
+              const client = createPublicClient({
+                chain: flareTestnet,
+                transport: http(),
+              });
+
+              const agentName = await client.readContract({
+                address: settings.agentOwnerRegistry as `0x${string}`,
+                abi: iAgentOwnerRegistryAbi,
+                functionName: 'getAgentName',
+                args: [agent.ownerManagementAddress],
+              });
+
+              return {
+                ...agent,
+                agentVault: agent.agentVault as string,
+                ownerManagementAddress: agent.ownerManagementAddress as string,
+                status: BigInt(agent.status),
+                agentName: agentName || 'Unknown Agent'
+              };
+            } catch (error) {
+              console.error(`Error fetching name for agent ${agent.agentVault}:`, error);
+              return {
+                ...agent,
+                agentVault: agent.agentVault as string,
+                ownerManagementAddress: agent.ownerManagementAddress as string,
+                status: BigInt(agent.status),
+                agentName: 'Unknown Agent'
+              };
+            }
+          })
+        );
+
+        setAvailableAgents(agentsWithNames);
+      }
+    };
+
+    fetchAgentsWithNames();
+  }, [availableAgentsData, settings]);
+
   // Calculate reservation fee when lots or agent vault changes
   useEffect(() => {
     const calculateReservationFee = async () => {
-      if (assetManagerContract && watchedLots && watchedAgentVault && !isNaN(parseInt(watchedLots))) {
+      if (assetManagerAddress && watchedLots && watchedAgentVault && !isNaN(parseInt(watchedLots))) {
         try {
-          const fee = await assetManagerContract.collateralReservationFee(watchedLots);
-          const feeInFLR = ethers.formatEther(fee);
-          setReservationFee(feeInFLR);
+          // Create a contract instance for manual calls
+          const { createPublicClient, http } = await import('viem');
+          const { flareTestnet } = await import('wagmi/chains');
+          
+          const client = createPublicClient({
+            chain: flareTestnet,
+            transport: http(),
+          });
+
+          const feeData = await client.readContract({
+            address: assetManagerAddress,
+            abi: iAssetManagerAbi,
+            functionName: 'collateralReservationFee',
+            args: [BigInt(watchedLots)],
+          });
+          
+          if (feeData) {
+            const feeInFLR = (Number(feeData) / Math.pow(10, 18)).toFixed(6);
+            setReservationFee(feeInFLR);
+          }
         } catch (error) {
           console.error('Error calculating reservation fee:', error);
           setReservationFee('0');
@@ -82,128 +212,95 @@ export default function MintXRP() {
     };
 
     calculateReservationFee();
-  }, [assetManagerContract, watchedLots, watchedAgentVault]);
+  }, [assetManagerAddress, watchedLots, watchedAgentVault]);
 
-  const initializeConnections = useCallback(async () => {
-    try {
-      if (typeof window !== 'undefined' && window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        const signer = await provider.getSigner();
-        const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
-        setAssetManagerContract(assetManagerContractInstance);
-        
-        // Get agent owner registry address from settings
-        const settings = await assetManagerContractInstance.getSettings();
-        const agentOwnerRegistryAddress = settings.agentOwnerRegistry;
-        
-        // Initialize agent owner registry contract
-        const agentOwnerRegistryInstance = await AgentOwnerRegistryContract.create(
-
-          signer, 
-          agentOwnerRegistryAddress
-        );
-        setAgentOwnerRegistryContract(agentOwnerRegistryInstance);
-        
-        // Fetch available agents and settings after contract is initialized
-        await Promise.all([
-          fetchAvailableAgents(assetManagerContractInstance, agentOwnerRegistryInstance),
-          fetchAssetManagerSettings(assetManagerContractInstance)
-        ]);
-      }
-    } catch (error) {
-      console.error('Error initializing connections:', error);
-    }
-  }, []);
-
+  // Handle successful reservation
   useEffect(() => {
-    initializeConnections();
-  }, [initializeConnections]);
+    if (isReserveSuccess && receipt) {
+      console.log('Transaction receipt:', receipt);
+      
+              // Try to decode the CollateralReserved event from the transaction logs
+        try {
+          if (receipt.logs && receipt.logs.length > 0) {
+            console.log('Transaction logs:', receipt.logs);
+            
+            // Look for CollateralReserved event
+            for (const log of receipt.logs) {
+              try {
+                // Try to decode the log as a CollateralReserved event
+                const decodedLog = decodeEventLog({
+                  abi: iAssetManagerAbi,
+                  data: log.data,
+                  topics: log.topics,
+                });
+                
+                if (decodedLog.eventName === 'CollateralReserved') {
+                  console.log('CollateralReserved event decoded:', {
+                    eventName: decodedLog.eventName,
+                    args: decodedLog.args,
+                    // The important fields from the event:
+                    agentVault: decodedLog.args.agentVault,
+                    minter: decodedLog.args.minter,
+                    collateralReservationId: decodedLog.args.collateralReservationId,
+                    valueUBA: decodedLog.args.valueUBA,
+                    feeUBA: decodedLog.args.feeUBA,
+                    paymentAddress: decodedLog.args.paymentAddress,
+                    paymentReference: decodedLog.args.paymentReference,
+                    executor: decodedLog.args.executor,
+                    executorFeeNatWei: decodedLog.args.executorFeeNatWei
+                  });
 
-  async function fetchAssetManagerSettings(contract: AssetManagerContract) {
-    try {
-      const settings = await contract.getSettings();
-      
-      // Get lot size and asset decimals
-      const lotSizeRaw = typeof settings.lotSizeAMG === 'bigint'
-        ? settings.lotSizeAMG.toString()
-        : settings.lotSizeAMG.toString();
-      
-      const decimals = typeof settings.assetDecimals === 'bigint'
-        ? Number(settings.assetDecimals)
-        : Number(settings.assetDecimals);
-      
-      // Convert lot size to human readable format
-      const lotSizeHumanReadable = ethers.formatUnits(lotSizeRaw, decimals);
-      
-      setLotSizeAMG(lotSizeHumanReadable);
-      console.log('Lot size AMG (human readable):', lotSizeHumanReadable);
-      console.log('Asset decimals:', decimals);
-    } catch (error) {
-      console.error('Error fetching AssetManager settings:', error);
-      setError('Failed to fetch AssetManager settings');
-    }
-  }
-
-  async function fetchAvailableAgents(contract: AssetManagerContract, agentOwnerRegistry: AgentOwnerRegistryContract) {
-    setIsLoadingAgents(true);
-    try {
-      const result = await contract.getAvailableAgentsDetailedList();
-      // Filter agents with more than 0 free collateral lots
-      const availableAgentsWithCollateral = result.agents.filter(agent => 
-        agent.freeCollateralLots > BigInt(0)
-      );
-      
-      // Fetch agent names for each agent
-      const agentsWithNames = await Promise.all(
-        availableAgentsWithCollateral.map(async (agent) => {
-          try {
-            const agentName = await agentOwnerRegistry.getAgentName(agent.ownerManagementAddress);
-            return {
-              ...agent,
-              agentName
-            };
-          } catch (error) {
-            console.error(`Error fetching name for agent ${agent.agentVault}:`, error);
-            return {
-              ...agent,
-              agentName: 'Unknown Agent'
-            };
+                  const totalUBA = decodedLog.args.valueUBA + decodedLog.args.feeUBA;
+                  const totalXRP = Number(totalUBA) / 10 ** 6;
+                  console.log(`You need to pay ${totalXRP} XRP`);
+                  
+                  // Update success message with reservation ID
+                  setSuccess(`Successfully reserved collateral! Reservation ID: ${decodedLog.args.collateralReservationId.toString()}\n You need to make a payment of ${totalXRP} XRP to ${decodedLog.args.paymentAddress}`);
+                  break;
+                }
+              } catch (decodeError) {
+                // This log is not a CollateralReserved event, continue to next log
+                console.log('Log is not a CollateralReserved event:', log);
+              }
+            }
           }
-        })
-      );
-      
-      setAvailableAgents(agentsWithNames);
-      console.log('Available agents with names:', agentsWithNames);
-    } catch (error) {
-      console.error('Error fetching available agents:', error);
-      setError('Failed to fetch available agents');
-    } finally {
-      setIsLoadingAgents(false);
+          
+          // Log the transaction hash and block number
+          console.log('Transaction successful:', {
+            hash: receipt.transactionHash,
+            blockNumber: receipt.blockNumber,
+            gasUsed: receipt.gasUsed,
+            effectiveGasPrice: receipt.effectiveGasPrice
+          });
+                } catch (error) {
+          console.error('Error decoding transaction result:', error);
+          // Fallback success message if event decoding fails
+          setSuccess(`Successfully reserved collateral! Transaction: ${receipt.transactionHash}`);
+        }
+      reset();
     }
-  }
+  }, [isReserveSuccess, receipt, reset]);
 
   async function mintXRP(data: MintXRPFormData) {
-    setIsProcessing(true);
     setError(null);
     setSuccess(null);
 
+    console.log('MintXRP function called with data:', data);
+    console.log('Current state:', {
+      assetManagerAddress,
+      isConnected,
+      settings: !!settings,
+      availableAgents: availableAgents.length
+    });
+
     try {
-      if (!assetManagerContract) { 
-        throw new Error('AssetManager contract not initialized'); 
+      if (!assetManagerAddress) {
+        throw new Error('AssetManager address not loaded');
       }
 
-      // Fetch agent info to get the fee
-      const agentInfo = await assetManagerContract.getAgentInfo(data.agentVault);
-      const agentFeeBIPS = agentInfo.feeBIPS.toString();
-
-      console.log('Minting XRP with parameters:', {
-        agentVault: data.agentVault,
-        lots: data.lots,
-        lotsType: typeof data.lots,
-        agentFeeBIPS,
-        agentFeeBIPSType: typeof agentFeeBIPS,
-      });
+      if (!isConnected) {
+        throw new Error('Please connect your wallet');
+      }
 
       // Validate that lots is a positive integer
       const lotsNumber = parseInt(data.lots);
@@ -217,19 +314,50 @@ export default function MintXRP() {
         throw new Error('Invalid reservation fee calculated');
       }
 
-      console.log('Calling reserveCollateral with:', {
-        agentVault: data.agentVault,
-        lots: lotsNumber,
-        agentFeeBIPS: parseInt(agentFeeBIPS)
-      });
+      // Get agent fee
+      const selectedAgent = availableAgents.find(agent => agent.agentVault === data.agentVault);
+      if (!selectedAgent) {
+        throw new Error('Selected agent not found');
+      }
 
-      await assetManagerContract.reserveCollateral(
-        data.agentVault,
-        data.lots,
-      );
+      const executor = "0x0000000000000000000000000000000000000000";
 
-      setSuccess(`Successfully reserved collateral for ${data.lots} lots with agent fee ${Number(agentFeeBIPS) / 100}% and reservation fee ${reservationFee} FLR`);
-      reset();
+      const agentFeeBIPS = selectedAgent.feeBIPS.toString();
+
+              console.log('Calling reserveCollateral with:', {
+          agentVault: data.agentVault,
+          lots: lotsNumber,
+          agentFeeBIPS: parseInt(agentFeeBIPS),
+          reservationFee: feeAmount
+        });
+
+        console.log('About to call reserveContract with:', {
+          address: assetManagerAddress,
+          args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
+          value: BigInt(Math.floor(feeAmount * Math.pow(10, 18))),
+          valueInFLR: feeAmount
+        });
+
+        // Check if reserveContract is available
+        if (!reserveContract) {
+          throw new Error('reserveContract function is not available');
+        }
+
+        console.log('>> assetManagerAddress:', assetManagerAddress);
+
+        // Call the reserveCollateral function using the generated hook
+        const result = reserveContract({
+          address: assetManagerAddress,
+          args: [
+            data.agentVault as `0x${string}`,
+            BigInt(data.lots),
+            BigInt(agentFeeBIPS),
+            executor as `0x${string}`],
+          value: BigInt(Math.floor(feeAmount * Math.pow(10, 18))), // Convert FLR to wei
+        });
+
+        console.log('reserveContract called successfully, result:', result);
+
     } catch (error) {
       console.error('Error minting XRP:', error);
       
@@ -247,10 +375,26 @@ export default function MintXRP() {
       } else {
         setError('Failed to mint XRP: An unexpected error occurred');
       }
-    } finally {
-      setIsProcessing(false);
     }
   }
+
+  const isProcessing = isReservePending || isConfirming;
+  const isLoading = isLoadingSettings || isLoadingAgentsData;
+
+  // Debug: Monitor write contract state
+  useEffect(() => {
+    console.log('Write contract state:', {
+      isReservePending,
+      isConfirming,
+      reserveHash,
+      writeError,
+      isProcessing
+    });
+    
+    if (reserveHash) {
+      console.log('Transaction hash received:', reserveHash);
+    }
+  }, [isReservePending, isConfirming, reserveHash, writeError, isProcessing]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -270,7 +414,7 @@ export default function MintXRP() {
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="agentVault" className="text-blue-900">Agent Vault</Label>
-                {isLoadingAgents ? (
+                {isLoading ? (
                   <div className="flex items-center space-x-2 p-3 border rounded-md bg-blue-50 border-blue-200">
                     <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
                     <span className="text-sm text-blue-700">Loading available agents...</span>
@@ -350,7 +494,7 @@ export default function MintXRP() {
                 {errors.agentVault && (
                   <p className="text-sm text-destructive">{errors.agentVault.message}</p>
                 )}
-                {availableAgents.length === 0 && !isLoadingAgents && (
+                {availableAgents.length === 0 && !isLoading && (
                   <p className="text-sm text-blue-600">No available agents found</p>
                 )}
               </div>
@@ -396,13 +540,13 @@ export default function MintXRP() {
 
             <Button
               type="submit"
-              disabled={isProcessing}
+              disabled={isProcessing || !isConnected || isLoading || !assetManagerAddress || !settings}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  {isReservePending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Processing...'}
                 </>
               ) : (
                 <>
@@ -421,6 +565,12 @@ export default function MintXRP() {
             {success && (
               <Alert className="bg-blue-50 border-blue-200 text-blue-800">
                 <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+
+            {writeError && (
+              <Alert variant="destructive">
+                <AlertDescription>Write Contract Error: {writeError.message}</AlertDescription>
               </Alert>
             )}
           </form>
