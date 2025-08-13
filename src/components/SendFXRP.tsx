@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { ethers } from 'ethers';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { erc20Abi } from 'viem';
 
-import { AssetManagerContract } from '@/utils/assetManagerContract';
-import { FXRPContract } from '@/utils/fxrpContract';
+// Form data schema
 import { SendFXRPFormDataSchema, SendFXRPFormData } from '@/types/sendFXRPFormData';
+
+// Contract functions
+import { getAssetManagerAddress } from '@/lib/assetManager';
+import { iAssetManagerAbi } from "../generated";
+
+// UI components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,20 +23,33 @@ import { Badge } from "@/components/ui/badge";
 import { Send, RefreshCw, Loader2, Coins } from "lucide-react";
 
 export default function SendFXRP() {
-  const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
-  const [flareProvider, setFlareProvider] = useState<ethers.BrowserProvider | null>(null);
-  const [fxrpContract, setFxrpContract] = useState<FXRPContract | null>(null);
-  const [assetManagerContract, setAssetManagerContract] = useState<AssetManagerContract | null>(null);
+  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
+
+  const { address: userAddress, isConnected } = useAccount();
+
+  // Get AssetManager address
+  useEffect(() => {
+    const fetchAddress = async () => {
+      try {
+        const address = await getAssetManagerAddress();
+        setAssetManagerAddress(address);
+      } catch (error) {
+        console.error('Error fetching AssetManager address:', error);
+      }
+    };
+
+    fetchAddress();
+  }, []);
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-    reset
+    reset,
+    watch
   } = useForm<SendFXRPFormData>({
     resolver: zodResolver(SendFXRPFormDataSchema),
     defaultValues: {
@@ -39,73 +58,95 @@ export default function SendFXRP() {
     }
   });
 
-  const refreshBalances = useCallback(async () => {
+  const watchedAmount = watch('amount');
+
+  // Read AssetManager settings
+  const { data: settings, isLoading: isLoadingSettings } = useReadContract({
+    address: assetManagerAddress!,
+    abi: iAssetManagerAbi,
+    functionName: 'getSettings',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+  });
+
+  // Read FXRP balance using wagmi
+  const { data: fxrpBalanceData, refetch: refetchFxrpBalance } = useReadContract({
+    address: settings?.fAsset as `0x${string}`,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [userAddress as `0x${string}`],
+    query: {
+      enabled: !!userAddress && !!settings?.fAsset && isConnected,
+    },
+  });
+
+  // Write contract for transfer function
+  const { data: transferHash, writeContract: transferContract, isPending: isTransferPending } = useWriteContract();
+
+  // Wait for transaction receipt
+  const { isLoading: isConfirming, isSuccess: isTransferSuccess } = useWaitForTransactionReceipt({
+    hash: transferHash,
+  });
+
+  // Update FXRP balance when data changes
+  useEffect(() => {
+    if (fxrpBalanceData && settings) {
+      const decimals = Number(settings.assetDecimals);
+      const formattedBalance = (Number(fxrpBalanceData) / Math.pow(10, decimals)).toFixed(decimals);
+      setFxrpBalance(formattedBalance);
+    }
+  }, [fxrpBalanceData, settings]);
+
+  // Handle successful transfer
+  useEffect(() => {
+    if (isTransferSuccess) {
+      setSuccess(`Successfully sent ${watchedAmount} FXRP`);
+      reset();
+      refetchFxrpBalance();
+    }
+  }, [isTransferSuccess, watchedAmount, reset, refetchFxrpBalance]);
+
+  const refreshBalances = async () => {
     try {
-      if (flareProvider) {
-        const signer = await flareProvider.getSigner();
-        const address = await signer.getAddress();
-        if (address) {
-          const fxrpBalance = await fxrpContract?.getBalance(address);
-          setFxrpBalance(fxrpBalance || '0');
-        }
-      }
+      refetchFxrpBalance();
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  }, [flareProvider, fxrpContract]);
-
-  const initializeConnections = useCallback(async () => {
-    try {
-      if (typeof window !== 'undefined' && window.ethereum) {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.BrowserProvider(window.ethereum);
-        setFlareProvider(provider);
-
-        const signer = await provider.getSigner();
-        const fxrpContractInstance = await FXRPContract.create(provider, signer);
-        const assetManagerContractInstance = await AssetManagerContract.create(provider, signer);
-
-        setFxrpContract(fxrpContractInstance);
-        setAssetManagerContract(assetManagerContractInstance);
-
-        await refreshBalances();
-      }
-    } catch (error) {
-      console.error('Error initializing connections:', error);
-    }
-  }, [refreshBalances]);
-
-  useEffect(() => {
-    initializeConnections();
-  }, [initializeConnections]);
-
-  // Refresh balances when contracts are initialized
-  useEffect(() => {
-    if (fxrpContract && assetManagerContract) {
-      refreshBalances();
-    }
-  }, [fxrpContract, assetManagerContract, refreshBalances]);
+  };
 
   async function sendFXRP(data: SendFXRPFormData) {
-    setIsProcessing(true);
     setError(null);
     setSuccess(null);
 
     try {
-      if (!fxrpContract) { throw new Error('FXRP contract not initialized'); }
+      if (!isConnected) {
+        throw new Error('Please connect your wallet');
+      }
 
-      await fxrpContract.transfer(data.recipientAddress, data.amount);
-      
-      setSuccess(`Successfully sent ${data.amount} FXRP to ${data.recipientAddress}`);
-      reset();
-      await refreshBalances();
+      if (!settings) {
+        throw new Error('AssetManager settings not loaded');
+      }
+
+      // Convert amount to wei using correct decimals
+      const decimals = Number(settings.assetDecimals);
+      const amountInWei = BigInt(Math.floor(parseFloat(data.amount) * Math.pow(10, decimals)));
+
+      // Call the transfer function using wagmi
+      transferContract({
+        address: settings.fAsset as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'transfer',
+        args: [data.recipientAddress as `0x${string}`, amountInWei],
+      });
+
     } catch (error) {
       console.error('Error sending FXRP:', error);
       setError(error instanceof Error ? error.message : 'Failed to send FXRP');
-    } finally {
-      setIsProcessing(false);
     }
   }
+
+  const isProcessing = isTransferPending || isConfirming;
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -182,13 +223,13 @@ export default function SendFXRP() {
 
             <Button
               type="submit"
-              disabled={isProcessing}
+              disabled={isProcessing || !isConnected || isLoadingSettings}
               className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  {isTransferPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Processing...'}
                 </>
               ) : (
                 <>
