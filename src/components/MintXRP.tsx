@@ -19,7 +19,6 @@ import { Coins, Loader2 } from "lucide-react";
 
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
-import { useFLRBalance } from '@/hooks/useFLRBalance';
 import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
 import { decodeEventLog } from 'viem';
 
@@ -40,7 +39,7 @@ export default function MintXRP() {
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
   const [reservationFee, setReservationFee] = useState<string>('0');
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-  const { flrBalance, refetchBalance: refetchFlrBalance, isLoadingBalance: isLoadingFlrBalance, balanceError: flrBalanceError, userAddress, isConnected } = useFLRBalance();
+  const { address: userAddress, isConnected } = useAccount();
 
   const {
     register,
@@ -351,7 +350,7 @@ export default function MintXRP() {
   }
 
   const isProcessing = isReservePending || isConfirming;
-  const isLoading = isLoadingSettings || isLoadingAgentsData || isLoadingFlrBalance;
+  const isLoading = isLoadingSettings || isLoadingAgentsData;
 
   // Handle write contract errors
   useEffect(() => {
@@ -521,9 +520,7 @@ export default function MintXRP() {
                         <p className="text-xs text-blue-600">
                           This fee will be sent with the transaction
                         </p>
-                        <p className="text-xs text-blue-600">
-                          <span className="font-semibold">Your FLR Balance:</span> {flrBalance} FLR
-                        </p>
+
                       </div>
                     )}
                   </div>
@@ -549,10 +546,10 @@ export default function MintXRP() {
               )}
             </Button>
 
-            {(error || assetManagerError || flrBalanceError) && (
+            {(error || assetManagerError) && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {error || assetManagerError || (flrBalanceError?.message || 'FLR balance error')}
+                  {error || assetManagerError}
                 </AlertDescription>
               </Alert>
             )}
