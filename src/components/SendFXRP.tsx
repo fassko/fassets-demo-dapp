@@ -12,7 +12,6 @@ import { SendFXRPFormDataSchema, SendFXRPFormData } from '@/types/sendFXRPFormDa
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { iAssetManagerAbi } from "../generated";
 
 // UI components
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

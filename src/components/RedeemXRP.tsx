@@ -12,6 +12,7 @@ import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFor
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { useFLRBalance } from '@/hooks/useFLRBalance';
 import { iAssetManagerAbi } from "../generated";
 
 // UI components
@@ -35,6 +36,7 @@ export default function RedeemXRP() {
 
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
+  const { flrBalance, refetchBalance: refetchFlrBalance, isLoadingBalance: isLoadingFlrBalance, balanceError: flrBalanceError } = useFLRBalance();
 
   const {
     register,
@@ -79,8 +81,6 @@ export default function RedeemXRP() {
 
     calculateLots();
   }, [settings, watchedAmount]);
-
-
 
   // Handle successful redemption
   useEffect(() => {
@@ -242,7 +242,7 @@ export default function RedeemXRP() {
           </p>
 
           {/* Balance Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             {/* XRPL Balance Card */}
             <Card>
               <CardHeader>
@@ -300,6 +300,36 @@ export default function RedeemXRP() {
                   </Button>
                 </div>
                 <p className="text-xs text-blue-600 mt-2">FXRP Token Balance</p>
+              </CardContent>
+            </Card>
+
+            {/* FLR Balance Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-900">
+                  <Coins className="h-5 w-5 text-orange-600" />
+                  FLR Balance
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Coins className="h-5 w-5 text-orange-600" />
+                    <Badge variant="secondary" className="text-lg bg-orange-100 text-orange-800">
+                      {flrBalance} FLR
+                    </Badge>
+                  </div>
+                  <Button 
+                    onClick={refreshBalances}
+                    variant="outline"
+                    size="sm"
+                    className="border-orange-300 hover:bg-orange-100 cursor-pointer"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh
+                  </Button>
+                </div>
+                <p className="text-xs text-orange-600 mt-2">Native Token Balance</p>
               </CardContent>
             </Card>
           </div>
@@ -376,10 +406,10 @@ export default function RedeemXRP() {
               )}
             </Button>
 
-                      {(error || assetManagerError || balanceError || writeError) && (
+                      {(error || assetManagerError || balanceError || flrBalanceError || writeError) && (
             <Alert variant="destructive">
               <AlertDescription>
-                {error || assetManagerError || (balanceError?.message || 'Balance error') || (writeError?.message || 'Transaction error')}
+                {error || assetManagerError || (balanceError?.message || 'Balance error') || (flrBalanceError?.message || 'FLR balance error') || (writeError?.message || 'Transaction error')}
               </AlertDescription>
             </Alert>
           )}

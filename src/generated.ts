@@ -4038,7 +4038,7 @@ export const iAssetManagerAbi = [
     ],
     name: 'getAllAgents',
     outputs: [
-      { name: '_agentVaults', internalType: 'address[]', type: 'address[]' },
+      { name: '_agents', internalType: 'address[]', type: 'address[]' },
       { name: '_totalLength', internalType: 'uint256', type: 'uint256' },
     ],
     stateMutability: 'view',
@@ -4097,7 +4097,7 @@ export const iAssetManagerAbi = [
     ],
     name: 'getAvailableAgentsList',
     outputs: [
-      { name: '_agentVaults', internalType: 'address[]', type: 'address[]' },
+      { name: '_agents', internalType: 'address[]', type: 'address[]' },
       { name: '_totalLength', internalType: 'uint256', type: 'uint256' },
     ],
     stateMutability: 'view',

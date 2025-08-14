@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+
+// Form data schema
+import { MintXRPFormDataSchema, MintXRPFormData } from '@/types/mintXRPFormData';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,18 +19,9 @@ import { Coins, Loader2 } from "lucide-react";
 
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFLRBalance } from '@/hooks/useFLRBalance';
 import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
 import { decodeEventLog } from 'viem';
-
-const MintXRPFormDataSchema = z.object({
-  agentVault: z.string().min(1, 'Agent vault address is required'),
-  lots: z.string()
-    .min(1, 'Lots amount is required')
-    .refine(val => !isNaN(parseFloat(val)) && parseFloat(val) > 0, 'Lots must be a positive number')
-    .refine(val => Number.isInteger(parseFloat(val)), 'Lots must be a whole number (no decimals)')
-});
-
-type MintXRPFormData = z.infer<typeof MintXRPFormDataSchema>;
 
 export default function MintXRP() {
   const [error, setError] = useState<string | null>(null);
@@ -47,8 +40,7 @@ export default function MintXRP() {
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
   const [reservationFee, setReservationFee] = useState<string>('0');
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-
-  const { isConnected } = useAccount();
+  const { flrBalance, refetchBalance: refetchFlrBalance, isLoadingBalance: isLoadingFlrBalance, balanceError: flrBalanceError, userAddress, isConnected } = useFLRBalance();
 
   const {
     register,
@@ -359,7 +351,7 @@ export default function MintXRP() {
   }
 
   const isProcessing = isReservePending || isConfirming;
-  const isLoading = isLoadingSettings || isLoadingAgentsData;
+  const isLoading = isLoadingSettings || isLoadingAgentsData || isLoadingFlrBalance;
 
   // Handle write contract errors
   useEffect(() => {
@@ -529,6 +521,9 @@ export default function MintXRP() {
                         <p className="text-xs text-blue-600">
                           This fee will be sent with the transaction
                         </p>
+                        <p className="text-xs text-blue-600">
+                          <span className="font-semibold">Your FLR Balance:</span> {flrBalance} FLR
+                        </p>
                       </div>
                     )}
                   </div>
@@ -554,9 +549,11 @@ export default function MintXRP() {
               )}
             </Button>
 
-            {(error || assetManagerError) && (
+            {(error || assetManagerError || flrBalanceError) && (
               <Alert variant="destructive">
-                <AlertDescription>{error || assetManagerError}</AlertDescription>
+                <AlertDescription>
+                  {error || assetManagerError || (flrBalanceError?.message || 'FLR balance error')}
+                </AlertDescription>
               </Alert>
             )}
 

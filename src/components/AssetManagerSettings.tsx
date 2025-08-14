@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
@@ -9,34 +9,69 @@ import { useAssetManager } from '@/hooks/useAssetManager';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RefreshCw } from "lucide-react";
-
+import { RefreshCw, Settings, Copy, Check } from "lucide-react";
 
 export default function AssetManagerSettings() {
-  const { assetManagerAddress, settings, isLoading: loading, error, refetchSettings } = useAssetManager();
+  const { settings, isLoading: loading, error, refetchSettings } = useAssetManager();
+  const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
-  // Helper function to create explorer link
-  function createExplorerLink(address: string) {
-    return <a 
-      href={`https://coston2-explorer.flare.network/address/${address}`}
-      target="_blank"
-      className="text-slate-500 font-mono hover:underline ml-1"
-    >
-      {address}
-    </a>
+  // Helper function to truncate address
+  function truncateAddress(address: string) {
+    if (address.length <= 12) return address;
+    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  }
+
+  // Helper function to copy address to clipboard
+  const copyToClipboard = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      setCopiedAddress(address);
+      setTimeout(() => setCopiedAddress(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy address:', err);
+    }
+  };
+
+  // Helper function to create explorer link with copy functionality
+  function createExplorerLink(address: string, explorer: string = 'coston2') {
+    const isCopied = copiedAddress === address;
+    
+    return (
+      <div className="flex items-center gap-2">
+        <a 
+          href={`https://${explorer}-explorer.flare.network/address/${address}`}
+          target="_blank"
+          className="text-slate-500 font-mono hover:underline"
+        >
+          {truncateAddress(address)}
+        </a>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => copyToClipboard(address)}
+          className="h-6 w-6 p-0 hover:bg-slate-100"
+        >
+          {isCopied ? (
+            <Check className="h-3 w-3 text-green-600" />
+          ) : (
+            <Copy className="h-3 w-3 text-slate-500" />
+          )}
+        </Button>
+      </div>
+    );
   }
 
   function settingsBox(title: string, items: Array<{ title: string; value: React.ReactNode }>) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-slate-700">{title}</CardTitle>
+          <CardTitle className="text-slate-900">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2 text-sm text-slate-600">
+          <div className="space-y-2 text-sm text-slate-700">
             {items.map((item, index) => (
               <div key={index} className="flex justify-between">
-                <span className="font-medium text-slate-700">{item.title}:</span> 
+                <span className="font-medium text-slate-900">{item.title}:</span> 
                 <span>{item.value}</span>
               </div>
             ))}
@@ -47,13 +82,20 @@ export default function AssetManagerSettings() {
   }
 
   return (
-    <div className="w-full mt-8 space-y-6">
+    <div className="w-full max-w-4xl mx-auto p-6">
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-2xl font-semibold text-slate-800">
-              Asset Manager FXRP Settings
-            </CardTitle>
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <Settings className="h-5 w-5 text-slate-600" />
+            Asset Manager FXRP Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-slate-700 mb-6">
+            View and manage Asset Manager configuration settings for FXRP operations.
+          </p>
+
+                    <div className="flex justify-end mb-6">
             <Button 
               onClick={() => refetchSettings()}
               disabled={loading}
@@ -65,8 +107,8 @@ export default function AssetManagerSettings() {
               {loading ? 'Loading...' : 'Refresh Settings'}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-6">
+
+          <div className="space-y-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>
@@ -141,6 +183,7 @@ export default function AssetManagerSettings() {
               ])}
             </div>
           )}
+          </div>
         </CardContent>
       </Card>
     </div>
