@@ -19,8 +19,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Send, RefreshCw, Loader2, Coins } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
+import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
 
 export default function SendFXRP() {
   const [error, setError] = useState<string | null>(null);
@@ -136,32 +136,19 @@ export default function SendFXRP() {
           </p>
 
           {/* Balance Overview */}
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-amber-900">
-                <Coins className="h-5 w-5 text-amber-600" />
-                FXRP Balance
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="text-lg bg-amber-100 text-amber-800">
-                    {fxrpBalance} FXRP
-                  </Badge>
-                </div>
-                <Button 
-                  onClick={refreshBalances}
-                  variant="outline"
-                  size="sm"
-                  className="border-amber-300 hover:bg-amber-100 cursor-pointer"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Refresh Balance
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mb-6">
+            <FXRPBalanceCard
+              balance={fxrpBalance}
+              onRefresh={refreshBalances}
+              colorScheme={{
+                title: "text-amber-900",
+                icon: "text-amber-600",
+                badge: "bg-amber-100 text-amber-800",
+                button: "border-amber-300 hover:bg-amber-100",
+                description: "text-amber-600"
+              }}
+            />
+          </div>
 
           {/* Send FXRP Section */}
           <form onSubmit={handleSubmit(sendFXRP)} className="space-y-6">

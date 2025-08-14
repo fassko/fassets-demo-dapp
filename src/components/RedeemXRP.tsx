@@ -12,17 +12,17 @@ import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFor
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { useFLRBalance } from '@/hooks/useFLRBalance';
 import { iAssetManagerAbi } from "../generated";
 
 // UI components
-import { ArrowRight, RefreshCw, Loader2, Wallet, Coins } from "lucide-react";
+import { ArrowRight, RefreshCw, Loader2, Wallet } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
 
 export default function RedeemXRP() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,7 +36,6 @@ export default function RedeemXRP() {
 
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
-  const { flrBalance, refetchBalance: refetchFlrBalance, isLoadingBalance: isLoadingFlrBalance, balanceError: flrBalanceError } = useFLRBalance();
 
   const {
     register,
@@ -242,7 +241,7 @@ export default function RedeemXRP() {
           </p>
 
           {/* Balance Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* XRPL Balance Card */}
             <Card>
               <CardHeader>
@@ -274,64 +273,17 @@ export default function RedeemXRP() {
             </Card>
 
             {/* FXRP Balance Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-900">
-                  <Coins className="h-5 w-5 text-blue-600" />
-                  FXRP Balance
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-5 w-5 text-blue-600" />
-                    <Badge variant="secondary" className="text-lg bg-blue-100 text-blue-800">
-                      {fxrpBalance} FXRP
-                    </Badge>
-                  </div>
-                  <Button 
-                    onClick={refreshBalances}
-                    variant="outline"
-                    size="sm"
-                    className="border-blue-300 hover:bg-blue-100 cursor-pointer"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-                <p className="text-xs text-blue-600 mt-2">FXRP Token Balance</p>
-              </CardContent>
-            </Card>
-
-            {/* FLR Balance Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-900">
-                  <Coins className="h-5 w-5 text-orange-600" />
-                  FLR Balance
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Coins className="h-5 w-5 text-orange-600" />
-                    <Badge variant="secondary" className="text-lg bg-orange-100 text-orange-800">
-                      {flrBalance} FLR
-                    </Badge>
-                  </div>
-                  <Button 
-                    onClick={refreshBalances}
-                    variant="outline"
-                    size="sm"
-                    className="border-orange-300 hover:bg-orange-100 cursor-pointer"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-                <p className="text-xs text-orange-600 mt-2">Native Token Balance</p>
-              </CardContent>
-            </Card>
+            <FXRPBalanceCard
+              balance={fxrpBalance}
+              onRefresh={refreshBalances}
+              colorScheme={{
+                title: "text-green-900",
+                icon: "text-green-600",
+                badge: "bg-green-100 text-green-800",
+                button: "border-green-300 hover:bg-green-100",
+                description: "text-green-600"
+              }}
+            />
           </div>
 
           {/* Redeem to XRP Section */}
@@ -406,10 +358,10 @@ export default function RedeemXRP() {
               )}
             </Button>
 
-                      {(error || assetManagerError || balanceError || flrBalanceError || writeError) && (
+                      {(error || assetManagerError || balanceError || writeError) && (
             <Alert variant="destructive">
               <AlertDescription>
-                {error || assetManagerError || (balanceError?.message || 'Balance error') || (flrBalanceError?.message || 'FLR balance error') || (writeError?.message || 'Transaction error')}
+                {error || assetManagerError || (balanceError?.message || 'Balance error') || (writeError?.message || 'Transaction error')}
               </AlertDescription>
             </Alert>
           )}
