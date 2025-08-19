@@ -16,15 +16,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Coins, Loader2 } from "lucide-react";
+import { SuccessMessage } from "@/components/ui/success-message";
 
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useReservationFee } from '@/hooks/useReservationFee';
 import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
 import { decodeEventLog } from 'viem';
 
 export default function MintXRP() {
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<React.ReactNode | null>(null);
   const [availableAgents, setAvailableAgents] = useState<Array<{
     agentVault: string;
     ownerManagementAddress: string;
@@ -37,7 +39,6 @@ export default function MintXRP() {
   }>>([]);
 
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
-  const [reservationFee, setReservationFee] = useState<string>('0');
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { address: userAddress, isConnected } = useAccount();
 
@@ -58,6 +59,13 @@ export default function MintXRP() {
 
   const watchedLots = watch('lots');
   const watchedAgentVault = watch('agentVault');
+
+  // Use the reservation fee hook
+  const { reservationFee, isLoading: isLoadingFee, error: feeError, getCurrentFee } = useReservationFee(
+    assetManagerAddress || undefined,
+    watchedLots,
+    watchedAgentVault
+  );
 
 
 
@@ -148,43 +156,6 @@ export default function MintXRP() {
     fetchAgentsWithNames();
   }, [availableAgentsData, settings]);
 
-  // Calculate reservation fee when lots or agent vault changes
-  useEffect(() => {
-    const calculateReservationFee = async () => {
-      if (assetManagerAddress && watchedLots && watchedAgentVault && !isNaN(parseInt(watchedLots))) {
-        try {
-          // Create a contract instance for manual calls
-          const { createPublicClient, http } = await import('viem');
-          const { flareTestnet } = await import('wagmi/chains');
-          
-          const client = createPublicClient({
-            chain: flareTestnet,
-            transport: http(),
-          });
-
-          const feeData = await client.readContract({
-            address: assetManagerAddress,
-            abi: iAssetManagerAbi,
-            functionName: 'collateralReservationFee',
-            args: [BigInt(watchedLots)],
-          });
-          
-          if (feeData) {
-            const feeInFLR = (Number(feeData) / Math.pow(10, 18)).toFixed(6);
-            setReservationFee(feeInFLR);
-          }
-        } catch (error) {
-          console.error('Error calculating reservation fee:', error);
-          setReservationFee('0');
-        }
-      } else {
-        setReservationFee('0');
-      }
-    };
-
-    calculateReservationFee();
-  }, [assetManagerAddress, watchedLots, watchedAgentVault]);
-
   // Handle successful reservation
   useEffect(() => {
     if (isReserveSuccess && receipt) {
@@ -225,8 +196,13 @@ export default function MintXRP() {
                   const totalXRP = Number(totalUBA) / 10 ** 6;
                   console.log(`You need to pay ${totalXRP} XRP`);
                   
-                  // Update success message with reservation ID
-                  setSuccess(`Successfully reserved collateral! Reservation ID: ${decodedLog.args.collateralReservationId.toString()}\n You need to make a payment of ${totalXRP} XRP to ${decodedLog.args.paymentAddress}`);
+                  setSuccess(
+                    <SuccessMessage
+                      reservationId={decodedLog.args.collateralReservationId.toString()}
+                      paymentAmount={`${totalXRP} XRP`}
+                      paymentAddress={decodedLog.args.paymentAddress}
+                    />
+                  );
                   break;
                 }
                              } catch {
@@ -245,8 +221,6 @@ export default function MintXRP() {
           });
                 } catch (error) {
           console.error('Error decoding transaction result:', error);
-          // Fallback success message if event decoding fails
-          setSuccess(`Successfully reserved collateral! Transaction: ${receipt.transactionHash}`);
         }
       reset();
     }
@@ -279,11 +253,8 @@ export default function MintXRP() {
         throw new Error('Lots must be a positive integer');
       }
 
-      // Validate reservation fee
-      const feeAmount = parseFloat(reservationFee);
-      if (isNaN(feeAmount) || feeAmount <= 0) {
-        throw new Error('Invalid reservation fee calculated');
-      }
+      // Get current reservation fee at transaction time
+      const currentFeeAmount = await getCurrentFee(lotsNumber);
 
       // Get agent fee
       const selectedAgent = availableAgents.find(agent => agent.agentVault === data.agentVault);
@@ -299,14 +270,14 @@ export default function MintXRP() {
           agentVault: data.agentVault,
           lots: lotsNumber,
           agentFeeBIPS: parseInt(agentFeeBIPS),
-          reservationFee: feeAmount
+          reservationFee: currentFeeAmount
         });
 
         console.log('About to call reserveContract with:', {
           address: assetManagerAddress,
           args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
-          value: BigInt(Math.floor(feeAmount * Math.pow(10, 18))),
-          valueInFLR: feeAmount
+          value: BigInt(Math.floor(currentFeeAmount * Math.pow(10, 18))),
+          valueInFLR: currentFeeAmount
         });
 
         // Check if reserveContract is available
@@ -324,7 +295,7 @@ export default function MintXRP() {
             BigInt(data.lots),
             BigInt(agentFeeBIPS),
             executor as `0x${string}`],
-          value: BigInt(Math.floor(feeAmount * Math.pow(10, 18))), // Convert FLR to wei
+          value: BigInt(Math.floor(currentFeeAmount * Math.pow(10, 18))), // Convert FLR to wei
         });
 
         console.log('reserveContract called successfully, result:', result);
@@ -350,7 +321,7 @@ export default function MintXRP() {
   }
 
   const isProcessing = isReservePending || isConfirming;
-  const isLoading = isLoadingSettings || isLoadingAgentsData;
+  const isLoading = isLoadingSettings || isLoadingAgentsData || isLoadingFee;
 
   // Handle write contract errors
   useEffect(() => {
@@ -555,9 +526,9 @@ export default function MintXRP() {
             )}
 
             {success && (
-              <Alert className="bg-blue-50 border-blue-200 text-blue-800">
-                <AlertDescription>{success}</AlertDescription>
-              </Alert>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
+                {success}
+              </div>
             )}
 
             {writeError && (
