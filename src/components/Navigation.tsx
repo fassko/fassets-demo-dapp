@@ -13,12 +13,13 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
     { id: 'mint-xrp', label: 'Mint XRP', color: 'blue' },
     { id: 'send-fxrp', label: 'Send FXRP', color: 'amber' },
     { id: 'redeem-fxrp', label: 'Redeem to XRP', color: 'green' },
+    { id: 'xrp-attestation', label: 'XRP Attestation', color: 'purple' },
   ];
 
   return (
     <nav className="px-4">
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           {tabs.map((tab) => (
             <TabsTrigger 
               key={tab.id} 
@@ -30,7 +31,9 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
                   ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
                   : tab.color === 'amber'
                   ? 'data-[state=active]:bg-amber-100 data-[state=active]:text-amber-900 data-[state=active]:border-amber-300'
-                  : 'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300'
+                  : tab.color === 'green'
+                  ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300'
+                  : 'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300'
               }`}
             >
               {tab.label}

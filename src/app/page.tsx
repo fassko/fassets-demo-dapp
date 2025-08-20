@@ -5,6 +5,7 @@ import AssetManagerSettings from '@/components/AssetManagerSettings';
 import MintXRP from '@/components/MintXRP';
 import SendFXRP from '@/components/SendFXRP';
 import RedeemXRP from '@/components/RedeemXRP';
+import XRPPaymentAttestation from '@/components/XRPPaymentAttestation';
 import Navigation from '@/components/Navigation';
 
 export default function Home() {
@@ -17,6 +18,7 @@ export default function Home() {
         {activeTab === 'mint-xrp' && <MintXRP />}
         {activeTab === 'send-fxrp' && <SendFXRP />}
         {activeTab === 'redeem-fxrp' && <RedeemXRP />}
+        {activeTab === 'xrp-attestation' && <XRPPaymentAttestation />}
       </main>
     </div>
   );

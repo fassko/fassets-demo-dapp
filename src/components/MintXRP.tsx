@@ -22,7 +22,8 @@ import { SuccessMessage } from "@/components/ui/success-message";
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useReservationFee } from '@/hooks/useReservationFee';
 import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveCollateral } from "../generated";
-import { decodeEventLog } from 'viem';
+import { decodeEventLog, createPublicClient, http } from 'viem';
+import { flareTestnet } from 'wagmi/chains';
 
 export default function MintXRP() {
   const [error, setError] = useState<string | null>(null);
@@ -114,9 +115,6 @@ export default function MintXRP() {
           availableAgentsWithCollateral.map(async (agent) => {
             try {
               // Create a contract instance for manual calls
-              const { createPublicClient, http } = await import('viem');
-              const { flareTestnet } = await import('wagmi/chains');
-              
               const client = createPublicClient({
                 chain: flareTestnet,
                 transport: http(),

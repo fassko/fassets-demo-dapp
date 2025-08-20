@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { iAssetManagerAbi } from '../generated';
+import { createPublicClient, http } from 'viem';
+import { flareTestnet } from 'wagmi/chains';
 
 export function useReservationFee(
   assetManagerAddress: string | undefined,
@@ -19,9 +21,6 @@ export function useReservationFee(
         
         try {
           // Create a contract instance for manual calls
-          const { createPublicClient, http } = await import('viem');
-          const { flareTestnet } = await import('wagmi/chains');
-          
           const client = createPublicClient({
             chain: flareTestnet,
             transport: http(),
@@ -62,9 +61,6 @@ export function useReservationFee(
 
     try {
       // Create a contract instance for manual calls
-      const { createPublicClient, http } = await import('viem');
-      const { flareTestnet } = await import('wagmi/chains');
-      
       const client = createPublicClient({
         chain: flareTestnet,
         transport: http(),

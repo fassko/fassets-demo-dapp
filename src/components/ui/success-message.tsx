@@ -1,5 +1,6 @@
 import { Copy, Check } from "lucide-react";
 import { useState } from "react";
+import { copyToClipboardWithBooleanState } from '@/lib/clipboard';
 
 interface SuccessMessageProps {
   reservationId: string;
@@ -16,13 +17,7 @@ export function SuccessMessage({ reservationId, paymentAmount, paymentAddress, p
 
   // Helper function to copy text to clipboard
   const copyToClipboard = async (text: string, setter: (value: boolean) => void) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setter(true);
-      setTimeout(() => setter(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text:', err);
-    }
+    await copyToClipboardWithBooleanState(text, setter);
   };
 
   // Extract just the number from payment amount (remove "XRP")

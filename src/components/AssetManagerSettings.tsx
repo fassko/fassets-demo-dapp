@@ -10,6 +10,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RefreshCw, Settings, Copy, Check } from "lucide-react";
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
 export default function AssetManagerSettings() {
   const { settings, isLoading: loading, error, refetchSettings } = useAssetManager();
@@ -23,13 +24,7 @@ export default function AssetManagerSettings() {
 
   // Helper function to copy address to clipboard
   const copyToClipboard = async (address: string) => {
-    try {
-      await navigator.clipboard.writeText(address);
-      setCopiedAddress(address);
-      setTimeout(() => setCopiedAddress(null), 2000);
-    } catch (err) {
-      console.error('Failed to copy address:', err);
-    }
+    await copyToClipboardWithTimeout(address, setCopiedAddress);
   };
 
   // Helper function to create explorer link with copy functionality
