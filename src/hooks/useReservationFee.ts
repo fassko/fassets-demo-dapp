@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { iAssetManagerAbi } from '../generated';
-import { createPublicClient, http } from 'viem';
-import { flareTestnet } from 'wagmi/chains';
+import { publicClient } from '@/lib/publicClient';
 
 export function useReservationFee(
   assetManagerAddress: string | undefined,
@@ -20,13 +19,7 @@ export function useReservationFee(
         setError(null);
         
         try {
-          // Create a contract instance for manual calls
-          const client = createPublicClient({
-            chain: flareTestnet,
-            transport: http(),
-          });
-
-          const feeData = await client.readContract({
+          const feeData = await publicClient.readContract({
             address: assetManagerAddress as `0x${string}`,
             abi: iAssetManagerAbi,
             functionName: 'collateralReservationFee',
@@ -60,13 +53,7 @@ export function useReservationFee(
     }
 
     try {
-      // Create a contract instance for manual calls
-      const client = createPublicClient({
-        chain: flareTestnet,
-        transport: http(),
-      });
-
-      const feeData = await client.readContract({
+      const feeData = await publicClient.readContract({
         address: assetManagerAddress as `0x${string}`,
         abi: iAssetManagerAbi,
         functionName: 'collateralReservationFee',

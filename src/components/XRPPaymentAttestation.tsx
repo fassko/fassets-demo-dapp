@@ -16,10 +16,9 @@ import {
 } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+import { publicClient } from '@/lib/publicClient';
 import { toHex } from '@/lib/utils';
 import { AttestationData } from '@/types/xrpAttestation';
-import { createPublicClient, http } from 'viem';
-import { flareTestnet } from 'wagmi/chains';
 
 export default function XRPPaymentAttestation() {
   const [transactionId, setTransactionId] = useState<string>('');
@@ -150,12 +149,7 @@ export default function XRPPaymentAttestation() {
       throw new Error('FDC Request Fee Configurations address not loaded');
     }
 
-    const client = createPublicClient({
-      chain: flareTestnet,
-      transport: http(),
-    });
-
-    return await client.readContract({
+    return await publicClient.readContract({
       address: fdcAddresses.fdcRequestFeeConfigurations,
       abi: iFdcRequestFeeConfigurationsAbi,
       functionName: 'getRequestFee',
@@ -169,22 +163,17 @@ export default function XRPPaymentAttestation() {
       throw new Error('Flare Systems Manager address not loaded');
     }
 
-    const client = createPublicClient({
-      chain: flareTestnet,
-      transport: http(),
-    });
-
     const blockNumber = transaction.receipt.blockNumber;
-    const block = await client.getBlock({ blockNumber });
+    const block = await publicClient.getBlock({ blockNumber });
     const blockTimestamp = BigInt(block.timestamp);
 
-    const firsVotingRoundStartTs = BigInt(await client.readContract({
+    const firsVotingRoundStartTs = BigInt(await publicClient.readContract({
       address: fdcAddresses.flareSystemsManager,
       abi: iFlareSystemsManagerAbi,
       functionName: 'firstVotingRoundStartTs',
     }));
 
-    const votingEpochDurationSeconds = BigInt(await client.readContract({
+    const votingEpochDurationSeconds = BigInt(await publicClient.readContract({
       address: fdcAddresses.flareSystemsManager,
       abi: iFlareSystemsManagerAbi,
       functionName: 'votingEpochDurationSeconds',
@@ -197,7 +186,7 @@ export default function XRPPaymentAttestation() {
     const roundId = Number((blockTimestamp - firsVotingRoundStartTs) / votingEpochDurationSeconds);
     console.log("Calculated round id:", roundId, "\n");
     
-    const currentVotingEpochId = Number(await client.readContract({
+    const currentVotingEpochId = Number(await publicClient.readContract({
       address: fdcAddresses.flareSystemsManager,
       abi: iFlareSystemsManagerAbi,
       functionName: 'getCurrentVotingEpochId',
@@ -298,17 +287,12 @@ export default function XRPPaymentAttestation() {
       throw new Error('Proof data is incomplete');
     }
 
-    const client = createPublicClient({
-      chain: flareTestnet,
-      transport: http(),
-    });
-
     // Extract data from proof response
     const response = proofData.response;
     const proof = proofData.proof;
 
     // Call verifyPayment function
-    const result = await client.readContract({
+    const result = await publicClient.readContract({
       address: fdcAddresses.fdcVerification,
       abi: iFdcVerificationAbi,
       functionName: 'verifyPayment',
