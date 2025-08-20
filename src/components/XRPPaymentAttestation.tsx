@@ -29,6 +29,7 @@ export default function XRPPaymentAttestation() {
   const [currentStep, setCurrentStep] = useState<string>('');
   const [attestationData, setAttestationData] = useState<AttestationData | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [proofData, setProofData] = useState<any>(null);
 
   // Wallet connection
   const { address: userAddress, isConnected } = useAccount();
@@ -52,8 +53,17 @@ export default function XRPPaymentAttestation() {
           // Update attestationData with the calculated round ID
           setAttestationData(prevData => prevData ? { ...prevData, roundId } : null);
           
+          // Start proof retrieval
+          setCurrentStep('Retrieving proof from Data Availability Layer...');
+          const proof = await retrieveDataAndProofBaseWithRetry(
+            DA_LAYER_API_URL,
+            attestationData.abiEncodedRequest,
+            roundId
+          );
+          
+          setProofData(proof);
           setCurrentStep('');
-          setSuccess(`Round ID ${roundId} calculated successfully! Attestation request submitted.`);
+          setSuccess(`Round ID ${roundId} calculated and proof retrieved successfully!`);
         } catch (error) {
           console.error('Error processing transaction:', error);
           setCurrentStep('');
@@ -69,6 +79,9 @@ export default function XRPPaymentAttestation() {
   const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
   const VERIFIER_API_KEY_TESTNET = '00000000-0000-0000-0000-000000000000';
   const COSTON2_DA_LAYER_URL = 'https://ctn2-data-availability.flare.network/';
+  const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
+  const DA_LAYER_API_URL = `/api/proof-request`;
+  const CSRF_TOKEN = 'PelKtTp8kq6wSOuIFkChwEUNGFWilKLHU9VeHdAl5fmzwYF6LrNFZBFYqzoTJ5qV';
   const urlTypeBase = 'xrp';
   const attestationTypeBase = 'Payment';
   const sourceIdBase = 'testXRP';
@@ -184,6 +197,87 @@ export default function XRPPaymentAttestation() {
     console.log("Received round id:", currentVotingEpochId, "\n");
     
     return roundId;
+  };
+
+  // Sleep utility function
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Post request to DA Layer
+  const postRequestToDALayer = async (url: string, request: any, isInitial: boolean = false) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'x-api-key': DA_LAYER_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`DA Layer request failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  };
+
+  // Retrieve data and proof base function
+  const retrieveDataAndProofBase = async (url: string, abiEncodedRequest: string, roundId: number) => {
+    console.log("Waiting for the round to finalize...");
+    
+    // Wait for round finalization (simplified - just wait a bit)
+    await sleep(30000);
+    console.log("Round finalized!\n");
+
+    const request = {
+      votingRoundId: roundId,
+      requestBytes: abiEncodedRequest,
+    };
+    console.log("Prepared request:\n", request, "\n");
+
+    await sleep(10000);
+    let proof = await postRequestToDALayer(url, request, true);
+    console.log("Waiting for the DA Layer to generate the proof...");
+    
+    // If we get a successful response with proof data, return immediately
+    if (proof.response && proof.proof && Array.isArray(proof.proof)) {
+      console.log("Proof generated on first attempt!\n");
+      console.log("Proof:", proof, "\n");
+      return proof;
+    }
+    
+    // Only retry if we don't have the proof data yet
+    while (!proof.response || !proof.proof || !Array.isArray(proof.proof)) {
+      await sleep(10000);
+      proof = await postRequestToDALayer(url, request, false);
+      
+      // If we get a successful response with proof data, break out of the loop
+      if (proof.response && proof.proof && Array.isArray(proof.proof)) {
+        break;
+      }
+    }
+    console.log("Proof generated!\n");
+
+    console.log("Proof:", proof, "\n");
+    return proof;
+  };
+
+  // Retrieve data and proof with retry
+  const retrieveDataAndProofBaseWithRetry = async (
+    url: string,
+    abiEncodedRequest: string,
+    roundId: number,
+    attempts: number = 10
+  ) => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await retrieveDataAndProofBase(url, abiEncodedRequest, roundId);
+      } catch (e: any) {
+        console.log(e, "\n", "Remaining attempts:", attempts - i, "\n");
+        await sleep(20000);
+      }
+    }
+    throw new Error(`Failed to retrieve data and proofs after ${attempts} attempts`);
   };
 
   // Submit attestation request to FDC Hub
@@ -419,6 +513,77 @@ export default function XRPPaymentAttestation() {
                         )}
                       </button>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Proof Data Display */}
+            {proofData && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-purple-900">Proof Data</h3>
+                <div className="space-y-2">
+                  {/* Voting Round */}
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">Voting Round:</span>
+                    <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                      {proofData.response?.votingRound ?? 'Not available'}
+                    </code>
+                    {proofData.response?.votingRound && (
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboardWithTimeout(proofData.response.votingRound.toString(), setCopiedText)}
+                        className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                      >
+                        {copiedText === proofData.response.votingRound.toString() ? (
+                          <Check className="h-3 w-3 text-green-600" />
+                        ) : (
+                          <Copy className="h-3 w-3 text-gray-500" />
+                        )}
+                      </button>
+                    )}
+                  </div>
+                  
+                  {/* Proof Array */}
+                  <div className="space-y-2">
+                    <span className="font-medium">Proof Array:</span>
+                    <div className="space-y-1">
+                      {proofData.proof && Array.isArray(proofData.proof) && proofData.proof.map((proofItem: string, index: number) => (
+                        <div key={index} className="flex items-center gap-2">
+                          <span className="text-sm text-gray-600 w-8">[{index}]:</span>
+                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                            {proofItem.length > 20 
+                              ? `${proofItem.slice(0, 10)}...${proofItem.slice(-10)}`
+                              : proofItem
+                            }
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboardWithTimeout(proofItem, setCopiedText)}
+                            className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                          >
+                            {copiedText === proofItem ? (
+                              <Check className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-gray-500" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Response Body */}
+                  <div className="space-y-2">
+                    <span className="font-medium">Response Body:</span>
+                    <div className="bg-gray-100 rounded p-3 text-sm font-mono">
+                      <div><strong>Block Number:</strong> {proofData.response?.responseBody?.blockNumber}</div>
+                      <div><strong>Block Timestamp:</strong> {proofData.response?.responseBody?.blockTimestamp}</div>
+                      <div><strong>Spent Amount:</strong> {proofData.response?.responseBody?.spentAmount}</div>
+                      <div><strong>Received Amount:</strong> {proofData.response?.responseBody?.receivedAmount}</div>
+                      <div><strong>Status:</strong> {proofData.response?.responseBody?.status}</div>
+                      <div><strong>One to One:</strong> {proofData.response?.responseBody?.oneToOne ? 'Yes' : 'No'}</div>
+                    </div>
                   </div>
                 </div>
               </div>
