@@ -10,12 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle, XCircle, Copy, Check } from "lucide-react";
-import { AttestationFormDataSchema, AttestationFormData } from '@/types/attestationFormData';
+import { AttestationFormDataSchema, AttestationFormData, ProofData } from '@/types/attestationFormData';
 import { 
   useWriteIFdcHubRequestAttestation,
   iFdcRequestFeeConfigurationsAbi,
   iFlareSystemsManagerAbi,
-  iFdcVerificationAbi
+  iPaymentVerificationAbi
 } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
@@ -39,7 +39,7 @@ export default function Attestation() {
   const [currentStep, setCurrentStep] = useState<string>('');
   const [attestationData, setAttestationData] = useState<AttestationData | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [proofData, setProofData] = useState<any>(null);
+  const [proofData, setProofData] = useState<ProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
 
   const { address: userAddress, isConnected } = useAccount();
@@ -205,7 +205,7 @@ export default function Attestation() {
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   // Post request to DA Layer
-  const postRequestToDALayer = async (url: string, request: any, isInitial: boolean = false) => {
+  const postRequestToDALayer = async (url: string, request: Record<string, unknown>, isInitial: boolean = false) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -274,8 +274,8 @@ export default function Attestation() {
     for (let i = 0; i < attempts; i++) {
       try {
         return await retrieveDataAndProofBase(url, abiEncodedRequest, roundId);
-      } catch (e: any) {
-        console.log(e, "\n", "Remaining attempts:", attempts - i, "\n");
+      } catch (error) {
+        console.log(error, "\n", "Remaining attempts:", attempts - i, "\n");
         await sleep(20000);
       }
     }
@@ -283,7 +283,7 @@ export default function Attestation() {
   };
 
   // Verify payment using FDC Verification contract
-  const verifyPayment = async (proofData: any) => {
+  const verifyPayment = async (proofData: ProofData) => {
     if (!fdcAddresses?.fdcVerification) {
       throw new Error('FDC Verification address not loaded');
     }
@@ -299,7 +299,7 @@ export default function Attestation() {
     // Call verifyPayment function
     const result = await publicClient.readContract({
       address: fdcAddresses.fdcVerification,
-      abi: iFdcVerificationAbi,
+      abi: iPaymentVerificationAbi,
       functionName: 'verifyPayment',
       args: [{
         merkleProof: proof,
@@ -308,8 +308,26 @@ export default function Attestation() {
           sourceId: response.sourceId,
           votingRound: BigInt(response.votingRound),
           lowestUsedTimestamp: BigInt(response.lowestUsedTimestamp),
-          requestBody: response.requestBody,
-          responseBody: response.responseBody,
+          requestBody: {
+            transactionId: response.requestBody.transactionId,
+            inUtxo: BigInt(response.requestBody.inUtxo),
+            utxo: BigInt(response.requestBody.utxo),
+          },
+          responseBody: {
+            blockNumber: BigInt(response.responseBody.blockNumber),
+            blockTimestamp: BigInt(response.responseBody.blockTimestamp),
+            sourceAddressHash: response.responseBody.sourceAddressHash,
+            sourceAddressesRoot: response.responseBody.sourceAddressesRoot,
+            receivingAddressHash: response.responseBody.receivingAddressHash,
+            intendedReceivingAddressHash: response.responseBody.intendedReceivingAddressHash,
+            spentAmount: BigInt(response.responseBody.spentAmount),
+            intendedSpentAmount: BigInt(response.responseBody.intendedSpentAmount),
+            receivedAmount: BigInt(response.responseBody.receivedAmount),
+            intendedReceivedAmount: BigInt(response.responseBody.intendedReceivedAmount),
+            standardPaymentReference: response.responseBody.standardPaymentReference,
+            oneToOne: response.responseBody.oneToOne,
+            status: response.responseBody.status,
+          },
         }
       }],
     });
