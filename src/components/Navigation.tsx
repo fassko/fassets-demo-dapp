@@ -1,6 +1,7 @@
 'use client';
 
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings, Coins, CheckCircle, Send, ArrowRight } from "lucide-react";
 
 interface NavigationProps {
   activeTab: string;
@@ -9,36 +10,40 @@ interface NavigationProps {
 
 export default function Navigation({ activeTab, onTabChange }: NavigationProps) {
   const tabs = [
-    { id: 'asset-manager', label: 'Asset Manager Settings', color: 'slate' },
-    { id: 'mint-xrp', label: 'Mint XRP', color: 'blue' },
-    { id: 'send-fxrp', label: 'Send FXRP', color: 'amber' },
-    { id: 'redeem-fxrp', label: 'Redeem to XRP', color: 'green' },
-    { id: 'xrp-attestation', label: 'XRP Attestation', color: 'purple' },
+    { id: 'asset-manager', label: 'Settings', color: 'slate', icon: Settings },
+    { id: 'mint-xrp', label: 'Mint', color: 'blue', icon: Coins },
+    { id: 'xrp-attestation', label: 'Attestation', color: 'purple', icon: CheckCircle },
+    { id: 'transfer', label: 'Transfer', color: 'amber', icon: Send },
+    { id: 'redeem-fxrp', label: 'Redeem', color: 'green', icon: ArrowRight },
   ];
 
   return (
     <nav className="px-4">
       <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
         <TabsList className="grid w-full grid-cols-5">
-          {tabs.map((tab) => (
-            <TabsTrigger 
-              key={tab.id} 
-              value={tab.id} 
-              className={`text-sm transition-colors cursor-pointer ${
-                tab.color === 'slate' 
-                  ? 'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300'
-                  : tab.color === 'blue'
-                  ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
-                  : tab.color === 'amber'
-                  ? 'data-[state=active]:bg-amber-100 data-[state=active]:text-amber-900 data-[state=active]:border-amber-300'
-                  : tab.color === 'green'
-                  ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300'
-                  : 'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300'
-              }`}
-            >
-              {tab.label}
-            </TabsTrigger>
-          ))}
+          {tabs.map((tab) => {
+            const IconComponent = tab.icon;
+            return (
+              <TabsTrigger 
+                key={tab.id} 
+                value={tab.id} 
+                className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${
+                  tab.color === 'slate' 
+                    ? 'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300'
+                    : tab.color === 'blue'
+                    ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
+                    : tab.color === 'amber'
+                    ? 'data-[state=active]:bg-amber-100 data-[state=active]:text-amber-900 data-[state=active]:border-amber-300'
+                    : tab.color === 'green'
+                    ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300'
+                    : 'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300'
+                }`}
+              >
+                <IconComponent className="h-4 w-4" />
+                {tab.label}
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
       </Tabs>
     </nav>

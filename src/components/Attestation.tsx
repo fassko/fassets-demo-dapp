@@ -2,12 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, CheckCircle, XCircle, Copy, Check } from "lucide-react";
+import { AttestationFormDataSchema, AttestationFormData } from '@/types/attestationFormData';
 import { 
   useWriteIFdcHubRequestAttestation,
   iFdcRequestFeeConfigurationsAbi,
@@ -18,10 +21,17 @@ import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { publicClient } from '@/lib/publicClient';
 import { toHex } from '@/lib/utils';
-import { AttestationData } from '@/types/xrpAttestation';
+import { AttestationData } from '@/types/attestation';
 
-export default function XRPPaymentAttestation() {
-  const [transactionId, setTransactionId] = useState<string>('');
+export default function Attestation() {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset
+  } = useForm<AttestationFormData>({
+    resolver: zodResolver(AttestationFormDataSchema),
+  });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +42,10 @@ export default function XRPPaymentAttestation() {
   const [proofData, setProofData] = useState<any>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
 
-  // Wallet connection
   const { address: userAddress, isConnected } = useAccount();
 
-  // Get FDC contract addresses from Coston2 products
   const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
 
-  // Contract hooks
   const { writeContract: requestAttestation, data: attestationHash, isPending: isAttestationPending } = useWriteIFdcHubRequestAttestation();
   const { data: receipt, isSuccess: isAttestationSuccess } = useWaitForTransactionReceipt({ hash: attestationHash });
 
@@ -85,10 +92,8 @@ export default function XRPPaymentAttestation() {
   // Environment variables and constants
   const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
   const VERIFIER_API_KEY_TESTNET = '00000000-0000-0000-0000-000000000000';
-  const COSTON2_DA_LAYER_URL = 'https://ctn2-data-availability.flare.network/';
   const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
   const DA_LAYER_API_URL = `/api/proof-request`;
-  const CSRF_TOKEN = 'PelKtTp8kq6wSOuIFkChwEUNGFWilKLHU9VeHdAl5fmzwYF6LrNFZBFYqzoTJ5qV';
   const urlTypeBase = 'xrp';
   const attestationTypeBase = 'Payment';
   const sourceIdBase = 'testXRP';
@@ -338,12 +343,16 @@ export default function XRPPaymentAttestation() {
   };
 
 
+  // Validate XRPL transaction ID format
+  const isValidXRPLTransactionId = (txId: string): boolean => {
+    // XRPL transaction IDs are 64-character hexadecimal strings
+    const xrplTxIdRegex = /^[A-F0-9]{64}$/i;
+    return xrplTxIdRegex.test(txId);
+  };
+
   // Main attestation process
-  const executeAttestation = async () => {
-    if (!transactionId.trim()) {
-      setError('Transaction ID is required');
-      return;
-    }
+  const executeAttestation = async (data: AttestationFormData) => {
+    const transactionId = data.transactionId.trim();
 
     if (!fdcAddresses) {
       setError('FDC contract addresses not loaded. Please wait and try again.');
@@ -411,19 +420,23 @@ export default function XRPPaymentAttestation() {
             Execute Flare Data Connector XRP Payment attestation to verify XRP transactions.
           </p>
 
-          <div className="space-y-6">
+          <form onSubmit={handleSubmit(executeAttestation)} className="space-y-6">
             {/* Input Form */}
-            <div className="space-y-4">
-                             <div className="space-y-2">
-                                 <Label htmlFor="transactionId" className="text-purple-900">Transaction ID</Label>
-                <Input
-                  id="transactionId"
-                  value={transactionId}
-                  onChange={(e) => setTransactionId(e.target.value)}
-                  placeholder="85B182F7B250BF8CB23531ECA5B508C0F66E8B7AEF7C8EE0CF851A7B2F8A9EB1"
-                  className="border-purple-300 focus:ring-purple-500 focus:border-purple-500"
-                />
-               </div>
+            <div className="space-y-2">
+              <Label htmlFor="transactionId" className="text-purple-900">Transaction ID</Label>
+              <Input
+                {...register('transactionId')}
+                id="transactionId"
+                placeholder="85B182F7B250BF8CB23531ECA5B508C0F66E8B7AEF7C8EE0CF851A7B2F8A9EB1"
+                className={`border-purple-300 focus:ring-purple-500 focus:border-purple-500 ${
+                  errors.transactionId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                }`}
+              />
+              {errors.transactionId && (
+                <p className="text-sm text-red-600">
+                  {errors.transactionId.message}
+                </p>
+              )}
             </div>
 
             {/* Contract Addresses Loading */}
@@ -457,8 +470,8 @@ export default function XRPPaymentAttestation() {
 
             {/* Execute Button */}
             <Button
-              onClick={executeAttestation}
-              disabled={isLoading || !transactionId.trim() || !isConnected || isLoadingAddresses || !!addressError}
+              type="submit"
+              disabled={isLoading || !isConnected || isLoadingAddresses || !!addressError}
               className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400"
             >
               {isLoading ? (
@@ -638,7 +651,7 @@ export default function XRPPaymentAttestation() {
                 </div>
               </div>
             )}
-          </div>
+          </form>
         </CardContent>
       </Card>
     </div>

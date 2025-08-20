@@ -22,7 +22,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Send, Loader2 } from "lucide-react";
 import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
 
-export default function SendFXRP() {
+export default function Transfer() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -88,7 +88,7 @@ export default function SendFXRP() {
     }
   };
 
-  async function sendFXRP(data: SendFXRPFormData) {
+  async function transferFXRP(data: SendFXRPFormData) {
     setError(null);
     setSuccess(null);
 
@@ -114,8 +114,8 @@ export default function SendFXRP() {
       });
 
     } catch (error) {
-      console.error('Error sending FXRP:', error);
-      setError(error instanceof Error ? error.message : 'Failed to send FXRP');
+      console.error('Error transferring FXRP:', error);
+      setError(error instanceof Error ? error.message : 'Failed to transfer FXRP');
     }
   }
 
@@ -127,12 +127,12 @@ export default function SendFXRP() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-amber-900">
             <Send className="h-5 w-5 text-amber-600" />
-            Send FXRP on Flare Network
+            Transfer FXRP
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-amber-700 mb-6">
-            Transfer FXRP tokens to another Flare address.
+            Transfer FXRP tokens to another address.
           </p>
 
           {/* Balance Overview */}
@@ -150,11 +150,11 @@ export default function SendFXRP() {
             />
           </div>
 
-          {/* Send FXRP Section */}
-          <form onSubmit={handleSubmit(sendFXRP)} className="space-y-6">
+          {/* Transfer FXRP Section */}
+          <form onSubmit={handleSubmit(transferFXRP)} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="recipientAddress" className="text-amber-900">Recipient Flare Address</Label>
+                <Label htmlFor="recipientAddress" className="text-amber-900">Recipient Address</Label>
                 <Input
                   {...register('recipientAddress')}
                   type="text"
@@ -194,7 +194,7 @@ export default function SendFXRP() {
               ) : (
                 <>
                   <Send className="mr-2 h-4 w-4" />
-                  Send FXRP
+                  Transfer FXRP
                 </>
               )}
             </Button>

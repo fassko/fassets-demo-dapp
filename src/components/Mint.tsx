@@ -25,7 +25,7 @@ import { iAssetManagerAbi, iAgentOwnerRegistryAbi, useWriteIAssetManagerReserveC
 import { decodeEventLog, createPublicClient, http } from 'viem';
 import { flareTestnet } from 'wagmi/chains';
 
-export default function MintXRP() {
+export default function Mint() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<React.ReactNode | null>(null);
   const [availableAgents, setAvailableAgents] = useState<Array<{
@@ -67,10 +67,6 @@ export default function MintXRP() {
     watchedLots,
     watchedAgentVault
   );
-
-
-
-
 
   // Read available agents
   const { data: availableAgentsData, isLoading: isLoadingAgentsData } = useReadContract({
@@ -225,11 +221,11 @@ export default function MintXRP() {
     }
   }, [isReserveSuccess, receipt, reset]);
 
-  async function mintXRP(data: MintXRPFormData) {
+  async function mint(data: MintXRPFormData) {
     setError(null);
     setSuccess(null);
 
-    console.log('MintXRP function called with data:', data);
+    console.log('Mint function called with data:', data);
     console.log('Current state:', {
       assetManagerAddress,
       isConnected,
@@ -311,10 +307,10 @@ export default function MintXRP() {
         } else if (error.message.includes('user rejected') || error.message.includes('User denied transaction signature')) {
           setError('Transaction was cancelled by the user.');
         } else {
-          setError(`Failed to mint XRP: ${error.message}`);
+          setError(`Failed to mint: ${error.message}`);
         }
       } else {
-        setError('Failed to mint XRP: An unexpected error occurred');
+        setError('Failed to mint: An unexpected error occurred');
       }
     }
   }
@@ -369,7 +365,7 @@ export default function MintXRP() {
             Reserve collateral and mint FXRP tokens by providing XRP to the Asset Manager.
           </p>
 
-          <form onSubmit={handleSubmit(mintXRP)} className="space-y-6">
+          <form onSubmit={handleSubmit(mint)} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="agentVault" className="text-blue-900">Agent Vault</Label>

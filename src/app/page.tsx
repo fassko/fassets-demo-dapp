@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import AssetManagerSettings from '@/components/AssetManagerSettings';
-import MintXRP from '@/components/MintXRP';
-import SendFXRP from '@/components/SendFXRP';
-import RedeemXRP from '@/components/RedeemXRP';
-import XRPPaymentAttestation from '@/components/XRPPaymentAttestation';
+import Mint from '@/components/Mint';
+import Transfer from '@/components/Transfer';
+import Redeem from '@/components/Redeem';
+import Attestation from '@/components/Attestation';
 import Navigation from '@/components/Navigation';
 
 export default function Home() {
@@ -15,10 +15,10 @@ export default function Home() {
       <main className="flex flex-col gap-2">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === 'asset-manager' && <AssetManagerSettings />}
-        {activeTab === 'mint-xrp' && <MintXRP />}
-        {activeTab === 'send-fxrp' && <SendFXRP />}
-        {activeTab === 'redeem-fxrp' && <RedeemXRP />}
-        {activeTab === 'xrp-attestation' && <XRPPaymentAttestation />}
+        {activeTab === 'mint-xrp' && <Mint />}
+        {activeTab === 'transfer' && <Transfer />}
+        {activeTab === 'redeem-fxrp' && <Redeem />}
+        {activeTab === 'xrp-attestation' && <Attestation />}
       </main>
     </div>
   );

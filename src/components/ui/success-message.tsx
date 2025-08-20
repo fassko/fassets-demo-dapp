@@ -26,6 +26,11 @@ export function SuccessMessage({ reservationId, paymentAmount, paymentAddress, p
   return (
     <div className="space-y-3">
       <p className="font-semibold text-blue-800">Successfully reserved collateral!</p>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <p className="text-blue-800 text-sm">
+          <strong>Next step:</strong> Make an XRPL payment using the details below to complete your FXRP minting.
+        </p>
+      </div>
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <span className="font-medium">Reservation ID:</span>
