@@ -5,12 +5,14 @@ interface SuccessMessageProps {
   reservationId: string;
   paymentAmount: string;
   paymentAddress: string;
+  paymentReference: string;
 }
 
-export function SuccessMessage({ reservationId, paymentAmount, paymentAddress }: SuccessMessageProps) {
+export function SuccessMessage({ reservationId, paymentAmount, paymentAddress, paymentReference }: SuccessMessageProps) {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [copiedReservationId, setCopiedReservationId] = useState<boolean>(false);
   const [copiedPaymentAmount, setCopiedPaymentAmount] = useState<boolean>(false);
+  const [copiedPaymentReference, setCopiedPaymentReference] = useState<boolean>(false);
 
   // Helper function to copy text to clipboard
   const copyToClipboard = async (text: string, setter: (value: boolean) => void) => {
@@ -75,6 +77,23 @@ export function SuccessMessage({ reservationId, paymentAmount, paymentAddress }:
             className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
           >
             {copiedAddress === paymentAddress ? (
+              <Check className="h-3 w-3 text-green-600" />
+            ) : (
+              <Copy className="h-3 w-3 text-gray-500" />
+            )}
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="font-medium">Payment Reference:</span>
+          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono">
+            {paymentReference}
+          </code>
+          <button
+            type="button"
+            onClick={() => copyToClipboard(paymentReference, setCopiedPaymentReference)}
+            className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+          >
+            {copiedPaymentReference ? (
               <Check className="h-3 w-3 text-green-600" />
             ) : (
               <Copy className="h-3 w-3 text-gray-500" />

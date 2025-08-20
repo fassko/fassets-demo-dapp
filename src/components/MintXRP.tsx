@@ -201,6 +201,7 @@ export default function MintXRP() {
                       reservationId={decodedLog.args.collateralReservationId.toString()}
                       paymentAmount={`${totalXRP} XRP`}
                       paymentAddress={decodedLog.args.paymentAddress}
+                      paymentReference={decodedLog.args.paymentReference}
                     />
                   );
                   break;
