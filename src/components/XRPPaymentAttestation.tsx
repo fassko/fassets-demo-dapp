@@ -11,7 +11,8 @@ import { Loader2, CheckCircle, XCircle, Copy, Check } from "lucide-react";
 import { 
   useWriteIFdcHubRequestAttestation,
   iFdcRequestFeeConfigurationsAbi,
-  iFlareSystemsManagerAbi
+  iFlareSystemsManagerAbi,
+  iFdcVerificationAbi
 } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
@@ -30,6 +31,7 @@ export default function XRPPaymentAttestation() {
   const [attestationData, setAttestationData] = useState<AttestationData | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [proofData, setProofData] = useState<any>(null);
+  const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
 
   // Wallet connection
   const { address: userAddress, isConnected } = useAccount();
@@ -62,8 +64,14 @@ export default function XRPPaymentAttestation() {
           );
           
           setProofData(proof);
+          
+          // Verify the payment
+          setCurrentStep('Verifying payment with FDC Verification contract...');
+          const verificationResult = await verifyPayment(proof);
+          setVerificationResult(verificationResult);
+          
           setCurrentStep('');
-          setSuccess(`Round ID ${roundId} calculated and proof retrieved successfully!`);
+          setSuccess(`Round ID ${roundId} calculated, proof retrieved, and payment verified successfully! Verification result: ${verificationResult}`);
         } catch (error) {
           console.error('Error processing transaction:', error);
           setCurrentStep('');
@@ -278,6 +286,47 @@ export default function XRPPaymentAttestation() {
       }
     }
     throw new Error(`Failed to retrieve data and proofs after ${attempts} attempts`);
+  };
+
+  // Verify payment using FDC Verification contract
+  const verifyPayment = async (proofData: any) => {
+    if (!fdcAddresses?.fdcVerification) {
+      throw new Error('FDC Verification address not loaded');
+    }
+
+    if (!proofData.response || !proofData.proof) {
+      throw new Error('Proof data is incomplete');
+    }
+
+    const client = createPublicClient({
+      chain: flareTestnet,
+      transport: http(),
+    });
+
+    // Extract data from proof response
+    const response = proofData.response;
+    const proof = proofData.proof;
+
+    // Call verifyPayment function
+    const result = await client.readContract({
+      address: fdcAddresses.fdcVerification,
+      abi: iFdcVerificationAbi,
+      functionName: 'verifyPayment',
+      args: [{
+        merkleProof: proof,
+        data: {
+          attestationType: response.attestationType,
+          sourceId: response.sourceId,
+          votingRound: BigInt(response.votingRound),
+          lowestUsedTimestamp: BigInt(response.lowestUsedTimestamp),
+          requestBody: response.requestBody,
+          responseBody: response.responseBody,
+        }
+      }],
+    });
+
+    console.log('Payment verification result:', result);
+    return result;
   };
 
   // Submit attestation request to FDC Hub
@@ -513,6 +562,23 @@ export default function XRPPaymentAttestation() {
                         )}
                       </button>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Verification Result Display */}
+            {verificationResult !== null && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-purple-900">Payment Verification Result</h3>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Verification Status:</span>
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    verificationResult 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {verificationResult ? '✅ Verified' : '❌ Failed'}
                   </div>
                 </div>
               </div>
