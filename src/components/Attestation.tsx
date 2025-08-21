@@ -360,14 +360,6 @@ export default function Attestation() {
     });
   };
 
-
-  // Validate XRPL transaction ID format
-  const isValidXRPLTransactionId = (txId: string): boolean => {
-    // XRPL transaction IDs are 64-character hexadecimal strings
-    const xrplTxIdRegex = /^[A-F0-9]{64}$/i;
-    return xrplTxIdRegex.test(txId);
-  };
-
   // Main attestation process
   const executeAttestation = async (data: AttestationFormData) => {
     const transactionId = data.transactionId.trim();
@@ -439,7 +431,6 @@ export default function Attestation() {
           </p>
 
           <form onSubmit={handleSubmit(executeAttestation)} className="space-y-6">
-            {/* Input Form */}
             <div className="space-y-2">
               <Label htmlFor="transactionId" className="text-purple-900">Transaction ID</Label>
               <Input
@@ -457,7 +448,6 @@ export default function Attestation() {
               )}
             </div>
 
-            {/* Contract Addresses Loading */}
             {isLoadingAddresses && (
               <Alert className="bg-purple-50 border-purple-200 text-purple-800">
                 <AlertDescription>
@@ -469,7 +459,6 @@ export default function Attestation() {
               </Alert>
             )}
 
-            {/* Address Error */}
             {addressError && (
               <Alert variant="destructive">
                 <XCircle className="h-4 w-4" />
@@ -477,7 +466,6 @@ export default function Attestation() {
               </Alert>
             )}
 
-            {/* Wallet Connection Check */}
             {!isConnected && !isLoadingAddresses && (
               <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
                 <AlertDescription>
@@ -486,7 +474,6 @@ export default function Attestation() {
               </Alert>
             )}
 
-            {/* Execute Button */}
             <Button
               type="submit"
               disabled={isLoading || !isConnected || isLoadingAddresses || !!addressError}
@@ -505,7 +492,6 @@ export default function Attestation() {
               )}
             </Button>
 
-            {/* Progress indicator */}
             {isLoading && currentStep && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-center gap-2">
@@ -518,7 +504,6 @@ export default function Attestation() {
               </div>
             )}
 
-            {/* Error Display */}
             {error && (
               <Alert variant="destructive">
                 <XCircle className="h-4 w-4" />
@@ -526,7 +511,6 @@ export default function Attestation() {
               </Alert>
             )}
 
-            {/* Success Display */}
             {success && (
               <Alert className="bg-green-50 border-green-200 text-green-800">
                 <CheckCircle className="h-4 w-4" />
@@ -534,7 +518,6 @@ export default function Attestation() {
               </Alert>
             )}
 
-            {/* Results Display */}
             {attestationData && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-900">Attestation Data</h3>
@@ -582,7 +565,6 @@ export default function Attestation() {
               </div>
             )}
 
-            {/* Verification Result Display */}
             {verificationResult !== null && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-900">Payment Verification Result</h3>
@@ -599,12 +581,10 @@ export default function Attestation() {
               </div>
             )}
 
-            {/* Proof Data Display */}
             {proofData && (
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-purple-900">Proof Data</h3>
                 <div className="space-y-2">
-                  {/* Voting Round */}
                   <div className="flex items-center gap-2">
                     <span className="font-medium">Voting Round:</span>
                     <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
@@ -625,7 +605,6 @@ export default function Attestation() {
                     )}
                   </div>
                   
-                  {/* Proof Array */}
                   <div className="space-y-2">
                     <span className="font-medium">Proof Array:</span>
                     <div className="space-y-1">
@@ -654,7 +633,6 @@ export default function Attestation() {
                     </div>
                   </div>
                   
-                  {/* Response Body */}
                   <div className="space-y-2">
                     <span className="font-medium">Response Body:</span>
                     <div className="bg-gray-100 rounded p-3 text-sm font-mono">
