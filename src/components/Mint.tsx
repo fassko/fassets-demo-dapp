@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 
 // Form data schema
 import { MintXRPFormDataSchema, MintXRPFormData } from '@/types/mintXRPFormData';
@@ -43,6 +43,15 @@ export default function Mint() {
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { address: userAddress, isConnected } = useAccount();
 
+  // Debug account and chain state
+  useEffect(() => {
+    console.log('Account and chain state:', {
+      userAddress,
+      isConnected,
+      hasAddress: !!userAddress
+    });
+  }, [userAddress, isConnected]);
+
   const {
     register,
     handleSubmit,
@@ -79,8 +88,55 @@ export default function Mint() {
     args: [BigInt(1), BigInt(100)],
   });
 
-  // Write contract for reserveCollateral function
+  // Write contract for reserveCollateral function - using generated hook
   const { data: reserveHash, writeContract: reserveContract, isPending: isReservePending, error: writeError } = useWriteIAssetManagerReserveCollateral();
+
+  // Alternative: Direct wagmi useWriteContract for better error handling
+  const { 
+    data: directReserveHash, 
+    writeContract: directReserveContract, 
+    isPending: isDirectReservePending, 
+    error: directWriteError 
+  } = useWriteContract();
+
+  // Debug wagmi hook state
+  useEffect(() => {
+    console.log('Wagmi hook state:', {
+      // Generated hook
+      reserveHash,
+      isReservePending,
+      writeError: writeError?.message,
+      reserveContract: typeof reserveContract,
+      hasWriteContract: !!reserveContract,
+      // Direct hook
+      directReserveHash,
+      isDirectReservePending,
+      directWriteError: directWriteError?.message,
+      directReserveContract: typeof directReserveContract,
+      hasDirectWriteContract: !!directReserveContract
+    });
+  }, [reserveHash, isReservePending, writeError, reserveContract, directReserveHash, isDirectReservePending, directWriteError, directReserveContract]);
+
+  // Add global error handler for uncaught errors
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      setError(`Unhandled error: ${event.reason?.message || event.reason}`);
+    };
+
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error:', event.error);
+      setError(`Global error: ${event.error?.message || event.message}`);
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      window.removeEventListener('error', handleError);
+    };
+  }, []);
 
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isReserveSuccess, data: receipt } = useWaitForTransactionReceipt({
@@ -222,18 +278,28 @@ export default function Mint() {
   }, [isReserveSuccess, receipt, reset]);
 
   async function mint(data: MintXRPFormData) {
+    console.log('=== MINT FUNCTION START ===');
     setError(null);
     setSuccess(null);
+
+    // Add a timeout to catch silent failures
+    const mintTimeout = setTimeout(() => {
+      console.error('Mint function timeout - function took too long to complete');
+      setError('Transaction timeout: The mint function took too long to complete. This may indicate a silent failure.');
+    }, 60000); // 60 second timeout
 
     console.log('Mint function called with data:', data);
     console.log('Current state:', {
       assetManagerAddress,
       isConnected,
       settings: !!settings,
-      availableAgents: availableAgents.length
+      availableAgents: availableAgents.length,
+      reserveContract: !!reserveContract,
+      writeError: writeError?.message
     });
 
     try {
+      console.log('Step 1: Validating inputs...');
       if (!assetManagerAddress) {
         throw new Error('AssetManager address not loaded');
       }
@@ -244,35 +310,43 @@ export default function Mint() {
 
       // Validate that lots is a positive integer
       const lotsNumber = parseInt(data.lots);
+      console.log('Lots number parsed:', lotsNumber);
       if (isNaN(lotsNumber) || lotsNumber <= 0) {
         throw new Error('Lots must be a positive integer');
       }
 
-      // Get current reservation fee at transaction time
+      console.log('Step 2: Getting reservation fee...');
+      // Get current reservation fee at transaction time (as BigInt for precision)
       const currentFeeAmount = await getCurrentFee(lotsNumber);
+      console.log('Current fee amount (BigInt):', currentFeeAmount.toString());
+      console.log('Current fee amount (FLR):', Number(currentFeeAmount) / Math.pow(10, 18));
 
+      console.log('Step 3: Finding selected agent...');
       // Get agent fee
       const selectedAgent = availableAgents.find(agent => agent.agentVault === data.agentVault);
+      console.log('Selected agent:', selectedAgent);
       if (!selectedAgent) {
         throw new Error('Selected agent not found');
       }
 
+      console.log('Step 4: Preparing transaction parameters...');
       const executor = "0x0000000000000000000000000000000000000000";
 
       const agentFeeBIPS = selectedAgent.feeBIPS.toString();
+      console.log('Agent fee BIPS:', agentFeeBIPS);
 
-              console.log('Calling reserveCollateral with:', {
-          agentVault: data.agentVault,
-          lots: lotsNumber,
-          agentFeeBIPS: parseInt(agentFeeBIPS),
-          reservationFee: currentFeeAmount
-        });
+      console.log('Calling reserveCollateral with:', {
+        agentVault: data.agentVault,
+        lots: lotsNumber,
+        agentFeeBIPS: parseInt(agentFeeBIPS),
+        reservationFee: currentFeeAmount.toString()
+      });
 
         console.log('About to call reserveContract with:', {
           address: assetManagerAddress,
           args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
-          value: BigInt(Math.floor(currentFeeAmount * Math.pow(10, 18))),
-          valueInFLR: currentFeeAmount
+          value: currentFeeAmount, // Use BigInt directly
+          valueInFLR: Number(currentFeeAmount) / Math.pow(10, 18)
         });
 
         // Check if reserveContract is available
@@ -280,23 +354,68 @@ export default function Mint() {
           throw new Error('reserveContract function is not available');
         }
 
+        // Check if the contract is properly configured
+        if (!assetManagerAddress) {
+          throw new Error('AssetManager address is not configured');
+        }
+
         console.log('>> assetManagerAddress:', assetManagerAddress);
 
         // Call the reserveCollateral function using the generated hook
-        const result = reserveContract({
-          address: assetManagerAddress,
-          args: [
-            data.agentVault as `0x${string}`,
-            BigInt(data.lots),
-            BigInt(agentFeeBIPS),
-            executor as `0x${string}`],
-          value: BigInt(Math.floor(currentFeeAmount * Math.pow(10, 18))), // Convert FLR to wei
-        });
+        try {
+          console.log('Attempting to call reserveContract with:', {
+            address: assetManagerAddress,
+            args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
+            value: currentFeeAmount.toString()
+          });
 
-        console.log('reserveContract called successfully, result:', result);
+          // Try the generated hook first
+          const result = reserveContract({
+            address: assetManagerAddress,
+            args: [
+              data.agentVault as `0x${string}`,
+              BigInt(data.lots),
+              BigInt(agentFeeBIPS),
+              executor as `0x${string}`],
+            value: currentFeeAmount, // Use BigInt directly
+          });
+
+          console.log('reserveContract called successfully, result:', result);
+        } catch (contractError) {
+          console.error('Contract call error (generated hook):', contractError);
+          console.error('Contract error details:', {
+            name: contractError instanceof Error ? contractError.name : 'Unknown',
+            message: contractError instanceof Error ? contractError.message : String(contractError),
+            cause: contractError instanceof Error ? contractError.cause : undefined
+          });
+          
+          // Try the direct hook as fallback
+          console.log('Trying direct wagmi hook as fallback...');
+          try {
+            const directResult = directReserveContract({
+              address: assetManagerAddress,
+              abi: iAssetManagerAbi,
+              functionName: 'reserveCollateral',
+              args: [
+                data.agentVault as `0x${string}`,
+                BigInt(data.lots),
+                BigInt(agentFeeBIPS),
+                executor as `0x${string}`],
+              value: currentFeeAmount, // Use BigInt directly
+            });
+            console.log('Direct hook call successful:', directResult);
+          } catch (directError) {
+            console.error('Direct hook also failed:', directError);
+            throw new Error(`Both contract hooks failed. Generated: ${contractError instanceof Error ? contractError.message : String(contractError)}, Direct: ${directError instanceof Error ? directError.message : String(directError)}`);
+          }
+        }
 
     } catch (error) {
+      console.error('=== MINT FUNCTION ERROR ===');
       console.error('Error minting XRP:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error constructor:', error?.constructor?.name);
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       
       // Provide more specific error messages
       if (error instanceof Error) {
@@ -310,18 +429,28 @@ export default function Mint() {
           setError(`Failed to mint: ${error.message}`);
         }
       } else {
-        setError('Failed to mint: An unexpected error occurred');
+        setError(`Failed to mint: An unexpected error occurred - ${String(error)}`);
       }
+    } finally {
+      clearTimeout(mintTimeout);
+      console.log('=== MINT FUNCTION END ===');
     }
   }
 
   const isProcessing = isReservePending || isConfirming;
   const isLoading = isLoadingSettings || isLoadingAgentsData || isLoadingFee;
 
-  // Handle write contract errors
+  // Handle write contract errors (generated hook)
   useEffect(() => {
+    console.log('WriteError changed:', writeError);
     if (writeError) {
-      console.error('Write contract error:', writeError);
+      console.error('Write contract error detected (generated hook):', writeError);
+      console.error('Error details:', {
+        name: writeError.name,
+        message: writeError.message,
+        cause: writeError.cause,
+        stack: writeError.stack
+      });
       
       // Handle specific error types
       if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
@@ -336,6 +465,58 @@ export default function Mint() {
     }
   }, [writeError]);
 
+  // Handle direct write contract errors
+  useEffect(() => {
+    console.log('DirectWriteError changed:', directWriteError);
+    if (directWriteError) {
+      console.error('Direct write contract error detected:', directWriteError);
+      console.error('Direct error details:', {
+        name: directWriteError.name,
+        message: directWriteError.message,
+        cause: directWriteError.cause,
+        stack: directWriteError.stack
+      });
+      
+      // Handle specific error types
+      if (directWriteError.message.includes('User denied transaction signature') || directWriteError.message.includes('user rejected')) {
+        setError('Transaction was cancelled by the user.');
+      } else if (directWriteError.message.includes('execution reverted')) {
+        setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.');
+      } else if (directWriteError.message.includes('insufficient funds')) {
+        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+      } else {
+        setError(`Transaction failed: ${directWriteError.message}`);
+      }
+    }
+  }, [directWriteError]);
+
+  // Clear error when new transaction starts
+  useEffect(() => {
+    if (reserveHash) {
+      console.log('Transaction hash received:', reserveHash);
+      setError(null); // Clear any previous errors when new transaction starts
+    }
+  }, [reserveHash]);
+
+  // Monitor transaction timeout
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    if (isReservePending && !reserveHash) {
+      // If transaction is pending but no hash after 30 seconds, show error
+      timeoutId = setTimeout(() => {
+        console.error('Transaction timeout: No hash received after 30 seconds');
+        setError('Transaction timeout: No transaction hash received. The transaction may have failed silently.');
+      }, 30000);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [isReservePending, reserveHash]);
+
   // Debug: Monitor write contract state
   useEffect(() => {
     console.log('Write contract state:', {
@@ -343,13 +524,22 @@ export default function Mint() {
       isConfirming,
       reserveHash,
       writeError,
-      isProcessing
+      isProcessing,
+      error,
+      assetManagerError,
+      feeError
     });
     
-    if (reserveHash) {
-      console.log('Transaction hash received:', reserveHash);
+    // Log when any error state changes
+    if (error || writeError || assetManagerError || feeError) {
+      console.log('Error state detected:', {
+        error,
+        writeError: writeError?.message,
+        assetManagerError,
+        feeError
+      });
     }
-  }, [isReservePending, isConfirming, reserveHash, writeError, isProcessing]);
+  }, [isReservePending, isConfirming, reserveHash, writeError, isProcessing, error, assetManagerError, feeError]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -512,24 +702,25 @@ export default function Mint() {
               )}
             </Button>
 
-            {(error || assetManagerError) && (
+            {(error || assetManagerError || writeError || directWriteError || feeError) && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {error || assetManagerError}
+                  {error || assetManagerError || (writeError && `Generated Hook Error: ${writeError.message}`) || (directWriteError && `Direct Hook Error: ${directWriteError.message}`) || (feeError && `Fee Error: ${feeError}`)}
                 </AlertDescription>
               </Alert>
+            )}
+
+            {/* Debug: Show raw error information if available */}
+            {writeError && (
+              <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                <strong>Debug Info:</strong> {writeError.name}: {writeError.message}
+              </div>
             )}
 
             {success && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-blue-800">
                 {success}
               </div>
-            )}
-
-            {writeError && (
-              <Alert variant="destructive">
-                <AlertDescription>Write Contract Error: {writeError.message}</AlertDescription>
-              </Alert>
             )}
           </form>
         </CardContent>

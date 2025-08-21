@@ -125,13 +125,13 @@ export default function Transfer() {
     <div className="w-full max-w-4xl mx-auto p-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-amber-900">
-            <Send className="h-5 w-5 text-amber-600" />
+          <CardTitle className="flex items-center gap-2 text-cyan-900">
+            <Send className="h-5 w-5 text-cyan-600" />
             Transfer FXRP
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-amber-700 mb-6">
+          <p className="text-cyan-700 mb-6">
             Transfer FXRP tokens to another address.
           </p>
 
@@ -141,11 +141,11 @@ export default function Transfer() {
               balance={fxrpBalance}
               onRefresh={refreshBalances}
               colorScheme={{
-                title: "text-amber-900",
-                icon: "text-amber-600",
-                badge: "bg-amber-100 text-amber-800",
-                button: "border-amber-300 hover:bg-amber-100",
-                description: "text-amber-600"
+                title: "text-cyan-900",
+                icon: "text-cyan-600",
+                badge: "bg-cyan-100 text-cyan-800",
+                button: "border-cyan-300 hover:bg-cyan-100",
+                description: "text-cyan-600"
               }}
             />
           </div>
@@ -154,12 +154,12 @@ export default function Transfer() {
           <form onSubmit={handleSubmit(transferFXRP)} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="recipientAddress" className="text-amber-900">Recipient Address</Label>
+                <Label htmlFor="recipientAddress" className="text-cyan-900">Recipient Address</Label>
                 <Input
                   {...register('recipientAddress')}
                   type="text"
                   placeholder="0x..."
-                  className="border-amber-300 focus:ring-amber-500 focus:border-amber-500"
+                  className="border-cyan-300 focus:ring-cyan-500 focus:border-cyan-500"
                 />
                 {errors.recipientAddress && (
                   <p className="text-sm text-destructive">{errors.recipientAddress.message}</p>
@@ -167,13 +167,13 @@ export default function Transfer() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-amber-900">Amount (FXRP)</Label>
+                <Label htmlFor="amount" className="text-cyan-900">Amount (FXRP)</Label>
                 <Input
                   {...register('amount')}
                   type="number"
                   placeholder="0.0"
                   step="0.000001"
-                  className="border-amber-300 focus:ring-amber-500 focus:border-amber-500"
+                  className="border-cyan-300 focus:ring-cyan-500 focus:border-cyan-500"
                 />
                 {errors.amount && (
                   <p className="text-sm text-destructive">{errors.amount.message}</p>
@@ -184,7 +184,7 @@ export default function Transfer() {
             <Button
               type="submit"
               disabled={isProcessing || !isConnected || isLoadingSettings}
-              className="w-full bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 cursor-pointer"
+              className="w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 cursor-pointer"
             >
               {isProcessing ? (
                 <>
@@ -208,7 +208,7 @@ export default function Transfer() {
           )}
 
             {success && (
-              <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+              <Alert className="bg-cyan-50 border-cyan-200 text-cyan-800">
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}

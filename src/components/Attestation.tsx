@@ -46,7 +46,7 @@ export default function Attestation() {
 
   const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
 
-  const { writeContract: requestAttestation, data: attestationHash, isPending: isAttestationPending } = useWriteIFdcHubRequestAttestation();
+  const { writeContract: requestAttestation, data: attestationHash, isPending: isAttestationPending, error: writeError } = useWriteIFdcHubRequestAttestation();
   const { data: receipt, isSuccess: isAttestationSuccess } = useWaitForTransactionReceipt({ hash: attestationHash });
 
   // Handle transaction success and calculate round ID
@@ -88,6 +88,26 @@ export default function Attestation() {
       processTransaction();
     }
   }, [isAttestationSuccess, receipt, attestationData]);
+
+  // Handle write contract errors
+  useEffect(() => {
+    if (writeError) {
+      console.error('Write contract error:', writeError);
+      
+      // Handle specific error types
+      if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
+        setError('Transaction was cancelled by the user.');
+      } else if (writeError.message.includes('execution reverted')) {
+        setError('Transaction failed: The contract rejected the transaction. This could be due to invalid parameters, insufficient funds, or network issues.');
+      } else if (writeError.message.includes('insufficient funds')) {
+        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+      } else if (writeError.message.includes('request fee')) {
+        setError('Insufficient request fee. Please ensure you have enough FLR to pay the attestation request fee.');
+      } else {
+        setError(`Transaction failed: ${writeError.message}`);
+      }
+    }
+  }, [writeError]);
 
   // Environment variables and constants
   const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
@@ -504,10 +524,12 @@ export default function Attestation() {
               </div>
             )}
 
-            {error && (
+            {(error || writeError) && (
               <Alert variant="destructive">
                 <XCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>
+                  {error || (writeError && `Transaction Error: ${writeError.message}`)}
+                </AlertDescription>
               </Alert>
             )}
 

@@ -6,6 +6,7 @@ import Mint from '@/components/Mint';
 import Transfer from '@/components/Transfer';
 import Redeem from '@/components/Redeem';
 import Attestation from '@/components/Attestation';
+import Execute from '@/components/Execute';
 import Navigation from '@/components/Navigation';
 
 export default function Home() {
@@ -16,9 +17,10 @@ export default function Home() {
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === 'asset-manager' && <AssetManagerSettings />}
         {activeTab === 'mint-xrp' && <Mint />}
+        {activeTab === 'xrp-attestation' && <Attestation />}
+        {activeTab === 'execute' && <Execute />}
         {activeTab === 'transfer' && <Transfer />}
         {activeTab === 'redeem-fxrp' && <Redeem />}
-        {activeTab === 'xrp-attestation' && <Attestation />}
       </main>
     </div>
   );

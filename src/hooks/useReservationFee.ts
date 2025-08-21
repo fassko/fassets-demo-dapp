@@ -27,7 +27,7 @@ export function useReservationFee(
           });
           
           if (feeData) {
-            const feeInFLR = (Number(feeData) / Math.pow(10, 18)).toFixed(6);
+            const feeInFLR = (Number(feeData) / Math.pow(10, 18)).toString();
             setReservationFee(feeInFLR);
           }
         } catch (error) {
@@ -46,8 +46,8 @@ export function useReservationFee(
     calculateReservationFee();
   }, [assetManagerAddress, lots, agentVault]);
 
-  // Function to get current fee at transaction time
-  const getCurrentFee = async (lotsNumber: number): Promise<number> => {
+  // Function to get current fee at transaction time (returns BigInt for precision)
+  const getCurrentFee = async (lotsNumber: number): Promise<bigint> => {
     if (!assetManagerAddress) {
       throw new Error('AssetManager address not loaded');
     }
@@ -61,7 +61,7 @@ export function useReservationFee(
       });
       
       if (feeData) {
-        return Number(feeData) / Math.pow(10, 18);
+        return feeData as bigint; // Return the raw BigInt value
       } else {
         throw new Error('Failed to get current reservation fee');
       }
@@ -71,10 +71,17 @@ export function useReservationFee(
     }
   };
 
+  // Function to get current fee as number for display purposes
+  const getCurrentFeeAsNumber = async (lotsNumber: number): Promise<number> => {
+    const feeBigInt = await getCurrentFee(lotsNumber);
+    return Number(feeBigInt) / Math.pow(10, 18);
+  };
+
   return {
     reservationFee,
     isLoading,
     error,
-    getCurrentFee
+    getCurrentFee,
+    getCurrentFeeAsNumber
   };
 }
