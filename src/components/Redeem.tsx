@@ -34,7 +34,7 @@ export default function Redeem() {
   const [xrplAddress, setXrplAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
-  const [redemptionEvents, setRedemptionEvents] = useState<Array<{
+  const [redemptionEvent, setRedemptionEvent] = useState<{
     agentVault: string;
     redeemer: string;
     requestId: string;
@@ -47,7 +47,7 @@ export default function Redeem() {
     paymentReference: string;
     executor: string;
     executorFeeNatWei: string;
-  }>>([]);
+  } | null>(null);
 
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
@@ -109,21 +109,6 @@ export default function Redeem() {
         status: receipt.status
       });
 
-      const events: Array<{
-        agentVault: string;
-        redeemer: string;
-        requestId: string;
-        paymentAddress: string;
-        valueUBA: string;
-        feeUBA: string;
-        firstUnderlyingBlock: string;
-        lastUnderlyingBlock: string;
-        lastUnderlyingTimestamp: string;
-        paymentReference: string;
-        executor: string;
-        executorFeeNatWei: string;
-      }> = [];
-
       // Process each log in the transaction receipt
       for (const log of receipt.logs) {
         try {
@@ -152,7 +137,8 @@ export default function Redeem() {
             console.log('Executor Fee Nat Wei:', decodedLog.args.executorFeeNatWei.toString());
             console.log('=====================================');
 
-            events.push({
+            // Store the single event in state for UI display
+            setRedemptionEvent({
               agentVault: decodedLog.args.agentVault,
               redeemer: decodedLog.args.redeemer,
               requestId: decodedLog.args.requestId.toString(),
@@ -166,16 +152,14 @@ export default function Redeem() {
               executor: decodedLog.args.executor,
               executorFeeNatWei: decodedLog.args.executorFeeNatWei.toString(),
             });
+            
+            // Break after finding the first RedemptionRequested event
+            break;
           }
         } catch (error) {
           // This log is not a recognized event, continue to next log
           console.log('Log could not be decoded as known event:', log);
         }
-      }
-
-      // Store events in state for UI display
-      if (events.length > 0) {
-        setRedemptionEvents(events);
       }
 
       setSuccess(`Successfully redeemed ${watchedAmount} XRP to ${xrplAddress}`);
@@ -481,89 +465,87 @@ export default function Redeem() {
               </Alert>
             )}
 
-            {redemptionEvents.length > 0 && (
+            {redemptionEvent && (
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-green-900">Redemption Events</h3>
+                <h3 className="text-lg font-semibold text-green-900">Redemption Event</h3>
                 
-                {redemptionEvents.map((event, index) => (
-                  <div key={index} className="space-y-3">
-                    <h4 className="text-md font-semibold text-green-800">RedemptionRequested Event #{index + 1}</h4>
-                    <div className="bg-green-50 border border-green-200 rounded p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Request ID:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.requestId}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Payment Reference:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.paymentReference}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Agent Vault:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.agentVault}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Redeemer:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.redeemer}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Payment Address:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.paymentAddress}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Value UBA:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.valueUBA}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Fee UBA:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.feeUBA}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Executor:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.executor}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Executor Fee Nat Wei:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.executorFeeNatWei}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">First Underlying Block:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.firstUnderlyingBlock}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Last Underlying Block:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.lastUnderlyingBlock}
-                        </code>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-green-900">Last Underlying Timestamp:</span>
-                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                          {event.lastUnderlyingTimestamp}
-                        </code>
-                      </div>
+                <div className="space-y-3">
+                  <h4 className="text-md font-semibold text-green-800">RedemptionRequested Event</h4>
+                  <div className="bg-green-50 border border-green-200 rounded p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Request ID:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.requestId}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Payment Reference:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.paymentReference}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Agent Vault:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.agentVault}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Redeemer:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.redeemer}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Payment Address:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.paymentAddress}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Value UBA:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.valueUBA}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Fee UBA:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.feeUBA}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Executor:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.executor}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Executor Fee Nat Wei:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.executorFeeNatWei}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">First Underlying Block:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.firstUnderlyingBlock}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Last Underlying Block:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.lastUnderlyingBlock}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Last Underlying Timestamp:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                        {redemptionEvent.lastUnderlyingTimestamp}
+                      </code>
                     </div>
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </form>
