@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useAccount, useReadContract, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useAccount, useReadContract, useWaitForTransactionReceipt } from 'wagmi';
 
 // Form data schema
 import { MintXRPFormDataSchema, MintXRPFormData } from '@/types/mintXRPFormData';
@@ -586,7 +586,7 @@ export default function Mint() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="lots" className="text-blue-900">Lots Amount</Label>
+                <Label htmlFor="lots" className="text-blue-900">Lots</Label>
                 <Input
                   {...register('lots')}
                   type="number"

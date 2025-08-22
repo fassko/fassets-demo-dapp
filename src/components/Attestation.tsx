@@ -27,8 +27,7 @@ export default function Attestation() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    reset
+    formState: { errors }
   } = useForm<AttestationFormData>({
     resolver: zodResolver(AttestationFormDataSchema),
   });
@@ -42,11 +41,11 @@ export default function Attestation() {
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
 
-  const { address: userAddress, isConnected } = useAccount();
+  const { isConnected } = useAccount();
 
   const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
 
-  const { writeContract: requestAttestation, data: attestationHash, isPending: isAttestationPending, error: writeError } = useWriteIFdcHubRequestAttestation();
+  const { writeContract: requestAttestation, data: attestationHash, error: writeError } = useWriteIFdcHubRequestAttestation();
   const { data: receipt, isSuccess: isAttestationSuccess } = useWaitForTransactionReceipt({ hash: attestationHash });
 
   // Handle transaction success and calculate round ID
@@ -225,7 +224,7 @@ export default function Attestation() {
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
   // Post request to DA Layer
-  const postRequestToDALayer = async (url: string, request: Record<string, unknown>, isInitial: boolean = false) => {
+  const postRequestToDALayer = async (url: string, request: Record<string, unknown>) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -258,7 +257,7 @@ export default function Attestation() {
     console.log("Prepared request:\n", request, "\n");
 
     await sleep(10000);
-    let proof = await postRequestToDALayer(url, request, true);
+    let proof = await postRequestToDALayer(url, request);
     console.log("Waiting for the DA Layer to generate the proof...");
     
     // If we get a successful response with proof data, return immediately
@@ -271,7 +270,7 @@ export default function Attestation() {
     // Only retry if we don't have the proof data yet
     while (!proof.response || !proof.proof || !Array.isArray(proof.proof)) {
       await sleep(10000);
-      proof = await postRequestToDALayer(url, request, false);
+      proof = await postRequestToDALayer(url, request);
       
       // If we get a successful response with proof data, break out of the loop
       if (proof.response && proof.proof && Array.isArray(proof.proof)) {

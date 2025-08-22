@@ -33,7 +33,7 @@ export default function Redeem() {
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
-  const [calculatedLots, setCalculatedLots] = useState<string>('0');
+
   const [redemptionEvent, setRedemptionEvent] = useState<{
     agentVault: string;
     redeemer: string;
@@ -50,7 +50,7 @@ export default function Redeem() {
   } | null>(null);
 
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-  const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
+  const { fxrpBalance, refetchFxrpBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
 
   const {
     register,
@@ -76,25 +76,7 @@ export default function Redeem() {
     hash: redeemHash,
   });
 
-  // Calculate lots when amount changes
-  useEffect(() => {
-    const calculateLots = async () => {
-      if (settings && watchedAmount) {
-        try {
-          const lotSizeAMG = settings.lotSizeAMG;
-          const xrpInDrops = parseFloat(watchedAmount) * 1000000; // Convert XRP to drops
-          const lotSize = Number(lotSizeAMG);
-          const lots = Math.floor(xrpInDrops / lotSize);
-          setCalculatedLots(lots.toString());
-        } catch (error) {
-          console.error('Error calculating lots:', error);
-          setCalculatedLots('0');
-        }
-      }
-    };
 
-    calculateLots();
-  }, [settings, watchedAmount]);
 
   // Handle successful redemption
   useEffect(() => {
@@ -158,11 +140,11 @@ export default function Redeem() {
           }
         } catch (error) {
           // This log is not a recognized event, continue to next log
-          console.log('Log could not be decoded as known event:', log);
+          console.log('Log could not be decoded as known event:', log, error);
         }
       }
 
-      setSuccess(`Successfully redeemed ${watchedAmount} XRP to ${xrplAddress}`);
+      setSuccess(`Successfully redeemed ${watchedAmount} lots to ${xrplAddress}`);
       reset();
       refetchFxrpBalance();
     }
@@ -271,13 +253,10 @@ export default function Redeem() {
         throw new Error('Please connect your wallet');
       }
 
-      const lotSizeAMG = settings.lotSizeAMG;
-      const xrpInDrops = parseFloat(data.amount) * 1000000;
-      const lotSize = Number(lotSizeAMG);
-      const lots = Math.floor(xrpInDrops / lotSize);
-
-      if (lots <= 0) {
-        throw new Error('Amount too small to redeem. Minimum amount required.');
+      // Validate that amount is a positive integer (lots)
+      const lots = parseInt(data.amount);
+      if (isNaN(lots) || lots <= 0) {
+        throw new Error('Lots must be a positive integer');
       }
 
       // Call the redeem function using wagmi - Diamond proxy approach
@@ -397,39 +376,65 @@ export default function Redeem() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="amount" className="text-green-900">Amount (XRP)</Label>
+                <Label htmlFor="amount" className="text-green-900">Lots</Label>
                 <Input
                   {...register('amount')}
                   type="number"
-                  placeholder="0.0"
-                  step="0.000001"
+                  placeholder="1"
+                  step="1"
+                  min="1"
                   className="border-green-300 focus:ring-green-500 focus:border-green-500"
                 />
                 {errors.amount && (
                   <p className="text-sm text-destructive">{errors.amount.message}</p>
                 )}
                 <p className="text-xs text-green-600">
-                  Amount will be converted to lots based on Asset Manager settings
+                  Amount in lots (1 lot = {settings?.lotSizeAMG ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6) : '0'} XRP)
                 </p>
-                {watchedAmount && (
-                  <div className={`mt-2 p-2 rounded border ${
-                    calculatedLots === '0' 
-                      ? 'bg-destructive/10 border-destructive/20' 
-                      : 'bg-green-100 border-green-200'
-                  }`}>
-                    <p className={`text-sm ${
-                      calculatedLots === '0' 
-                        ? 'text-destructive' 
-                        : 'text-green-800'
-                    }`}>
-                      {calculatedLots === '0' ? (
-                        <span className="font-semibold">Warning:</span>
-                      ) : (
-                        <span className="font-semibold">Calculated Lots:</span>
-                      )} {calculatedLots === '0' ? 'Amount too small to fit in a lot' : calculatedLots}
+                {watchedAmount && watchedAmount !== '' && !isNaN(parseFloat(watchedAmount)) && (
+                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2">
+                    <p className="text-sm text-green-800">
+                      <span className="font-semibold">FXRP to burn:</span> {parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)} FXRP
                     </p>
+                    <p className="text-xs text-green-600">
+                      ({watchedAmount} lots × {settings?.lotSizeAMG ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6) : '0'} XRP per lot)
+                    </p>
+                    
+                    <div className="pt-2 border-t border-green-200 space-y-1">
+                      {settings?.redemptionFeeBIPS && Number(settings.redemptionFeeBIPS) > 0 && (
+                        <>
+                          <p className="text-sm text-green-800">
+                            <span className="font-semibold">Redemption Fee:</span> {((parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)) * Number(settings.redemptionFeeBIPS) / 10000).toFixed(6)} XRP
+                          </p>
+                          <p className="text-xs text-green-600">
+                            ({Number(settings.redemptionFeeBIPS) / 100}% deducted from XRP value)
+                          </p>
+                          
+                          <div className="pt-1 border-t border-green-300">
+                            <p className="text-sm font-semibold text-green-900">
+                              <span>XRP to be redeemed:</span> {((parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)) * (1 - Number(settings.redemptionFeeBIPS) / 10000)).toFixed(6)} XRP
+                            </p>
+                            <p className="text-xs text-green-600">
+                              (Net amount after fee deduction)
+                            </p>
+                          </div>
+                        </>
+                      )}
+                      
+                      {(!settings?.redemptionFeeBIPS || Number(settings.redemptionFeeBIPS) === 0) && (
+                        <div className="pt-1 border-t border-green-300">
+                          <p className="text-sm font-semibold text-green-900">
+                            <span>XRP to be redeemed:</span> {(parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)).toFixed(6)} XRP
+                          </p>
+                          <p className="text-xs text-green-600">
+                            (No redemption fee)
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
+
               </div>
             </div>
 

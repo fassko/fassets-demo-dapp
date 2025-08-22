@@ -26,8 +26,8 @@ export default function Transfer() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-  const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
+  const { settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
+  const { fxrpBalance, refetchFxrpBalance, balanceError, isConnected } = useFXRPBalance();
 
   const {
     register,

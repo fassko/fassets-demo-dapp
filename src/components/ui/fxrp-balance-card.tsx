@@ -39,7 +39,7 @@ export function FXRPBalanceCard({ balance, onRefresh, colorScheme }: FXRPBalance
             className={`${colorScheme.button} cursor-pointer`}
           >
             <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh Balance
+            Refresh
           </Button>
         </div>
         <p className={`text-xs ${colorScheme.description} mt-2`}>FXRP Token Balance</p>

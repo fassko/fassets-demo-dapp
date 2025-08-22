@@ -27,8 +27,7 @@ export default function Execute() {
   const {
     register,
     handleSubmit,
-    formState: { errors },
-    reset
+    formState: { errors }
   } = useForm<ExecuteFormData>({
     resolver: zodResolver(ExecuteFormDataSchema),
   });
@@ -55,7 +54,7 @@ export default function Execute() {
     } | null;
   } | null>(null);
 
-  const { address: userAddress, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { assetManagerAddress, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
 
@@ -70,10 +69,10 @@ export default function Execute() {
   const sourceIdBase = 'testXRP';
 
   // Sleep utility function
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 
   // Post request to DA Layer
-  const postRequestToDALayer = async (url: string, request: Record<string, unknown>, isInitial: boolean = false) => {
+  const postRequestToDALayer = async (url: string, request: Record<string, unknown>) => {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
@@ -100,7 +99,7 @@ export default function Execute() {
     };
     console.log("Prepared request:\n", request, "\n");
 
-    let proof = await postRequestToDALayer(url, request, true);
+    const proof = await postRequestToDALayer(url, request);
     
     console.log("Proof:", proof, "\n");
     return proof;
@@ -430,7 +429,7 @@ export default function Execute() {
             }
           } catch (error) {
             // This log is not a recognized error event, continue to next log
-            console.log('Log could not be decoded as known error event:', log);
+            console.log('Log could not be decoded as known error event:', log, error);
           }
         }
         
@@ -439,7 +438,23 @@ export default function Execute() {
         return;
       }
 
-      const events: any = {};
+      const events: {
+        mintingExecuted: {
+          agentVault: string;
+          collateralReservationId: string;
+          mintedAmountUBA: string;
+          agentFeeUBA: string;
+          poolFeeUBA: string;
+        } | null;
+        redemptionTicketCreated: {
+          agentVault: string;
+          redemptionTicketId: string;
+          ticketValueUBA: string;
+        } | null;
+      } = {
+        mintingExecuted: null,
+        redemptionTicketCreated: null
+      };
 
       // Process each log in the transaction receipt
       for (const log of receipt.logs) {
@@ -484,7 +499,7 @@ export default function Execute() {
           }
         } catch (error) {
           // This log is not a recognized event, continue to next log
-          console.log('Log could not be decoded as known event:', log);
+          console.log('Log could not be decoded as known event:', log, error);
         }
       }
 
@@ -497,75 +512,7 @@ export default function Execute() {
     }
   }, [isExecuteSuccess, receipt]);
 
-  // Handle transaction success
-  useEffect(() => {
-    if (isExecuteSuccess && receipt) {
-      console.log('Execute transaction successful, processing logs...');
-      console.log('Transaction details:', {
-        hash: receipt.transactionHash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed,
-        effectiveGasPrice: receipt.effectiveGasPrice,
-        logsCount: receipt.logs.length
-      });
 
-      const events: any = {};
-
-      // Process each log in the transaction receipt
-      for (const log of receipt.logs) {
-        try {
-          // Try to decode the log as various events
-          const decodedLog = decodeEventLog({
-            abi: iAssetManagerAbi,
-            data: log.data,
-            topics: log.topics,
-          });
-
-          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
-
-          if (decodedLog.eventName === 'MintingExecuted') {
-            console.log('=== MintingExecuted Event ===');
-            console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log('Collateral Reservation ID:', decodedLog.args.collateralReservationId.toString());
-            console.log('Minted Amount UBA:', decodedLog.args.mintedAmountUBA.toString());
-            console.log('Agent Fee UBA:', decodedLog.args.agentFeeUBA.toString());
-            console.log('Pool Fee UBA:', decodedLog.args.poolFeeUBA.toString());
-            console.log('=====================================');
-
-            events.mintingExecuted = {
-              agentVault: decodedLog.args.agentVault,
-              collateralReservationId: decodedLog.args.collateralReservationId.toString(),
-              mintedAmountUBA: decodedLog.args.mintedAmountUBA.toString(),
-              agentFeeUBA: decodedLog.args.agentFeeUBA.toString(),
-              poolFeeUBA: decodedLog.args.poolFeeUBA.toString(),
-            };
-          } else if (decodedLog.eventName === 'RedemptionTicketCreated') {
-            console.log('=== RedemptionTicketCreated Event ===');
-            console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log('Redemption Ticket ID:', decodedLog.args.redemptionTicketId.toString());
-            console.log('Ticket Value UBA:', decodedLog.args.ticketValueUBA.toString());
-            console.log('=====================================');
-
-            events.redemptionTicketCreated = {
-              agentVault: decodedLog.args.agentVault,
-              redemptionTicketId: decodedLog.args.redemptionTicketId.toString(),
-              ticketValueUBA: decodedLog.args.ticketValueUBA.toString(),
-            };
-          }
-        } catch (error) {
-          // This log is not a recognized event, continue to next log
-          console.log('Log could not be decoded as known event:', log);
-        }
-      }
-
-      // Store events in state for UI display
-      if (Object.keys(events).length > 0) {
-        setTransactionEvents(events);
-      }
-
-      setSuccess(`Minting executed successfully! Transaction hash: ${receipt.transactionHash}`);
-    }
-  }, [isExecuteSuccess, receipt]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
