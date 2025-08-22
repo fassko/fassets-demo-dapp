@@ -5,6 +5,7 @@ import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { decodeEventLog } from 'viem';
 
 // Form data schema
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
@@ -33,6 +34,20 @@ export default function Redeem() {
   const [xrplAddress, setXrplAddress] = useState<string>('');
   const [xrplClient, setXrplClient] = useState<Client | null>(null);
   const [calculatedLots, setCalculatedLots] = useState<string>('0');
+  const [redemptionEvents, setRedemptionEvents] = useState<Array<{
+    agentVault: string;
+    redeemer: string;
+    requestId: string;
+    paymentAddress: string;
+    valueUBA: string;
+    feeUBA: string;
+    firstUnderlyingBlock: string;
+    lastUnderlyingBlock: string;
+    lastUnderlyingTimestamp: string;
+    paymentReference: string;
+    executor: string;
+    executorFeeNatWei: string;
+  }>>([]);
 
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { fxrpBalance, refetchFxrpBalance, isLoadingBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
@@ -57,7 +72,7 @@ export default function Redeem() {
   const { data: redeemHash, writeContract: redeemContract, isPending: isRedeemPending, error: writeError } = useWriteContract();
 
   // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isRedeemSuccess } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isRedeemSuccess, data: receipt, error: receiptError } = useWaitForTransactionReceipt({
     hash: redeemHash,
   });
 
@@ -83,12 +98,106 @@ export default function Redeem() {
 
   // Handle successful redemption
   useEffect(() => {
-    if (isRedeemSuccess) {
+    if (isRedeemSuccess && receipt) {
+      console.log('Redeem transaction successful, processing logs...');
+      console.log('Transaction details:', {
+        hash: receipt.transactionHash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        logsCount: receipt.logs.length,
+        status: receipt.status
+      });
+
+      const events: Array<{
+        agentVault: string;
+        redeemer: string;
+        requestId: string;
+        paymentAddress: string;
+        valueUBA: string;
+        feeUBA: string;
+        firstUnderlyingBlock: string;
+        lastUnderlyingBlock: string;
+        lastUnderlyingTimestamp: string;
+        paymentReference: string;
+        executor: string;
+        executorFeeNatWei: string;
+      }> = [];
+
+      // Process each log in the transaction receipt
+      for (const log of receipt.logs) {
+        try {
+          // Try to decode the log as various events
+          const decodedLog = decodeEventLog({
+            abi: iAssetManagerAbi,
+            data: log.data,
+            topics: log.topics,
+          });
+
+          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
+
+          if (decodedLog.eventName === 'RedemptionRequested') {
+            console.log('=== RedemptionRequested Event ===');
+            console.log('Agent Vault:', decodedLog.args.agentVault);
+            console.log('Redeemer:', decodedLog.args.redeemer);
+            console.log('Request ID:', decodedLog.args.requestId.toString());
+            console.log('Payment Address:', decodedLog.args.paymentAddress);
+            console.log('Value UBA:', decodedLog.args.valueUBA.toString());
+            console.log('Fee UBA:', decodedLog.args.feeUBA.toString());
+            console.log('First Underlying Block:', decodedLog.args.firstUnderlyingBlock.toString());
+            console.log('Last Underlying Block:', decodedLog.args.lastUnderlyingBlock.toString());
+            console.log('Last Underlying Timestamp:', decodedLog.args.lastUnderlyingTimestamp.toString());
+            console.log('Payment Reference:', decodedLog.args.paymentReference);
+            console.log('Executor:', decodedLog.args.executor);
+            console.log('Executor Fee Nat Wei:', decodedLog.args.executorFeeNatWei.toString());
+            console.log('=====================================');
+
+            events.push({
+              agentVault: decodedLog.args.agentVault,
+              redeemer: decodedLog.args.redeemer,
+              requestId: decodedLog.args.requestId.toString(),
+              paymentAddress: decodedLog.args.paymentAddress,
+              valueUBA: decodedLog.args.valueUBA.toString(),
+              feeUBA: decodedLog.args.feeUBA.toString(),
+              firstUnderlyingBlock: decodedLog.args.firstUnderlyingBlock.toString(),
+              lastUnderlyingBlock: decodedLog.args.lastUnderlyingBlock.toString(),
+              lastUnderlyingTimestamp: decodedLog.args.lastUnderlyingTimestamp.toString(),
+              paymentReference: decodedLog.args.paymentReference,
+              executor: decodedLog.args.executor,
+              executorFeeNatWei: decodedLog.args.executorFeeNatWei.toString(),
+            });
+          }
+        } catch (error) {
+          // This log is not a recognized event, continue to next log
+          console.log('Log could not be decoded as known event:', log);
+        }
+      }
+
+      // Store events in state for UI display
+      if (events.length > 0) {
+        setRedemptionEvents(events);
+      }
+
       setSuccess(`Successfully redeemed ${watchedAmount} XRP to ${xrplAddress}`);
       reset();
       refetchFxrpBalance();
     }
-  }, [isRedeemSuccess, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
+  }, [isRedeemSuccess, receipt, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
+
+  // Handle receipt errors
+  useEffect(() => {
+    if (receiptError) {
+      console.error('Transaction receipt error:', receiptError);
+      console.error('Receipt error details:', {
+        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
+        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        cause: receiptError instanceof Error ? receiptError.cause : undefined,
+        stack: receiptError instanceof Error ? receiptError.stack : undefined
+      });
+      
+      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+    }
+  }, [receiptError]);
 
   // Initialize XRPL connection
   useEffect(() => {
@@ -370,6 +479,92 @@ export default function Redeem() {
               <Alert className="bg-green-50 border-green-200 text-green-800">
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
+            )}
+
+            {redemptionEvents.length > 0 && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-green-900">Redemption Events</h3>
+                
+                {redemptionEvents.map((event, index) => (
+                  <div key={index} className="space-y-3">
+                    <h4 className="text-md font-semibold text-green-800">RedemptionRequested Event #{index + 1}</h4>
+                    <div className="bg-green-50 border border-green-200 rounded p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Request ID:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.requestId}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Payment Reference:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.paymentReference}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Agent Vault:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.agentVault}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Redeemer:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.redeemer}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Payment Address:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.paymentAddress}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Value UBA:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.valueUBA}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Fee UBA:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.feeUBA}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Executor:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.executor}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Executor Fee Nat Wei:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.executorFeeNatWei}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">First Underlying Block:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.firstUnderlyingBlock}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Last Underlying Block:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.lastUnderlyingBlock}
+                        </code>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-green-900">Last Underlying Timestamp:</span>
+                        <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
+                          {event.lastUnderlyingTimestamp}
+                        </code>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </form>
         </CardContent>

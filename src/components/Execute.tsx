@@ -13,13 +13,15 @@ import { Loader2, CheckCircle, XCircle, Copy, Check, Play } from "lucide-react";
 import { ExecuteFormDataSchema, ExecuteFormData, ProofData } from '@/types/executeFormData';
 import { 
   useWriteIAssetManagerExecuteMinting,
-  iPaymentVerificationAbi
+  iPaymentVerificationAbi,
+  iAssetManagerAbi
 } from '@/generated';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { publicClient } from '@/lib/publicClient';
 import { toHex } from '@/lib/utils';
+import { decodeEventLog } from 'viem';
 
 export default function Execute() {
   const {
@@ -38,13 +40,27 @@ export default function Execute() {
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [proofData, setProofData] = useState<ProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
+  const [transactionEvents, setTransactionEvents] = useState<{
+    mintingExecuted: {
+      agentVault: string;
+      collateralReservationId: string;
+      mintedAmountUBA: string;
+      agentFeeUBA: string;
+      poolFeeUBA: string;
+    } | null;
+    redemptionTicketCreated: {
+      agentVault: string;
+      redemptionTicketId: string;
+      ticketValueUBA: string;
+    } | null;
+  } | null>(null);
 
   const { address: userAddress, isConnected } = useAccount();
   const { assetManagerAddress, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
 
   const { writeContract: executeMinting, data: executeHash, isPending: isExecutePending, error: writeError } = useWriteIAssetManagerExecuteMinting();
-  const { data: receipt, isSuccess: isExecuteSuccess } = useWaitForTransactionReceipt({ hash: executeHash });
+  const { data: receipt, isSuccess: isExecuteSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: executeHash });
 
   // Environment variables and constants
   const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
@@ -346,9 +362,207 @@ export default function Execute() {
     }
   }, [writeError]);
 
+  // Handle receipt errors
+  useEffect(() => {
+    if (receiptError) {
+      console.error('Transaction receipt error:', receiptError);
+      console.error('Receipt error details:', {
+        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
+        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        cause: receiptError instanceof Error ? receiptError.cause : undefined,
+        stack: receiptError instanceof Error ? receiptError.stack : undefined
+      });
+      
+      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+    }
+  }, [receiptError]);
+
+  // Handle transaction success and decode any errors
+  useEffect(() => {
+    if (isExecuteSuccess && receipt) {
+      console.log('Execute transaction successful, processing logs...');
+      console.log('Transaction details:', {
+        hash: receipt.transactionHash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        logsCount: receipt.logs.length,
+        status: receipt.status
+      });
+
+      // Log transaction status for debugging
+      console.log('Transaction status:', receipt.status, typeof receipt.status);
+      
+      // Check if transaction failed (status 0)
+      if (String(receipt.status) === '0') {
+        console.error('Transaction failed with status 0');
+        
+        // Try to decode error from logs
+        for (const log of receipt.logs) {
+          try {
+            // Try to decode as various error events
+            const decodedLog = decodeEventLog({
+              abi: iAssetManagerAbi,
+              data: log.data,
+              topics: log.topics,
+            });
+
+            console.log(`Decoded error event: ${decodedLog.eventName}`, decodedLog.args);
+            
+            // Handle specific error events - check for any error events
+            if (decodedLog.eventName && typeof decodedLog.eventName === 'string') {
+              console.error(`=== ${decodedLog.eventName} Error ===`);
+              console.error('Transaction failed with error event:', decodedLog.eventName);
+              console.error('Error arguments:', decodedLog.args);
+              
+              // Handle specific known errors
+              if (decodedLog.eventName.includes('Invalid') || decodedLog.eventName.includes('CrtId')) {
+                console.error('This appears to be an invalid collateral reservation ID error.');
+                console.error('Please check that:');
+                console.error('1. The collateral reservation ID exists');
+                console.error('2. The reservation has not expired');
+                console.error('3. The reservation belongs to the correct user');
+                console.error('=====================================');
+                
+                setError('Invalid Collateral Reservation ID: The provided reservation ID does not exist or has expired. Please check your reservation ID and try again.');
+                return;
+              }
+            }
+          } catch (error) {
+            // This log is not a recognized error event, continue to next log
+            console.log('Log could not be decoded as known error event:', log);
+          }
+        }
+        
+        // If no specific error was decoded, show generic failure message
+        setError('Transaction failed: The contract rejected the transaction. This could be due to invalid parameters, expired reservation, or insufficient funds.');
+        return;
+      }
+
+      const events: any = {};
+
+      // Process each log in the transaction receipt
+      for (const log of receipt.logs) {
+        try {
+          // Try to decode the log as various events
+          const decodedLog = decodeEventLog({
+            abi: iAssetManagerAbi,
+            data: log.data,
+            topics: log.topics,
+          });
+
+          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
+
+          if (decodedLog.eventName === 'MintingExecuted') {
+            console.log('=== MintingExecuted Event ===');
+            console.log('Agent Vault:', decodedLog.args.agentVault);
+            console.log('Collateral Reservation ID:', decodedLog.args.collateralReservationId.toString());
+            console.log('Minted Amount UBA:', decodedLog.args.mintedAmountUBA.toString());
+            console.log('Agent Fee UBA:', decodedLog.args.agentFeeUBA.toString());
+            console.log('Pool Fee UBA:', decodedLog.args.poolFeeUBA.toString());
+            console.log('=====================================');
+
+            events.mintingExecuted = {
+              agentVault: decodedLog.args.agentVault,
+              collateralReservationId: decodedLog.args.collateralReservationId.toString(),
+              mintedAmountUBA: decodedLog.args.mintedAmountUBA.toString(),
+              agentFeeUBA: decodedLog.args.agentFeeUBA.toString(),
+              poolFeeUBA: decodedLog.args.poolFeeUBA.toString(),
+            };
+          } else if (decodedLog.eventName === 'RedemptionTicketCreated') {
+            console.log('=== RedemptionTicketCreated Event ===');
+            console.log('Agent Vault:', decodedLog.args.agentVault);
+            console.log('Redemption Ticket ID:', decodedLog.args.redemptionTicketId.toString());
+            console.log('Ticket Value UBA:', decodedLog.args.ticketValueUBA.toString());
+            console.log('=====================================');
+
+            events.redemptionTicketCreated = {
+              agentVault: decodedLog.args.agentVault,
+              redemptionTicketId: decodedLog.args.redemptionTicketId.toString(),
+              ticketValueUBA: decodedLog.args.ticketValueUBA.toString(),
+            };
+          }
+        } catch (error) {
+          // This log is not a recognized event, continue to next log
+          console.log('Log could not be decoded as known event:', log);
+        }
+      }
+
+      // Store events in state for UI display
+      if (Object.keys(events).length > 0) {
+        setTransactionEvents(events);
+      }
+
+      setSuccess(`Minting executed successfully! Transaction hash: ${receipt.transactionHash}`);
+    }
+  }, [isExecuteSuccess, receipt]);
+
   // Handle transaction success
   useEffect(() => {
     if (isExecuteSuccess && receipt) {
+      console.log('Execute transaction successful, processing logs...');
+      console.log('Transaction details:', {
+        hash: receipt.transactionHash,
+        blockNumber: receipt.blockNumber,
+        gasUsed: receipt.gasUsed,
+        effectiveGasPrice: receipt.effectiveGasPrice,
+        logsCount: receipt.logs.length
+      });
+
+      const events: any = {};
+
+      // Process each log in the transaction receipt
+      for (const log of receipt.logs) {
+        try {
+          // Try to decode the log as various events
+          const decodedLog = decodeEventLog({
+            abi: iAssetManagerAbi,
+            data: log.data,
+            topics: log.topics,
+          });
+
+          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
+
+          if (decodedLog.eventName === 'MintingExecuted') {
+            console.log('=== MintingExecuted Event ===');
+            console.log('Agent Vault:', decodedLog.args.agentVault);
+            console.log('Collateral Reservation ID:', decodedLog.args.collateralReservationId.toString());
+            console.log('Minted Amount UBA:', decodedLog.args.mintedAmountUBA.toString());
+            console.log('Agent Fee UBA:', decodedLog.args.agentFeeUBA.toString());
+            console.log('Pool Fee UBA:', decodedLog.args.poolFeeUBA.toString());
+            console.log('=====================================');
+
+            events.mintingExecuted = {
+              agentVault: decodedLog.args.agentVault,
+              collateralReservationId: decodedLog.args.collateralReservationId.toString(),
+              mintedAmountUBA: decodedLog.args.mintedAmountUBA.toString(),
+              agentFeeUBA: decodedLog.args.agentFeeUBA.toString(),
+              poolFeeUBA: decodedLog.args.poolFeeUBA.toString(),
+            };
+          } else if (decodedLog.eventName === 'RedemptionTicketCreated') {
+            console.log('=== RedemptionTicketCreated Event ===');
+            console.log('Agent Vault:', decodedLog.args.agentVault);
+            console.log('Redemption Ticket ID:', decodedLog.args.redemptionTicketId.toString());
+            console.log('Ticket Value UBA:', decodedLog.args.ticketValueUBA.toString());
+            console.log('=====================================');
+
+            events.redemptionTicketCreated = {
+              agentVault: decodedLog.args.agentVault,
+              redemptionTicketId: decodedLog.args.redemptionTicketId.toString(),
+              ticketValueUBA: decodedLog.args.ticketValueUBA.toString(),
+            };
+          }
+        } catch (error) {
+          // This log is not a recognized event, continue to next log
+          console.log('Log could not be decoded as known event:', log);
+        }
+      }
+
+      // Store events in state for UI display
+      if (Object.keys(events).length > 0) {
+        setTransactionEvents(events);
+      }
+
       setSuccess(`Minting executed successfully! Transaction hash: ${receipt.transactionHash}`);
     }
   }, [isExecuteSuccess, receipt]);
@@ -574,6 +788,164 @@ export default function Execute() {
                     </div>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {transactionEvents && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-orange-900">Transaction Events</h3>
+                
+                {transactionEvents?.mintingExecuted && (
+                  <div className="space-y-3">
+                    <h4 className="text-md font-semibold text-orange-800">MintingExecuted Event</h4>
+                    <div className="bg-orange-50 border border-orange-200 rounded p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Agent Vault:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.mintingExecuted!.agentVault}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.agentVault, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.mintingExecuted!.agentVault ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Collateral Reservation ID:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.mintingExecuted!.collateralReservationId}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.collateralReservationId, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.mintingExecuted!.collateralReservationId ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Minted Amount UBA:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.mintingExecuted!.mintedAmountUBA}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.mintedAmountUBA, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.mintingExecuted!.mintedAmountUBA ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Agent Fee UBA:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.mintingExecuted!.agentFeeUBA}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.agentFeeUBA, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.mintingExecuted!.agentFeeUBA ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Pool Fee UBA:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.mintingExecuted!.poolFeeUBA}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.poolFeeUBA, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.mintingExecuted!.poolFeeUBA ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {transactionEvents?.redemptionTicketCreated && (
+                  <div className="space-y-3">
+                    <h4 className="text-md font-semibold text-orange-800">RedemptionTicketCreated Event</h4>
+                    <div className="bg-orange-50 border border-orange-200 rounded p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Agent Vault:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.redemptionTicketCreated!.agentVault}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.agentVault, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.redemptionTicketCreated!.agentVault ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Redemption Ticket ID:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.redemptionTicketCreated!.redemptionTicketId}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.redemptionTicketId, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.redemptionTicketCreated!.redemptionTicketId ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-orange-900">Ticket Value UBA:</span>
+                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                          {transactionEvents.redemptionTicketCreated!.ticketValueUBA}
+                        </code>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.ticketValueUBA, setCopiedText)}
+                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                        >
+                          {copiedText === transactionEvents.redemptionTicketCreated!.ticketValueUBA ? (
+                            <Check className="h-3 w-3 text-green-600" />
+                          ) : (
+                            <Copy className="h-3 w-3 text-orange-500" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </form>

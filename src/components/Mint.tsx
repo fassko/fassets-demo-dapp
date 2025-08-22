@@ -88,34 +88,19 @@ export default function Mint() {
     args: [BigInt(1), BigInt(100)],
   });
 
-  // Write contract for reserveCollateral function - using generated hook
+  // Write contract for reserveCollateral function
   const { data: reserveHash, writeContract: reserveContract, isPending: isReservePending, error: writeError } = useWriteIAssetManagerReserveCollateral();
-
-  // Alternative: Direct wagmi useWriteContract for better error handling
-  const { 
-    data: directReserveHash, 
-    writeContract: directReserveContract, 
-    isPending: isDirectReservePending, 
-    error: directWriteError 
-  } = useWriteContract();
 
   // Debug wagmi hook state
   useEffect(() => {
     console.log('Wagmi hook state:', {
-      // Generated hook
       reserveHash,
       isReservePending,
       writeError: writeError?.message,
       reserveContract: typeof reserveContract,
-      hasWriteContract: !!reserveContract,
-      // Direct hook
-      directReserveHash,
-      isDirectReservePending,
-      directWriteError: directWriteError?.message,
-      directReserveContract: typeof directReserveContract,
-      hasDirectWriteContract: !!directReserveContract
+      hasWriteContract: !!reserveContract
     });
-  }, [reserveHash, isReservePending, writeError, reserveContract, directReserveHash, isDirectReservePending, directWriteError, directReserveContract]);
+  }, [reserveHash, isReservePending, writeError, reserveContract]);
 
   // Add global error handler for uncaught errors
   useEffect(() => {
@@ -139,9 +124,24 @@ export default function Mint() {
   }, []);
 
   // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isReserveSuccess, data: receipt } = useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isReserveSuccess, data: receipt, error: receiptError } = useWaitForTransactionReceipt({
     hash: reserveHash,
   });
+
+  // Handle receipt errors
+  useEffect(() => {
+    if (receiptError) {
+      console.error('Transaction receipt error:', receiptError);
+      console.error('Receipt error details:', {
+        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
+        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        cause: receiptError instanceof Error ? receiptError.cause : undefined,
+        stack: receiptError instanceof Error ? receiptError.stack : undefined
+      });
+      
+      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+    }
+  }, [receiptError]);
 
   // Process settings when loaded
   useEffect(() => {
@@ -362,60 +362,26 @@ export default function Mint() {
         console.log('>> assetManagerAddress:', assetManagerAddress);
 
         // Call the reserveCollateral function using the generated hook
-        try {
-          console.log('Attempting to call reserveContract with:', {
-            address: assetManagerAddress,
-            args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
-            value: currentFeeAmount.toString()
-          });
+        console.log('Attempting to call reserveContract with:', {
+          address: assetManagerAddress,
+          args: [data.agentVault, BigInt(data.lots), BigInt(agentFeeBIPS), executor],
+          value: currentFeeAmount.toString()
+        });
 
-          // Try the generated hook first
-          const result = reserveContract({
-            address: assetManagerAddress,
-            args: [
-              data.agentVault as `0x${string}`,
-              BigInt(data.lots),
-              BigInt(agentFeeBIPS),
-              executor as `0x${string}`],
-            value: currentFeeAmount, // Use BigInt directly
-          });
+        const result = reserveContract({
+          address: assetManagerAddress,
+          args: [
+            data.agentVault as `0x${string}`,
+            BigInt(data.lots),
+            BigInt(agentFeeBIPS),
+            executor as `0x${string}`],
+          value: currentFeeAmount, // Use BigInt directly
+        });
 
-          console.log('reserveContract called successfully, result:', result);
-        } catch (contractError) {
-          console.error('Contract call error (generated hook):', contractError);
-          console.error('Contract error details:', {
-            name: contractError instanceof Error ? contractError.name : 'Unknown',
-            message: contractError instanceof Error ? contractError.message : String(contractError),
-            cause: contractError instanceof Error ? contractError.cause : undefined
-          });
-          
-          // Try the direct hook as fallback
-          console.log('Trying direct wagmi hook as fallback...');
-          try {
-            const directResult = directReserveContract({
-              address: assetManagerAddress,
-              abi: iAssetManagerAbi,
-              functionName: 'reserveCollateral',
-              args: [
-                data.agentVault as `0x${string}`,
-                BigInt(data.lots),
-                BigInt(agentFeeBIPS),
-                executor as `0x${string}`],
-              value: currentFeeAmount, // Use BigInt directly
-            });
-            console.log('Direct hook call successful:', directResult);
-          } catch (directError) {
-            console.error('Direct hook also failed:', directError);
-            throw new Error(`Both contract hooks failed. Generated: ${contractError instanceof Error ? contractError.message : String(contractError)}, Direct: ${directError instanceof Error ? directError.message : String(directError)}`);
-          }
-        }
+        console.log('reserveContract called successfully, result:', result);
 
-    } catch (error) {
-      console.error('=== MINT FUNCTION ERROR ===');
+      } catch (error) {
       console.error('Error minting XRP:', error);
-      console.error('Error type:', typeof error);
-      console.error('Error constructor:', error?.constructor?.name);
-      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       
       // Provide more specific error messages
       if (error instanceof Error) {
@@ -464,31 +430,6 @@ export default function Mint() {
       }
     }
   }, [writeError]);
-
-  // Handle direct write contract errors
-  useEffect(() => {
-    console.log('DirectWriteError changed:', directWriteError);
-    if (directWriteError) {
-      console.error('Direct write contract error detected:', directWriteError);
-      console.error('Direct error details:', {
-        name: directWriteError.name,
-        message: directWriteError.message,
-        cause: directWriteError.cause,
-        stack: directWriteError.stack
-      });
-      
-      // Handle specific error types
-      if (directWriteError.message.includes('User denied transaction signature') || directWriteError.message.includes('user rejected')) {
-        setError('Transaction was cancelled by the user.');
-      } else if (directWriteError.message.includes('execution reverted')) {
-        setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.');
-      } else if (directWriteError.message.includes('insufficient funds')) {
-        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
-      } else {
-        setError(`Transaction failed: ${directWriteError.message}`);
-      }
-    }
-  }, [directWriteError]);
 
   // Clear error when new transaction starts
   useEffect(() => {
@@ -702,10 +643,10 @@ export default function Mint() {
               )}
             </Button>
 
-            {(error || assetManagerError || writeError || directWriteError || feeError) && (
+            {(error || assetManagerError || writeError || feeError) && (
               <Alert variant="destructive">
                 <AlertDescription>
-                  {error || assetManagerError || (writeError && `Generated Hook Error: ${writeError.message}`) || (directWriteError && `Direct Hook Error: ${directWriteError.message}`) || (feeError && `Fee Error: ${feeError}`)}
+                  {error || assetManagerError || (writeError && `Transaction Error: ${writeError.message}`) || (feeError && `Fee Error: ${feeError}`)}
                 </AlertDescription>
               </Alert>
             )}
