@@ -17,7 +17,7 @@ export function useReservationFee(
       if (assetManagerAddress && lots && agentVault && !isNaN(parseInt(lots))) {
         setIsLoading(true);
         setError(null);
-        
+
         try {
           const feeData = await publicClient.readContract({
             address: assetManagerAddress as `0x${string}`,
@@ -25,7 +25,7 @@ export function useReservationFee(
             functionName: 'collateralReservationFee',
             args: [BigInt(lots)],
           });
-          
+
           if (feeData) {
             const feeInFLR = (Number(feeData) / Math.pow(10, 18)).toString();
             setReservationFee(feeInFLR);
@@ -59,7 +59,7 @@ export function useReservationFee(
         functionName: 'collateralReservationFee',
         args: [BigInt(lotsNumber)],
       });
-      
+
       if (feeData) {
         return feeData as bigint; // Return the raw BigInt value
       } else {
@@ -67,7 +67,9 @@ export function useReservationFee(
       }
     } catch (error) {
       console.error('Error getting current reservation fee:', error);
-      throw new Error('Failed to get current reservation fee. Please try again.');
+      throw new Error(
+        'Failed to get current reservation fee. Please try again.'
+      );
     }
   };
 
@@ -82,6 +84,6 @@ export function useReservationFee(
     isLoading,
     error,
     getCurrentFee,
-    getCurrentFeeAsNumber
+    getCurrentFeeAsNumber,
   };
 }

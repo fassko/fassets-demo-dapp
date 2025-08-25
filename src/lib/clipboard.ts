@@ -15,14 +15,14 @@ export const copyToClipboard = async (
 ): Promise<void> => {
   try {
     await navigator.clipboard.writeText(text);
-    
+
     if (onSuccess) {
       onSuccess(text);
     }
   } catch (err) {
     const error = err instanceof Error ? err : new Error('Failed to copy text');
     console.error('Failed to copy text:', error);
-    
+
     if (onError) {
       onError(error);
     }

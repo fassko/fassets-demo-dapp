@@ -21,8 +21,8 @@ export default function Home() {
   }, [activeTab]);
 
   return (
-    <div className="font-sans p-8">
-      <main className="flex flex-col gap-2">
+    <div className='font-sans p-8'>
+      <main className='flex flex-col gap-2'>
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
         {activeTab === 'asset-manager' && <Settings />}
         {activeTab === 'mint-xrp' && <Mint />}

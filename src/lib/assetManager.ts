@@ -12,10 +12,12 @@ export async function getAssetManagerAddress(): Promise<`0x${string}`> {
       // https://dev.flare.network/network/guides/flare-contracts-registry
       const assetManagerFXRP = coston2.products.AssetManagerFXRP;
       const addressResult = await assetManagerFXRP.getAddress(provider);
-      
+
       return extractContractAddress(addressResult);
     } else {
-      throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
+      throw new Error(
+        'MetaMask is not installed. Please install MetaMask to use this feature.'
+      );
     }
   } catch (error) {
     console.error('Error getting AssetManager address:', error);

@@ -50,18 +50,18 @@ const getXRPClient = async (): Promise<Client> => {
 export const getLatestLedgerInfo = async (): Promise<XRPLedgerInfo> => {
   try {
     console.log('Fetching latest XRP ledger info...');
-    
+
     const client = await getXRPClient();
     const ledgerInfo = await client.request({
       command: 'ledger',
-      ledger_index: 'validated'
+      ledger_index: 'validated',
     });
-    
+
     console.log('Latest ledger info:', ledgerInfo);
-    
+
     return {
       ledgerIndex: ledgerInfo.result.ledger_index,
-      closeTime: ledgerInfo.result.ledger.close_time
+      closeTime: ledgerInfo.result.ledger.close_time,
     };
   } catch (error) {
     console.error('Error fetching ledger info:', error);
@@ -70,25 +70,29 @@ export const getLatestLedgerInfo = async (): Promise<XRPLedgerInfo> => {
 };
 
 // Get account balance
-export const getAccountBalance = async (address: string): Promise<XRPAccountInfo> => {
+export const getAccountBalance = async (
+  address: string
+): Promise<XRPAccountInfo> => {
   try {
     console.log(`Fetching XRP balance for address: ${address}`);
-    
+
     const client = await getXRPClient();
     const accountInfo = await client.request({
       command: 'account_info',
       account: address,
-      ledger_index: 'validated'
+      ledger_index: 'validated',
     });
-    
+
     const balanceInDrops = accountInfo.result.account_data.Balance;
-    const balanceInXRP = (parseFloat(balanceInDrops) / XRP_CONFIG.DROPS_PER_XRP).toString();
-    
+    const balanceInXRP = (
+      parseFloat(balanceInDrops) / XRP_CONFIG.DROPS_PER_XRP
+    ).toString();
+
     console.log(`Balance: ${balanceInXRP} XRP (${balanceInDrops} drops)`);
-    
+
     return {
       balance: balanceInDrops,
-      balanceInXRP
+      balanceInXRP,
     };
   } catch (error) {
     console.error('Error fetching XRP balance:', error);
@@ -97,31 +101,36 @@ export const getAccountBalance = async (address: string): Promise<XRPAccountInfo
 };
 
 // Calculate FDC deadline values from ledger info
-export const calculateFDCDeadline = (ledgerInfo: XRPLedgerInfo): XRPFDCDeadline => {
+export const calculateFDCDeadline = (
+  ledgerInfo: XRPLedgerInfo
+): XRPFDCDeadline => {
   const { ledgerIndex, closeTime } = ledgerInfo;
-  
+
   // Calculate FDC deadline values
   // L = latest validated ledger_index
   // T_ripple = that ledger's close_time (Ripple epoch seconds)
   const L = ledgerIndex;
   const T_ripple = closeTime;
-  
+
   // deadlineBlockNumber = L + 225 (≈ 225 ledgers of confirmation)
   const deadlineBlockNumber = L + XRP_CONFIG.FDC_LEDGER_CONFIRMATION;
-  
+
   // deadlineTimestamp = (T_ripple + 946684800) + 900
   // (add 946,684,800 to convert Ripple→UNIX, then add ~15 minutes for 3 ledgers)
-  const deadlineTimestamp = (T_ripple + XRP_CONFIG.FDC_TIMESTAMP_OFFSET) + XRP_CONFIG.FDC_TIMESTAMP_BUFFER;
-  
+  const deadlineTimestamp =
+    T_ripple +
+    XRP_CONFIG.FDC_TIMESTAMP_OFFSET +
+    XRP_CONFIG.FDC_TIMESTAMP_BUFFER;
+
   console.log('FDC deadline calculations:');
   console.log('- Latest ledger index:', L);
   console.log('- Latest close time:', T_ripple);
   console.log('- FDC deadline block number:', deadlineBlockNumber);
   console.log('- FDC deadline timestamp:', deadlineTimestamp);
-  
+
   return {
     deadlineBlockNumber: deadlineBlockNumber.toString(),
-    deadlineTimestamp: deadlineTimestamp.toString()
+    deadlineTimestamp: deadlineTimestamp.toString(),
   };
 };
 
@@ -132,10 +141,10 @@ export const getLatestLedgerInfoWithFDCDeadlines = async (): Promise<{
 }> => {
   const ledgerInfo = await getLatestLedgerInfo();
   const fdcDeadlines = calculateFDCDeadline(ledgerInfo);
-  
+
   return {
     ledgerInfo,
-    fdcDeadlines
+    fdcDeadlines,
   };
 };
 
@@ -143,7 +152,9 @@ export const getLatestLedgerInfoWithFDCDeadlines = async (): Promise<{
 export const isValidXRPAddress = (address: string): boolean => {
   // Basic XRP address validation
   // XRP addresses start with 'r' and are typically 25-35 characters long
-  return address.startsWith('r') && address.length >= 25 && address.length <= 35;
+  return (
+    address.startsWith('r') && address.length >= 25 && address.length <= 35
+  );
 };
 
 // Convert drops to XRP

@@ -17,27 +17,37 @@ export async function getFdcContractAddresses(): Promise<FdcContractAddresses> {
       // Get FDC Hub address
       const fdcHub = coston2.products.FdcHub;
       const fdcHubAddressResult = await fdcHub.getAddress(provider);
-      
-      // Get FDC Request Fee Configurations address  
-      const fdcRequestFeeConfigurations = coston2.products.FdcRequestFeeConfigurations;
-      const fdcRequestFeeConfigurationsAddressResult = await fdcRequestFeeConfigurations.getAddress(provider);
-      
+
+      // Get FDC Request Fee Configurations address
+      const fdcRequestFeeConfigurations =
+        coston2.products.FdcRequestFeeConfigurations;
+      const fdcRequestFeeConfigurationsAddressResult =
+        await fdcRequestFeeConfigurations.getAddress(provider);
+
       // Get Flare Systems Manager address
       const flareSystemsManager = coston2.products.FlareSystemsManager;
-      const flareSystemsManagerAddressResult = await flareSystemsManager.getAddress(provider);
-      
+      const flareSystemsManagerAddressResult =
+        await flareSystemsManager.getAddress(provider);
+
       // Get FDC Verification address
       const fdcVerification = coston2.products.FdcVerification;
-      const fdcVerificationAddressResult = await fdcVerification.getAddress(provider);
-      
+      const fdcVerificationAddressResult =
+        await fdcVerification.getAddress(provider);
+
       return {
         fdcHub: extractContractAddress(fdcHubAddressResult),
-        fdcRequestFeeConfigurations: extractContractAddress(fdcRequestFeeConfigurationsAddressResult),
-        flareSystemsManager: extractContractAddress(flareSystemsManagerAddressResult),
+        fdcRequestFeeConfigurations: extractContractAddress(
+          fdcRequestFeeConfigurationsAddressResult
+        ),
+        flareSystemsManager: extractContractAddress(
+          flareSystemsManagerAddressResult
+        ),
         fdcVerification: extractContractAddress(fdcVerificationAddressResult),
       };
     } else {
-      throw new Error('MetaMask is not installed. Please install MetaMask to use this feature.');
+      throw new Error(
+        'MetaMask is not installed. Please install MetaMask to use this feature.'
+      );
     }
   } catch (error) {
     console.error('Error getting FDC contract addresses:', error);

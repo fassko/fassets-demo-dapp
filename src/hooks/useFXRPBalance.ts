@@ -9,18 +9,22 @@ export function useFXRPBalance() {
   const { settings, assetManagerAddress } = useAssetManager();
 
   // Read FXRP balance using wagmi
-  const { 
-    data: fxrpBalanceData, 
+  const {
+    data: fxrpBalanceData,
     refetch: refetchFxrpBalance,
     isLoading: isLoadingBalance,
-    error: balanceError 
+    error: balanceError,
   } = useReadContract({
     address: settings?.fAsset as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [userAddress as `0x${string}`],
     query: {
-      enabled: !!userAddress && !!settings?.fAsset && !!assetManagerAddress && isConnected,
+      enabled:
+        !!userAddress &&
+        !!settings?.fAsset &&
+        !!assetManagerAddress &&
+        isConnected,
     },
   });
 
@@ -28,7 +32,9 @@ export function useFXRPBalance() {
   useEffect(() => {
     if (fxrpBalanceData && settings) {
       const decimals = Number(settings.assetDecimals);
-      const formattedBalance = (Number(fxrpBalanceData) / Math.pow(10, decimals)).toFixed(decimals);
+      const formattedBalance = (
+        Number(fxrpBalanceData) / Math.pow(10, decimals)
+      ).toFixed(decimals);
       setFxrpBalance(formattedBalance);
     } else {
       setFxrpBalance('0');
@@ -42,6 +48,6 @@ export function useFXRPBalance() {
     isLoadingBalance,
     balanceError,
     userAddress,
-    isConnected
+    isConnected,
   };
 }

@@ -7,42 +7,45 @@ import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { decodeEventLog, keccak256 } from 'viem';
 
 // Form data schema
-import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
+import {
+  RedeemXRPFormDataSchema,
+  RedeemXRPFormData,
+} from '@/types/redeemXRPFormData';
 
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
-import { 
+import {
   iAssetManagerAbi,
-  useWriteIFdcHubRequestAttestation
-} from "../generated";
+  useWriteIFdcHubRequestAttestation,
+} from '../generated';
 
 // UI components
-import { ArrowRight, Loader2 } from "lucide-react";
-import XRPLBalanceCard from "@/components/XRPLBalanceCard";
-import XRPLedgerInfoCard from "@/components/XRPLedgerInfoCard";
-import RedemptionEventCard from "@/components/RedemptionEventCard";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowRight, Loader2 } from 'lucide-react';
+import XRPLBalanceCard from '@/components/XRPLBalanceCard';
+import XRPLedgerInfoCard from '@/components/XRPLedgerInfoCard';
+import RedemptionEventCard from '@/components/RedemptionEventCard';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
-import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
+import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import { 
-  retrieveDataAndProofBaseWithRetry, 
-  calculateRoundId, 
+import {
+  retrieveDataAndProofBaseWithRetry,
+  calculateRoundId,
   FDC_CONSTANTS,
   prepareReferencedPaymentNonexistenceAttestationRequest,
   verifyReferencedPaymentNonexistence,
-  submitAttestationRequest
+  submitAttestationRequest,
 } from '@/lib/fdcUtils';
 import {
   getLatestLedgerInfoWithFDCDeadlines,
   getAccountBalance,
-  isValidXRPAddress
+  isValidXRPAddress,
 } from '@/lib/xrpUtils';
 
 export default function Redeem() {
@@ -67,57 +70,101 @@ export default function Redeem() {
     executor: string;
     executorFeeNatWei: string;
   } | null>(null);
-  
+
   // FDC attestation deadline values
   const [testXrpIndex, setTestXrpIndex] = useState<string | null>(null);
   const [closeTime, setCloseTime] = useState<string | null>(null);
-  const [deadlineBlockNumber, setDeadlineBlockNumber] = useState<string | null>(null);
-  const [deadlineTimestamp, setDeadlineTimestamp] = useState<string | null>(null);
+  const [deadlineBlockNumber, setDeadlineBlockNumber] = useState<string | null>(
+    null
+  );
+  const [deadlineTimestamp, setDeadlineTimestamp] = useState<string | null>(
+    null
+  );
 
   // FDC Attestation state
-  const [isAttestationLoading, setIsAttestationLoading] = useState<boolean>(false);
+  const [isAttestationLoading, setIsAttestationLoading] =
+    useState<boolean>(false);
   const [attestationError, setAttestationError] = useState<string | null>(null);
-  const [attestationSuccess, setAttestationSuccess] = useState<string | null>(null);
-  const [currentAttestationStep, setCurrentAttestationStep] = useState<string>('');
+  const [attestationSuccess, setAttestationSuccess] = useState<string | null>(
+    null
+  );
+  const [currentAttestationStep, setCurrentAttestationStep] =
+    useState<string>('');
   const [attestationData, setAttestationData] = useState<{
     abiEncodedRequest: string;
     roundId: number | null;
   } | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [proofData, setProofData] = useState<{ response: any; proof: any } | null>(null);
-  const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
+  const [proofData, setProofData] = useState<{
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    response: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    proof: any;
+  } | null>(null);
+  const [verificationResult, setVerificationResult] = useState<boolean | null>(
+    null
+  );
 
   // Asset manager and XRPL balance hooks
-  const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-  const { fxrpBalance, refetchFxrpBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
-  const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
+  const {
+    assetManagerAddress,
+    settings,
+    isLoading: isLoadingSettings,
+    error: assetManagerError,
+  } = useAssetManager();
+  const {
+    fxrpBalance,
+    refetchFxrpBalance,
+    balanceError,
+    userAddress,
+    isConnected,
+  } = useFXRPBalance();
+  const {
+    addresses: fdcAddresses,
+    isLoading: isLoadingAddresses,
+    error: addressError,
+  } = useFdcContracts();
 
   // FDC Attestation contract functions
-  const { writeContract: requestAttestation, data: attestationHash, error: writeAttestationError } = useWriteIFdcHubRequestAttestation();
-  const { data: attestationReceipt, isSuccess: isAttestationSuccess } = useWaitForTransactionReceipt({ hash: attestationHash });
+  const {
+    writeContract: requestAttestation,
+    data: attestationHash,
+    error: writeAttestationError,
+  } = useWriteIFdcHubRequestAttestation();
+  const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
+    useWaitForTransactionReceipt({ hash: attestationHash });
 
   const {
     register,
     handleSubmit,
     formState: { errors },
     reset,
-    watch
+    watch,
   } = useForm<RedeemXRPFormData>({
     resolver: zodResolver(RedeemXRPFormDataSchema),
     defaultValues: {
       xrplAddress: '',
-      amount: ''
-    }
+      amount: '',
+    },
   });
 
   const watchedAmount = watch('amount');
 
   // Write contract for redeem function
-  const { data: redeemHash, writeContract: redeemContract, isPending: isRedeemPending, error: writeError } = useWriteContract();
+  const {
+    data: redeemHash,
+    writeContract: redeemContract,
+    isPending: isRedeemPending,
+    error: writeError,
+  } = useWriteContract();
 
   // Wait for transaction receipt
-  const { isLoading: isConfirming, isSuccess: isRedeemSuccess, data: receipt, error: receiptError } = useWaitForTransactionReceipt({
+  const {
+    isLoading: isConfirming,
+    isSuccess: isRedeemSuccess,
+    data: receipt,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({
     hash: redeemHash,
   });
 
@@ -131,7 +178,7 @@ export default function Redeem() {
         gasUsed: receipt.gasUsed,
         effectiveGasPrice: receipt.effectiveGasPrice,
         logsCount: receipt.logs.length,
-        status: receipt.status
+        status: receipt.status,
       });
 
       // Process each log in the transaction receipt
@@ -144,7 +191,10 @@ export default function Redeem() {
             topics: log.topics,
           });
 
-          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
+          console.log(
+            `Decoded event: ${decodedLog.eventName}`,
+            decodedLog.args
+          );
 
           if (decodedLog.eventName === 'RedemptionRequested') {
             console.log('=== RedemptionRequested Event ===');
@@ -154,12 +204,24 @@ export default function Redeem() {
             console.log('Payment Address:', decodedLog.args.paymentAddress);
             console.log('Value UBA:', decodedLog.args.valueUBA.toString());
             console.log('Fee UBA:', decodedLog.args.feeUBA.toString());
-            console.log('First Underlying Block:', decodedLog.args.firstUnderlyingBlock.toString());
-            console.log('Last Underlying Block:', decodedLog.args.lastUnderlyingBlock.toString());
-            console.log('Last Underlying Timestamp:', decodedLog.args.lastUnderlyingTimestamp.toString());
+            console.log(
+              'First Underlying Block:',
+              decodedLog.args.firstUnderlyingBlock.toString()
+            );
+            console.log(
+              'Last Underlying Block:',
+              decodedLog.args.lastUnderlyingBlock.toString()
+            );
+            console.log(
+              'Last Underlying Timestamp:',
+              decodedLog.args.lastUnderlyingTimestamp.toString()
+            );
             console.log('Payment Reference:', decodedLog.args.paymentReference);
             console.log('Executor:', decodedLog.args.executor);
-            console.log('Executor Fee Nat Wei:', decodedLog.args.executorFeeNatWei.toString());
+            console.log(
+              'Executor Fee Nat Wei:',
+              decodedLog.args.executorFeeNatWei.toString()
+            );
             console.log('=====================================');
 
             // Store the single event in state for UI display
@@ -170,14 +232,17 @@ export default function Redeem() {
               paymentAddress: decodedLog.args.paymentAddress,
               valueUBA: decodedLog.args.valueUBA.toString(),
               feeUBA: decodedLog.args.feeUBA.toString(),
-              firstUnderlyingBlock: decodedLog.args.firstUnderlyingBlock.toString(),
-              lastUnderlyingBlock: decodedLog.args.lastUnderlyingBlock.toString(),
-              lastUnderlyingTimestamp: decodedLog.args.lastUnderlyingTimestamp.toString(),
+              firstUnderlyingBlock:
+                decodedLog.args.firstUnderlyingBlock.toString(),
+              lastUnderlyingBlock:
+                decodedLog.args.lastUnderlyingBlock.toString(),
+              lastUnderlyingTimestamp:
+                decodedLog.args.lastUnderlyingTimestamp.toString(),
               paymentReference: decodedLog.args.paymentReference,
               executor: decodedLog.args.executor,
               executorFeeNatWei: decodedLog.args.executorFeeNatWei.toString(),
             });
-            
+
             // Break after finding the first RedemptionRequested event
             // For this demo app we only need to process the first event
             break;
@@ -188,30 +253,43 @@ export default function Redeem() {
         }
       }
 
-      setSuccess(`Successfully redeemed ${watchedAmount} lots to ${xrplAddress}`);
+      setSuccess(
+        `Successfully redeemed ${watchedAmount} lots to ${xrplAddress}`
+      );
       reset();
       refetchFxrpBalance();
-      
+
       // Get the latest testXRP index after successful redemption
       getTestXrpIndex();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRedeemSuccess, receipt, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isRedeemSuccess,
+    receipt,
+    watchedAmount,
+    xrplAddress,
+    reset,
+    refetchFxrpBalance,
+  ]);
 
   const getTestXrpIndex = useCallback(async () => {
     try {
       console.log('Fetching latest testXRP index and close time...');
-      
-      const { ledgerInfo, fdcDeadlines } = await getLatestLedgerInfoWithFDCDeadlines();
-      
+
+      const { ledgerInfo, fdcDeadlines } =
+        await getLatestLedgerInfoWithFDCDeadlines();
+
       setTestXrpIndex(ledgerInfo.ledgerIndex.toString());
       setCloseTime(ledgerInfo.closeTime.toString());
       setDeadlineBlockNumber(fdcDeadlines.deadlineBlockNumber);
       setDeadlineTimestamp(fdcDeadlines.deadlineTimestamp);
-      
+
       console.log('Latest testXRP index:', ledgerInfo.ledgerIndex);
       console.log('Latest close time:', ledgerInfo.closeTime);
-      console.log('FDC deadline block number:', fdcDeadlines.deadlineBlockNumber);
+      console.log(
+        'FDC deadline block number:',
+        fdcDeadlines.deadlineBlockNumber
+      );
       console.log('FDC deadline timestamp:', fdcDeadlines.deadlineTimestamp);
     } catch (error) {
       console.error('Error fetching testXRP index and close time:', error);
@@ -228,16 +306,19 @@ export default function Redeem() {
       console.error('Transaction receipt error:', receiptError);
       console.error('Receipt error details:', {
         name: receiptError instanceof Error ? receiptError.name : 'Unknown',
-        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        message:
+          receiptError instanceof Error
+            ? receiptError.message
+            : String(receiptError),
         cause: receiptError instanceof Error ? receiptError.cause : undefined,
-        stack: receiptError instanceof Error ? receiptError.stack : undefined
+        stack: receiptError instanceof Error ? receiptError.stack : undefined,
       });
-      
-      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+
+      setError(
+        `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
+      );
     }
   }, [receiptError]);
-
-
 
   const refreshBalances = useCallback(async () => {
     try {
@@ -251,7 +332,7 @@ export default function Redeem() {
           setXrplBalance('0');
         }
       }
-      
+
       // Refresh FXRP balance - only if query is enabled
       if (userAddress && settings?.fAsset && assetManagerAddress) {
         refetchFxrpBalance();
@@ -259,18 +340,30 @@ export default function Redeem() {
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  }, [xrplAddress, userAddress, settings, assetManagerAddress, refetchFxrpBalance]);
+  }, [
+    xrplAddress,
+    userAddress,
+    settings,
+    assetManagerAddress,
+    refetchFxrpBalance,
+  ]);
 
   // Refresh XRPL balance when address is available
   useEffect(() => {
-    if (xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
+    if (
+      xrplAddress &&
+      xrplAddress.startsWith('r') &&
+      xrplAddress.length >= 25
+    ) {
       refreshBalances();
     }
   }, [xrplAddress, refreshBalances]);
 
   const isValidXrplAddress = (address: string): boolean => {
     try {
-      RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({ xrplAddress: address });
+      RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({
+        xrplAddress: address,
+      });
       return isValidXRPAddress(address);
     } catch {
       return false;
@@ -280,7 +373,7 @@ export default function Redeem() {
   const handleXrplAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const address = e.target.value;
     const isValid = isValidXrplAddress(address);
-    
+
     if (isValid) {
       setXrplAddress(address);
       refreshBalances();
@@ -316,10 +409,11 @@ export default function Redeem() {
         functionName: 'redeem',
         args: [BigInt(lots), data.xrplAddress, assetManagerAddress!],
       });
-
     } catch (error) {
       console.error('Error redeeming to XRP:', error);
-      setError(error instanceof Error ? error.message : 'Failed to redeem to XRP');
+      setError(
+        error instanceof Error ? error.message : 'Failed to redeem to XRP'
+      );
       setIsProcessing(false);
     }
   };
@@ -328,14 +422,21 @@ export default function Redeem() {
   useEffect(() => {
     if (writeError) {
       console.error('Write contract error:', writeError);
-      
+
       // Handle specific error types
-      if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
+      if (
+        writeError.message.includes('User denied transaction signature') ||
+        writeError.message.includes('user rejected')
+      ) {
         setError('Transaction was cancelled by the user.');
       } else if (writeError.message.includes('execution reverted')) {
-        setError('Transaction failed: The contract rejected the transaction. This could be due to insufficient funds, invalid parameters, or network issues.');
+        setError(
+          'Transaction failed: The contract rejected the transaction. This could be due to insufficient funds, invalid parameters, or network issues.'
+        );
       } else if (writeError.message.includes('insufficient funds')) {
-        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
+        setError(
+          'Insufficient funds to complete the transaction. Please check your wallet balance.'
+        );
       } else {
         setError(`Transaction failed: ${writeError.message}`);
       }
@@ -356,7 +457,9 @@ export default function Redeem() {
     }
 
     if (!fdcAddresses) {
-      setAttestationError('FDC contract addresses not loaded. Please wait and try again.');
+      setAttestationError(
+        'FDC contract addresses not loaded. Please wait and try again.'
+      );
       return;
     }
 
@@ -375,22 +478,30 @@ export default function Redeem() {
       // Step 1: Prepare attestation request
       setCurrentAttestationStep('Preparing attestation request...');
       console.log('Preparing attestation request...');
-      
+
       const attestationRequestData = {
         minimalBlockNumber: redemptionEvent.firstUnderlyingBlock,
         deadlineBlockNumber: deadlineBlockNumber,
         deadlineTimestamp: deadlineTimestamp,
-        destinationAddressHash: keccak256(redemptionEvent.paymentAddress as `0x${string}`),
-        amount: (BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)).toString(), // Value UBA minus Fee UBA
+        destinationAddressHash: keccak256(
+          redemptionEvent.paymentAddress as `0x${string}`
+        ),
+        amount: (
+          BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)
+        ).toString(), // Value UBA minus Fee UBA
         standardPaymentReference: redemptionEvent.paymentReference,
         checkSourceAddresses: false,
-        sourceAddressesRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+        sourceAddressesRoot:
+          '0x0000000000000000000000000000000000000000000000000000000000000000',
       };
-      
+
       // Prepare the attestation request using the verifier API
-      const attestationResponse = await prepareReferencedPaymentNonexistenceAttestationRequest(attestationRequestData);
+      const attestationResponse =
+        await prepareReferencedPaymentNonexistenceAttestationRequest(
+          attestationRequestData
+        );
       console.log('Attestation response:', attestationResponse);
-      
+
       // Create attestation data structure with the real ABI encoded request
       const data = {
         abiEncodedRequest: attestationResponse.abiEncodedRequest,
@@ -400,22 +511,32 @@ export default function Redeem() {
       setAttestationData(data);
 
       // Step 2: Submit attestation request
-      setCurrentAttestationStep('Submitting attestation request to blockchain...');
+      setCurrentAttestationStep(
+        'Submitting attestation request to blockchain...'
+      );
       console.log('Submitting attestation request...');
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, requestAttestation);
-      
+      await submitAttestationRequest(
+        data.abiEncodedRequest,
+        fdcAddresses,
+        requestAttestation
+      );
+
       // Wait for transaction to be mined and calculate round ID
       setCurrentAttestationStep('Waiting for transaction confirmation...');
-      
+
       setCurrentAttestationStep('');
-      setAttestationSuccess('Attestation request submitted! Waiting for confirmation...');
+      setAttestationSuccess(
+        'Attestation request submitted! Waiting for confirmation...'
+      );
     } catch (error) {
       console.error('Attestation error:', error);
       setCurrentAttestationStep('');
-      setAttestationError(error instanceof Error ? error.message : 'An unexpected error occurred');
+      setAttestationError(
+        error instanceof Error ? error.message : 'An unexpected error occurred'
+      );
     } finally {
       setIsAttestationLoading(false);
     }
@@ -423,7 +544,12 @@ export default function Redeem() {
 
   // Handle attestation transaction success and calculate round ID
   useEffect(() => {
-    if (isAttestationSuccess && attestationReceipt && attestationData && attestationData.roundId === null) {
+    if (
+      isAttestationSuccess &&
+      attestationReceipt &&
+      attestationData &&
+      attestationData.roundId === null
+    ) {
       const processAttestationTransaction = async () => {
         try {
           setCurrentAttestationStep('Calculating round ID from transaction...');
@@ -435,35 +561,50 @@ export default function Redeem() {
             fdcAddresses
           );
           console.log('Calculated round ID:', roundId);
-          
+
           // Update attestationData with the calculated round ID
-          setAttestationData(prevData => prevData ? { ...prevData, roundId } : null);
-          
+          setAttestationData(prevData =>
+            prevData ? { ...prevData, roundId } : null
+          );
+
           // Start proof retrieval
-          setCurrentAttestationStep('Retrieving proof from Data Availability Layer...');
+          setCurrentAttestationStep(
+            'Retrieving proof from Data Availability Layer...'
+          );
           const proof = await retrieveDataAndProofBaseWithRetry(
             FDC_CONSTANTS.DA_LAYER_API_URL,
             attestationData.abiEncodedRequest,
             roundId,
             FDC_CONSTANTS.DA_LAYER_API_KEY
           );
-          
+
           setProofData(proof);
-          
+
           // Verify the payment nonexistence
-          setCurrentAttestationStep('Verifying payment nonexistence with FDC Verification contract...');
+          setCurrentAttestationStep(
+            'Verifying payment nonexistence with FDC Verification contract...'
+          );
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
           }
-          const verificationResult = await verifyReferencedPaymentNonexistence(proof, fdcAddresses);
+          const verificationResult = await verifyReferencedPaymentNonexistence(
+            proof,
+            fdcAddresses
+          );
           setVerificationResult(verificationResult);
-          
+
           setCurrentAttestationStep('');
-          setAttestationSuccess(`Round ID ${roundId} calculated, proof retrieved, and payment nonexistence verified successfully! Verification result: ${verificationResult}`);
+          setAttestationSuccess(
+            `Round ID ${roundId} calculated, proof retrieved, and payment nonexistence verified successfully! Verification result: ${verificationResult}`
+          );
         } catch (error) {
           console.error('Error processing attestation transaction:', error);
           setCurrentAttestationStep('');
-          setAttestationError(error instanceof Error ? error.message : 'Error processing attestation transaction');
+          setAttestationError(
+            error instanceof Error
+              ? error.message
+              : 'Error processing attestation transaction'
+          );
         }
       };
 
@@ -475,40 +616,55 @@ export default function Redeem() {
   useEffect(() => {
     if (writeAttestationError) {
       console.error('Attestation write contract error:', writeAttestationError);
-      
+
       // Handle specific error types
-      if (writeAttestationError.message.includes('User denied transaction signature') || writeAttestationError.message.includes('user rejected')) {
-        setAttestationError('Attestation transaction was cancelled by the user.');
+      if (
+        writeAttestationError.message.includes(
+          'User denied transaction signature'
+        ) ||
+        writeAttestationError.message.includes('user rejected')
+      ) {
+        setAttestationError(
+          'Attestation transaction was cancelled by the user.'
+        );
       } else if (writeAttestationError.message.includes('execution reverted')) {
-        setAttestationError('Attestation transaction failed: The contract rejected the transaction. This could be due to invalid parameters, insufficient funds, or network issues.');
+        setAttestationError(
+          'Attestation transaction failed: The contract rejected the transaction. This could be due to invalid parameters, insufficient funds, or network issues.'
+        );
       } else if (writeAttestationError.message.includes('insufficient funds')) {
-        setAttestationError('Insufficient funds to complete the attestation transaction. Please check your wallet balance.');
+        setAttestationError(
+          'Insufficient funds to complete the attestation transaction. Please check your wallet balance.'
+        );
       } else if (writeAttestationError.message.includes('request fee')) {
-        setAttestationError('Insufficient request fee. Please ensure you have enough FLR to pay the attestation request fee.');
+        setAttestationError(
+          'Insufficient request fee. Please ensure you have enough FLR to pay the attestation request fee.'
+        );
       } else {
-        setAttestationError(`Attestation transaction failed: ${writeAttestationError.message}`);
+        setAttestationError(
+          `Attestation transaction failed: ${writeAttestationError.message}`
+        );
       }
     }
   }, [writeAttestationError]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6">
+    <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-green-900">
-            <ArrowRight className="h-5 w-5 text-green-600" />
+          <CardTitle className='flex items-center gap-2 text-green-900'>
+            <ArrowRight className='h-5 w-5 text-green-600' />
             Redeem FXRP to XRP
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-green-700 mb-6">
+          <p className='text-green-700 mb-6'>
             Convert your FXRP tokens back to native XRP on the XRP Ledger.
           </p>
 
           {/* Balance Overview Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <div className='grid grid-cols-1 md:grid-cols-2 gap-4 mb-6'>
             {/* XRPL Balance Card */}
-            <XRPLBalanceCard 
+            <XRPLBalanceCard
               balance={xrplBalance}
               onRefresh={refreshBalances}
             />
@@ -518,128 +674,195 @@ export default function Redeem() {
               balance={fxrpBalance}
               onRefresh={refreshBalances}
               colorScheme={{
-                title: "text-green-900",
-                icon: "text-green-600",
-                badge: "bg-green-100 text-green-800",
-                button: "border-green-300 hover:bg-green-100",
-                description: "text-green-600"
+                title: 'text-green-900',
+                icon: 'text-green-600',
+                badge: 'bg-green-100 text-green-800',
+                button: 'border-green-300 hover:bg-green-100',
+                description: 'text-green-600',
               }}
             />
           </div>
 
           {/* Redeem to XRP Section */}
-          <form onSubmit={handleSubmit(redeemToXRP)} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="xrplAddress" className="text-green-900">XRPL Address (Destination)</Label>
+          <form onSubmit={handleSubmit(redeemToXRP)} className='space-y-6'>
+            <div className='space-y-4'>
+              <div className='space-y-2'>
+                <Label htmlFor='xrplAddress' className='text-green-900'>
+                  XRPL Address (Destination)
+                </Label>
                 <Input
                   {...register('xrplAddress')}
-                  type="text"
-                  placeholder="rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                  type='text'
+                  placeholder='rXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
                   onChange={handleXrplAddressChange}
-                  className="border-green-300 focus:ring-green-500 focus:border-green-500"
+                  className='border-green-300 focus:ring-green-500 focus:border-green-500'
                 />
                 {errors.xrplAddress && (
-                  <p className="text-sm text-destructive">{errors.xrplAddress.message}</p>
+                  <p className='text-sm text-destructive'>
+                    {errors.xrplAddress.message}
+                  </p>
                 )}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="amount" className="text-green-900">Lots</Label>
+              <div className='space-y-2'>
+                <Label htmlFor='amount' className='text-green-900'>
+                  Lots
+                </Label>
                 <Input
                   {...register('amount')}
-                  type="number"
-                  placeholder="1"
-                  step="1"
-                  min="1"
-                  className="border-green-300 focus:ring-green-500 focus:border-green-500"
+                  type='number'
+                  placeholder='1'
+                  step='1'
+                  min='1'
+                  className='border-green-300 focus:ring-green-500 focus:border-green-500'
                 />
                 {errors.amount && (
-                  <p className="text-sm text-destructive">{errors.amount.message}</p>
+                  <p className='text-sm text-destructive'>
+                    {errors.amount.message}
+                  </p>
                 )}
-                <p className="text-xs text-green-600">
-                  Amount in lots (1 lot = {settings?.lotSizeAMG ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6) : '0'} XRP)
+                <p className='text-xs text-green-600'>
+                  Amount in lots (1 lot ={' '}
+                  {settings?.lotSizeAMG
+                    ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6)
+                    : '0'}{' '}
+                  XRP)
                 </p>
-                {watchedAmount && watchedAmount !== '' && !isNaN(parseFloat(watchedAmount)) && (
-                  <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2">
-                    <p className="text-sm text-green-800">
-                      <span className="font-semibold">FXRP to burn:</span> {parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)} FXRP
-                    </p>
-                    <p className="text-xs text-green-600">
-                      ({watchedAmount} lots × {settings?.lotSizeAMG ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6) : '0'} XRP per lot)
-                    </p>
-                    
-                    <div className="pt-2 border-t border-green-200 space-y-1">
-                      {settings?.redemptionFeeBIPS && Number(settings.redemptionFeeBIPS) > 0 && (
-                        <>
-                          <p className="text-sm text-green-800">
-                            <span className="font-semibold">Redemption Fee:</span> {((parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)) * Number(settings.redemptionFeeBIPS) / 10000).toFixed(6)} XRP
-                          </p>
-                          <p className="text-xs text-green-600">
-                            ({Number(settings.redemptionFeeBIPS) / 100}% deducted from XRP value)
-                          </p>
-                          
-                          <div className="pt-1 border-t border-green-300">
-                            <p className="text-sm font-semibold text-green-900">
-                              <span>XRP to be redeemed:</span> {((parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)) * (1 - Number(settings.redemptionFeeBIPS) / 10000)).toFixed(6)} XRP
+                {watchedAmount &&
+                  watchedAmount !== '' &&
+                  !isNaN(parseFloat(watchedAmount)) && (
+                    <div className='mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2'>
+                      <p className='text-sm text-green-800'>
+                        <span className='font-semibold'>FXRP to burn:</span>{' '}
+                        {parseFloat(watchedAmount) *
+                          (settings?.lotSizeAMG
+                            ? Number(settings.lotSizeAMG) / Math.pow(10, 6)
+                            : 0)}{' '}
+                        FXRP
+                      </p>
+                      <p className='text-xs text-green-600'>
+                        ({watchedAmount} lots ×{' '}
+                        {settings?.lotSizeAMG
+                          ? (
+                              Number(settings.lotSizeAMG) / Math.pow(10, 6)
+                            ).toFixed(6)
+                          : '0'}{' '}
+                        XRP per lot)
+                      </p>
+
+                      <div className='pt-2 border-t border-green-200 space-y-1'>
+                        {settings?.redemptionFeeBIPS &&
+                          Number(settings.redemptionFeeBIPS) > 0 && (
+                            <>
+                              <p className='text-sm text-green-800'>
+                                <span className='font-semibold'>
+                                  Redemption Fee:
+                                </span>{' '}
+                                {(
+                                  (parseFloat(watchedAmount) *
+                                    (settings?.lotSizeAMG
+                                      ? Number(settings.lotSizeAMG) /
+                                        Math.pow(10, 6)
+                                      : 0) *
+                                    Number(settings.redemptionFeeBIPS)) /
+                                  10000
+                                ).toFixed(6)}{' '}
+                                XRP
+                              </p>
+                              <p className='text-xs text-green-600'>
+                                ({Number(settings.redemptionFeeBIPS) / 100}%
+                                deducted from XRP value)
+                              </p>
+
+                              <div className='pt-1 border-t border-green-300'>
+                                <p className='text-sm font-semibold text-green-900'>
+                                  <span>XRP to be redeemed:</span>{' '}
+                                  {(
+                                    parseFloat(watchedAmount) *
+                                    (settings?.lotSizeAMG
+                                      ? Number(settings.lotSizeAMG) /
+                                        Math.pow(10, 6)
+                                      : 0) *
+                                    (1 -
+                                      Number(settings.redemptionFeeBIPS) /
+                                        10000)
+                                  ).toFixed(6)}{' '}
+                                  XRP
+                                </p>
+                                <p className='text-xs text-green-600'>
+                                  (Net amount after fee deduction)
+                                </p>
+                              </div>
+                            </>
+                          )}
+
+                        {(!settings?.redemptionFeeBIPS ||
+                          Number(settings.redemptionFeeBIPS) === 0) && (
+                          <div className='pt-1 border-t border-green-300'>
+                            <p className='text-sm font-semibold text-green-900'>
+                              <span>XRP to be redeemed:</span>{' '}
+                              {(
+                                parseFloat(watchedAmount) *
+                                (settings?.lotSizeAMG
+                                  ? Number(settings.lotSizeAMG) /
+                                    Math.pow(10, 6)
+                                  : 0)
+                              ).toFixed(6)}{' '}
+                              XRP
                             </p>
-                            <p className="text-xs text-green-600">
-                              (Net amount after fee deduction)
+                            <p className='text-xs text-green-600'>
+                              (No redemption fee)
                             </p>
                           </div>
-                        </>
-                      )}
-                      
-                      {(!settings?.redemptionFeeBIPS || Number(settings.redemptionFeeBIPS) === 0) && (
-                        <div className="pt-1 border-t border-green-300">
-                          <p className="text-sm font-semibold text-green-900">
-                            <span>XRP to be redeemed:</span> {(parseFloat(watchedAmount) * (settings?.lotSizeAMG ? Number(settings.lotSizeAMG) / Math.pow(10, 6) : 0)).toFixed(6)} XRP
-                          </p>
-                          <p className="text-xs text-green-600">
-                            (No redemption fee)
-                          </p>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
-
+                  )}
               </div>
             </div>
 
             <Button
-              type="submit"
+              type='submit'
               disabled={isProcessing || !isConnected || isLoadingSettings}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer"
+              className='w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer'
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isRedeemPending ? 'Confirming...' : isConfirming ? 'Processing...' : 'Processing...'}
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                  {isRedeemPending
+                    ? 'Confirming...'
+                    : isConfirming
+                      ? 'Processing...'
+                      : 'Processing...'}
                 </>
               ) : (
                 <>
-                  <ArrowRight className="mr-2 h-4 w-4" />
+                  <ArrowRight className='mr-2 h-4 w-4' />
                   Redeem to XRP
                 </>
               )}
             </Button>
 
-                      {(error || assetManagerError || balanceError || writeError) && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                {error || assetManagerError || (balanceError?.message || 'Balance error') || (writeError?.message || 'Transaction error')}
-              </AlertDescription>
-            </Alert>
-          )}
+            {(error || assetManagerError || balanceError || writeError) && (
+              <Alert variant='destructive'>
+                <AlertDescription>
+                  {error ||
+                    assetManagerError ||
+                    balanceError?.message ||
+                    'Balance error' ||
+                    writeError?.message ||
+                    'Transaction error'}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {success && (
-              <Alert className="bg-green-50 border-green-200 text-green-800">
+              <Alert className='bg-green-50 border-green-200 text-green-800'>
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
 
-                        {redemptionEvent && (
+            {redemptionEvent && (
               <RedemptionEventCard
                 redemptionEvent={redemptionEvent}
                 deadlineBlockNumber={deadlineBlockNumber}
@@ -661,7 +884,7 @@ export default function Redeem() {
               />
             )}
 
-                        <XRPLedgerInfoCard
+            <XRPLedgerInfoCard
               testXrpIndex={testXrpIndex}
               closeTime={closeTime}
               deadlineBlockNumber={deadlineBlockNumber}
@@ -672,4 +895,4 @@ export default function Redeem() {
       </Card>
     </div>
   );
-} 
+}

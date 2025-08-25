@@ -5,39 +5,76 @@ A comprehensive demo application showcasing Flare Network's cross-chain capabili
 ## Features
 
 ### 1. Asset Manager Settings
+
 - View AssetManagerFXRP contract settings from the Flare network
 - Real-time balance display for Flare and XRPL networks
 - Explorer links to verify contract addresses
 - Organized display of contract addresses, asset configuration, minting settings, redemption settings, timelock settings, and liquidation settings
 
 ### 2. Cross-Chain Payment Portal
+
 - Send FXRP (wrapped XRP) on Flare to another address
 - Redeem FXRP back to native XRP on XRPL
 - Real-time balance tracking for FLR, FXRP, and XRP
 - Input validation and error handling
 - Transaction status feedback
 
+## Code Formatting
+
+This project uses Prettier for code formatting and ESLint for code linting.
+
+### Formatting Commands
+
+```bash
+# Format all files
+npm run format
+
+# Check formatting without making changes
+npm run format:check
+
+# Lint code
+npm run lint
+
+# Fix linting issues automatically
+npm run lint:fix
+```
+
+### Editor Setup
+
+For the best development experience, install the following VS Code extensions:
+
+- Prettier - Code formatter
+- ESLint
+- Tailwind CSS IntelliSense
+- TypeScript and JavaScript Language Features
+
+The project includes VS Code settings that will automatically format your code on save.
+
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - MetaMask wallet extension
 - Flare network configured in MetaMask
 
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone <repository-url>
 cd fassets-demo-dapp
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
 3. Start the development server:
+
 ```bash
 npm run dev
 # or
@@ -49,6 +86,7 @@ bun dev
 ```
 
 ### Adding New Features
+
 1. Create new components in `src/components/`
 2. Add navigation tabs in `Navigation.tsx`
 3. Update the main page to include new components
@@ -57,13 +95,16 @@ bun dev
 ## Troubleshooting
 
 ### Common Issues
+
 1. **MetaMask not connecting**: Ensure MetaMask is installed and unlocked
 2. **Network errors**: Verify you're connected to Flare Coston2 testnet
 3. **Transaction failures**: Check your account has sufficient FLR for gas fees
 4. **Balance not updating**: Click the "Refresh Balance" buttons
 
 ### Debug Mode
+
 Open browser developer tools to view:
+
 - Console logs for transaction details
 - Network tab for API calls
 - React DevTools for component state

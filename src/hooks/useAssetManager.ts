@@ -4,7 +4,9 @@ import { getAssetManagerAddress } from '@/lib/assetManager';
 import { iAssetManagerAbi } from '../generated';
 
 export function useAssetManager() {
-  const [assetManagerAddress, setAssetManagerAddress] = useState<`0x${string}` | null>(null);
+  const [assetManagerAddress, setAssetManagerAddress] = useState<
+    `0x${string}` | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
 
   // Get AssetManager address
@@ -24,11 +26,11 @@ export function useAssetManager() {
   }, []);
 
   // Read AssetManager settings
-  const { 
-    data: settings, 
-    isLoading: isLoadingSettings, 
+  const {
+    data: settings,
+    isLoading: isLoadingSettings,
     error: readError,
-    refetch: refetchSettings 
+    refetch: refetchSettings,
   } = useReadContract({
     address: assetManagerAddress!,
     abi: iAssetManagerAbi,

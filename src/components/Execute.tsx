@@ -4,26 +4,30 @@ import { useState, useEffect } from 'react';
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, CheckCircle, XCircle, Copy, Check, Play } from "lucide-react";
-import { ExecuteFormDataSchema, ExecuteFormData, ProofData } from '@/types/executeFormData';
-import { 
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, CheckCircle, XCircle, Copy, Check, Play } from 'lucide-react';
+import {
+  ExecuteFormDataSchema,
+  ExecuteFormData,
+  ProofData,
+} from '@/types/executeFormData';
+import {
   useWriteIAssetManagerExecuteMinting,
-  iAssetManagerAbi
+  iAssetManagerAbi,
 } from '@/generated';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
-import { 
-  retrieveDataAndProofBaseWithRetry, 
+import {
+  retrieveDataAndProofBaseWithRetry,
   FDC_CONSTANTS,
   preparePaymentAttestationRequest,
-  verifyPayment
+  verifyPayment,
 } from '@/lib/fdcUtils';
 import { decodeEventLog } from 'viem';
 
@@ -31,7 +35,7 @@ export default function Execute() {
   const {
     register,
     handleSubmit,
-    formState: { errors }
+    formState: { errors },
   } = useForm<ExecuteFormData>({
     resolver: zodResolver(ExecuteFormDataSchema),
   });
@@ -42,7 +46,9 @@ export default function Execute() {
   const [currentStep, setCurrentStep] = useState<string>('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [proofData, setProofData] = useState<ProofData | null>(null);
-  const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
+  const [verificationResult, setVerificationResult] = useState<boolean | null>(
+    null
+  );
   const [transactionEvents, setTransactionEvents] = useState<{
     mintingExecuted: {
       agentVault: string;
@@ -59,11 +65,28 @@ export default function Execute() {
   } | null>(null);
 
   const { isConnected } = useAccount();
-  const { assetManagerAddress, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
-  const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
+  const {
+    assetManagerAddress,
+    isLoading: isLoadingSettings,
+    error: assetManagerError,
+  } = useAssetManager();
+  const {
+    addresses: fdcAddresses,
+    isLoading: isLoadingAddresses,
+    error: addressError,
+  } = useFdcContracts();
 
-  const { writeContract: executeMinting, data: executeHash, isPending: isExecutePending, error: writeError } = useWriteIAssetManagerExecuteMinting();
-  const { data: receipt, isSuccess: isExecuteSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: executeHash });
+  const {
+    writeContract: executeMinting,
+    data: executeHash,
+    isPending: isExecutePending,
+    error: writeError,
+  } = useWriteIAssetManagerExecuteMinting();
+  const {
+    data: receipt,
+    isSuccess: isExecuteSuccess,
+    error: receiptError,
+  } = useWaitForTransactionReceipt({ hash: executeHash });
 
   // Main execute minting process
   const executeMintingProcess = async (data: ExecuteFormData) => {
@@ -102,9 +125,10 @@ export default function Execute() {
       // Step 1: Prepare attestation request
       setCurrentStep('Preparing attestation request...');
       console.log('Preparing attestation request...');
-      
+
       // Prepare the attestation request using the verifier API
-      const attestationResponse = await preparePaymentAttestationRequest(transactionId);
+      const attestationResponse =
+        await preparePaymentAttestationRequest(transactionId);
       console.log('Attestation response:', attestationResponse);
 
       // Step 2: Retrieve proof from Data Availability Layer
@@ -115,80 +139,121 @@ export default function Execute() {
         fdcRoundId,
         FDC_CONSTANTS.DA_LAYER_API_KEY
       );
-      
+
       setProofData(proof);
-      
+
       // Step 3: Verify the payment
       setCurrentStep('Verifying payment with FDC Verification contract...');
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-              const verificationResult = await verifyPayment(proof, fdcAddresses);
+      const verificationResult = await verifyPayment(proof, fdcAddresses);
       setVerificationResult(verificationResult);
-      
+
       if (!verificationResult) {
-        throw new Error('Payment verification failed. Cannot proceed with minting.');
+        throw new Error(
+          'Payment verification failed. Cannot proceed with minting.'
+        );
       }
 
       // Step 4: Execute minting
       setCurrentStep('Executing minting on AssetManager contract...');
-      console.log('Executing minting with proof and collateral reservation ID:', collateralReservationId);
-      
+      console.log(
+        'Executing minting with proof and collateral reservation ID:',
+        collateralReservationId
+      );
+
       executeMinting({
         address: assetManagerAddress,
-        args: [{
-          merkleProof: proof.proof,
-          data: {
-            attestationType: proof.response.attestationType,
-            sourceId: proof.response.sourceId,
-            votingRound: BigInt(proof.response.votingRound),
-            lowestUsedTimestamp: BigInt(proof.response.lowestUsedTimestamp),
-            requestBody: {
-              transactionId: proof.response.requestBody.transactionId,
-              inUtxo: BigInt(proof.response.requestBody.inUtxo),
-              utxo: BigInt(proof.response.requestBody.utxo),
+        args: [
+          {
+            merkleProof: proof.proof,
+            data: {
+              attestationType: proof.response.attestationType,
+              sourceId: proof.response.sourceId,
+              votingRound: BigInt(proof.response.votingRound),
+              lowestUsedTimestamp: BigInt(proof.response.lowestUsedTimestamp),
+              requestBody: {
+                transactionId: proof.response.requestBody.transactionId,
+                inUtxo: BigInt(proof.response.requestBody.inUtxo),
+                utxo: BigInt(proof.response.requestBody.utxo),
+              },
+              responseBody: {
+                blockNumber: BigInt(proof.response.responseBody.blockNumber),
+                blockTimestamp: BigInt(
+                  proof.response.responseBody.blockTimestamp
+                ),
+                sourceAddressHash:
+                  proof.response.responseBody.sourceAddressHash,
+                sourceAddressesRoot:
+                  proof.response.responseBody.sourceAddressesRoot,
+                receivingAddressHash:
+                  proof.response.responseBody.receivingAddressHash,
+                intendedReceivingAddressHash:
+                  proof.response.responseBody.intendedReceivingAddressHash,
+                spentAmount: BigInt(proof.response.responseBody.spentAmount),
+                intendedSpentAmount: BigInt(
+                  proof.response.responseBody.intendedSpentAmount
+                ),
+                receivedAmount: BigInt(
+                  proof.response.responseBody.receivedAmount
+                ),
+                intendedReceivedAmount: BigInt(
+                  proof.response.responseBody.intendedReceivedAmount
+                ),
+                standardPaymentReference:
+                  proof.response.responseBody.standardPaymentReference,
+                oneToOne: proof.response.responseBody.oneToOne,
+                status: proof.response.responseBody.status,
+              },
             },
-            responseBody: {
-              blockNumber: BigInt(proof.response.responseBody.blockNumber),
-              blockTimestamp: BigInt(proof.response.responseBody.blockTimestamp),
-              sourceAddressHash: proof.response.responseBody.sourceAddressHash,
-              sourceAddressesRoot: proof.response.responseBody.sourceAddressesRoot,
-              receivingAddressHash: proof.response.responseBody.receivingAddressHash,
-              intendedReceivingAddressHash: proof.response.responseBody.intendedReceivingAddressHash,
-              spentAmount: BigInt(proof.response.responseBody.spentAmount),
-              intendedSpentAmount: BigInt(proof.response.responseBody.intendedSpentAmount),
-              receivedAmount: BigInt(proof.response.responseBody.receivedAmount),
-              intendedReceivedAmount: BigInt(proof.response.responseBody.intendedReceivedAmount),
-              standardPaymentReference: proof.response.responseBody.standardPaymentReference,
-              oneToOne: proof.response.responseBody.oneToOne,
-              status: proof.response.responseBody.status,
-            },
-          }
-        }, collateralReservationId],
+          },
+          collateralReservationId,
+        ],
       });
-      
+
       setCurrentStep('');
-      setSuccess('Minting execution initiated! Waiting for transaction confirmation...');
+      setSuccess(
+        'Minting execution initiated! Waiting for transaction confirmation...'
+      );
     } catch (error) {
       console.error('Execute minting error:', error);
       setCurrentStep('');
-      
+
       // Provide more specific error messages
       if (error instanceof Error) {
         if (error.message.includes('execution reverted')) {
-          setError('Transaction failed: The contract rejected the transaction. This could be due to invalid proof data, expired reservation, or network issues.');
+          setError(
+            'Transaction failed: The contract rejected the transaction. This could be due to invalid proof data, expired reservation, or network issues.'
+          );
         } else if (error.message.includes('insufficient funds')) {
-          setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
-        } else if (error.message.includes('user rejected') || error.message.includes('User denied transaction signature')) {
+          setError(
+            'Insufficient funds to complete the transaction. Please check your wallet balance.'
+          );
+        } else if (
+          error.message.includes('user rejected') ||
+          error.message.includes('User denied transaction signature')
+        ) {
           setError('Transaction was cancelled by the user.');
-        } else if (error.message.includes('reservation not found') || error.message.includes('collateral reservation')) {
-          setError('Collateral reservation not found or has expired. Please check the reservation ID and try again.');
+        } else if (
+          error.message.includes('reservation not found') ||
+          error.message.includes('collateral reservation')
+        ) {
+          setError(
+            'Collateral reservation not found or has expired. Please check the reservation ID and try again.'
+          );
         } else if (error.message.includes('proof verification failed')) {
-          setError('Proof verification failed. The provided proof data is invalid or has expired.');
+          setError(
+            'Proof verification failed. The provided proof data is invalid or has expired.'
+          );
         } else if (error.message.includes('DA Layer request failed')) {
-          setError('Failed to retrieve proof from Data Availability Layer. Please check the FDC Round ID and try again.');
+          setError(
+            'Failed to retrieve proof from Data Availability Layer. Please check the FDC Round ID and try again.'
+          );
         } else if (error.message.includes('Payment verification failed')) {
-          setError('Payment verification failed. The XRP transaction could not be verified.');
+          setError(
+            'Payment verification failed. The XRP transaction could not be verified.'
+          );
         } else {
           setError(`Failed to execute minting: ${error.message}`);
         }
@@ -204,18 +269,32 @@ export default function Execute() {
   useEffect(() => {
     if (writeError) {
       console.error('Write contract error:', writeError);
-      
+
       // Handle specific error types
-      if (writeError.message.includes('User denied transaction signature') || writeError.message.includes('user rejected')) {
+      if (
+        writeError.message.includes('User denied transaction signature') ||
+        writeError.message.includes('user rejected')
+      ) {
         setError('Transaction was cancelled by the user.');
       } else if (writeError.message.includes('execution reverted')) {
-        setError('Transaction failed: The contract rejected the transaction. This could be due to invalid proof data, expired reservation, or network issues.');
+        setError(
+          'Transaction failed: The contract rejected the transaction. This could be due to invalid proof data, expired reservation, or network issues.'
+        );
       } else if (writeError.message.includes('insufficient funds')) {
-        setError('Insufficient funds to complete the transaction. Please check your wallet balance.');
-      } else if (writeError.message.includes('reservation not found') || writeError.message.includes('collateral reservation')) {
-        setError('Collateral reservation not found or has expired. Please check the reservation ID and try again.');
+        setError(
+          'Insufficient funds to complete the transaction. Please check your wallet balance.'
+        );
+      } else if (
+        writeError.message.includes('reservation not found') ||
+        writeError.message.includes('collateral reservation')
+      ) {
+        setError(
+          'Collateral reservation not found or has expired. Please check the reservation ID and try again.'
+        );
       } else if (writeError.message.includes('proof verification failed')) {
-        setError('Proof verification failed. The provided proof data is invalid or has expired.');
+        setError(
+          'Proof verification failed. The provided proof data is invalid or has expired.'
+        );
       } else {
         setError(`Transaction failed: ${writeError.message}`);
       }
@@ -228,12 +307,17 @@ export default function Execute() {
       console.error('Transaction receipt error:', receiptError);
       console.error('Receipt error details:', {
         name: receiptError instanceof Error ? receiptError.name : 'Unknown',
-        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        message:
+          receiptError instanceof Error
+            ? receiptError.message
+            : String(receiptError),
         cause: receiptError instanceof Error ? receiptError.cause : undefined,
-        stack: receiptError instanceof Error ? receiptError.stack : undefined
+        stack: receiptError instanceof Error ? receiptError.stack : undefined,
       });
-      
-      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+
+      setError(
+        `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
+      );
     }
   }, [receiptError]);
 
@@ -247,16 +331,16 @@ export default function Execute() {
         gasUsed: receipt.gasUsed,
         effectiveGasPrice: receipt.effectiveGasPrice,
         logsCount: receipt.logs.length,
-        status: receipt.status
+        status: receipt.status,
       });
 
       // Log transaction status for debugging
       console.log('Transaction status:', receipt.status, typeof receipt.status);
-      
+
       // Check if transaction failed (status 0)
       if (String(receipt.status) === '0') {
         console.error('Transaction failed with status 0');
-        
+
         // Try to decode error from logs
         for (const log of receipt.logs) {
           try {
@@ -267,35 +351,57 @@ export default function Execute() {
               topics: log.topics,
             });
 
-            console.log(`Decoded error event: ${decodedLog.eventName}`, decodedLog.args);
-            
+            console.log(
+              `Decoded error event: ${decodedLog.eventName}`,
+              decodedLog.args
+            );
+
             // Handle specific error events - check for any error events
-            if (decodedLog.eventName && typeof decodedLog.eventName === 'string') {
+            if (
+              decodedLog.eventName &&
+              typeof decodedLog.eventName === 'string'
+            ) {
               console.error(`=== ${decodedLog.eventName} Error ===`);
-              console.error('Transaction failed with error event:', decodedLog.eventName);
+              console.error(
+                'Transaction failed with error event:',
+                decodedLog.eventName
+              );
               console.error('Error arguments:', decodedLog.args);
-              
+
               // Handle specific known errors
-              if (decodedLog.eventName.includes('Invalid') || decodedLog.eventName.includes('CrtId')) {
-                console.error('This appears to be an invalid collateral reservation ID error.');
+              if (
+                decodedLog.eventName.includes('Invalid') ||
+                decodedLog.eventName.includes('CrtId')
+              ) {
+                console.error(
+                  'This appears to be an invalid collateral reservation ID error.'
+                );
                 console.error('Please check that:');
                 console.error('1. The collateral reservation ID exists');
                 console.error('2. The reservation has not expired');
                 console.error('3. The reservation belongs to the correct user');
                 console.error('=====================================');
-                
-                setError('Invalid Collateral Reservation ID: The provided reservation ID does not exist or has expired. Please check your reservation ID and try again.');
+
+                setError(
+                  'Invalid Collateral Reservation ID: The provided reservation ID does not exist or has expired. Please check your reservation ID and try again.'
+                );
                 return;
               }
             }
           } catch (error) {
             // This log is not a recognized error event, continue to next log
-            console.log('Log could not be decoded as known error event:', log, error);
+            console.log(
+              'Log could not be decoded as known error event:',
+              log,
+              error
+            );
           }
         }
-        
+
         // If no specific error was decoded, show generic failure message
-        setError('Transaction failed: The contract rejected the transaction. This could be due to invalid parameters, expired reservation, or insufficient funds.');
+        setError(
+          'Transaction failed: The contract rejected the transaction. This could be due to invalid parameters, expired reservation, or insufficient funds.'
+        );
         return;
       }
 
@@ -314,7 +420,7 @@ export default function Execute() {
         } | null;
       } = {
         mintingExecuted: null,
-        redemptionTicketCreated: null
+        redemptionTicketCreated: null,
       };
 
       // Process each log in the transaction receipt
@@ -327,20 +433,33 @@ export default function Execute() {
             topics: log.topics,
           });
 
-          console.log(`Decoded event: ${decodedLog.eventName}`, decodedLog.args);
+          console.log(
+            `Decoded event: ${decodedLog.eventName}`,
+            decodedLog.args
+          );
 
           if (decodedLog.eventName === 'MintingExecuted') {
             console.log('=== MintingExecuted Event ===');
             console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log('Collateral Reservation ID:', decodedLog.args.collateralReservationId.toString());
-            console.log('Minted Amount UBA:', decodedLog.args.mintedAmountUBA.toString());
-            console.log('Agent Fee UBA:', decodedLog.args.agentFeeUBA.toString());
+            console.log(
+              'Collateral Reservation ID:',
+              decodedLog.args.collateralReservationId.toString()
+            );
+            console.log(
+              'Minted Amount UBA:',
+              decodedLog.args.mintedAmountUBA.toString()
+            );
+            console.log(
+              'Agent Fee UBA:',
+              decodedLog.args.agentFeeUBA.toString()
+            );
             console.log('Pool Fee UBA:', decodedLog.args.poolFeeUBA.toString());
             console.log('=====================================');
 
             events.mintingExecuted = {
               agentVault: decodedLog.args.agentVault,
-              collateralReservationId: decodedLog.args.collateralReservationId.toString(),
+              collateralReservationId:
+                decodedLog.args.collateralReservationId.toString(),
               mintedAmountUBA: decodedLog.args.mintedAmountUBA.toString(),
               agentFeeUBA: decodedLog.args.agentFeeUBA.toString(),
               poolFeeUBA: decodedLog.args.poolFeeUBA.toString(),
@@ -348,8 +467,14 @@ export default function Execute() {
           } else if (decodedLog.eventName === 'RedemptionTicketCreated') {
             console.log('=== RedemptionTicketCreated Event ===');
             console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log('Redemption Ticket ID:', decodedLog.args.redemptionTicketId.toString());
-            console.log('Ticket Value UBA:', decodedLog.args.ticketValueUBA.toString());
+            console.log(
+              'Redemption Ticket ID:',
+              decodedLog.args.redemptionTicketId.toString()
+            );
+            console.log(
+              'Ticket Value UBA:',
+              decodedLog.args.ticketValueUBA.toString()
+            );
             console.log('=====================================');
 
             events.redemptionTicketCreated = {
@@ -369,83 +494,102 @@ export default function Execute() {
         setTransactionEvents(events);
       }
 
-      setSuccess(`Minting executed successfully! Transaction hash: ${receipt.transactionHash}`);
+      setSuccess(
+        `Minting executed successfully! Transaction hash: ${receipt.transactionHash}`
+      );
     }
   }, [isExecuteSuccess, receipt]);
 
-
-
   return (
-    <div className="w-full max-w-4xl mx-auto p-6">
+    <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-orange-900">
-            <Play className="h-5 w-5 text-orange-600" />
+          <CardTitle className='flex items-center gap-2 text-orange-900'>
+            <Play className='h-5 w-5 text-orange-600' />
             Execute Minting
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-orange-700 mb-6">
-            Execute AssetManager.executeMinting with proof verification for XRP transactions.
+          <p className='text-orange-700 mb-6'>
+            Execute AssetManager.executeMinting with proof verification for XRP
+            transactions.
           </p>
 
-          <form onSubmit={handleSubmit(executeMintingProcess)} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="collateralReservationId" className="text-orange-900">Collateral Reservation ID</Label>
+          <form
+            onSubmit={handleSubmit(executeMintingProcess)}
+            className='space-y-6'
+          >
+            <div className='space-y-2'>
+              <Label
+                htmlFor='collateralReservationId'
+                className='text-orange-900'
+              >
+                Collateral Reservation ID
+              </Label>
               <Input
                 {...register('collateralReservationId')}
-                id="collateralReservationId"
-                placeholder="123"
+                id='collateralReservationId'
+                placeholder='123'
                 className={`border-orange-300 focus:ring-orange-500 focus:border-orange-500 ${
-                  errors.collateralReservationId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  errors.collateralReservationId
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : ''
                 }`}
               />
               {errors.collateralReservationId && (
-                <p className="text-sm text-red-600">
+                <p className='text-sm text-red-600'>
                   {errors.collateralReservationId.message}
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="fdcRoundId" className="text-orange-900">FDC Round ID</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='fdcRoundId' className='text-orange-900'>
+                FDC Round ID
+              </Label>
               <Input
                 {...register('fdcRoundId')}
-                id="fdcRoundId"
-                placeholder="456"
+                id='fdcRoundId'
+                placeholder='456'
                 className={`border-orange-300 focus:ring-orange-500 focus:border-orange-500 ${
-                  errors.fdcRoundId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  errors.fdcRoundId
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : ''
                 }`}
               />
               {errors.fdcRoundId && (
-                <p className="text-sm text-red-600">
+                <p className='text-sm text-red-600'>
                   {errors.fdcRoundId.message}
                 </p>
               )}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="transactionId" className="text-orange-900">XRP Transaction ID</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='transactionId' className='text-orange-900'>
+                XRP Transaction ID
+              </Label>
               <Input
                 {...register('transactionId')}
-                id="transactionId"
-                placeholder="85B182F7B250BF8CB23531ECA5B508C0F66E8B7AEF7C8EE0CF851A7B2F8A9EB1"
+                id='transactionId'
+                placeholder='85B182F7B250BF8CB23531ECA5B508C0F66E8B7AEF7C8EE0CF851A7B2F8A9EB1'
                 className={`border-orange-300 focus:ring-orange-500 focus:border-orange-500 ${
-                  errors.transactionId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  errors.transactionId
+                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                    : ''
                 }`}
               />
               {errors.transactionId && (
-                <p className="text-sm text-red-600">
+                <p className='text-sm text-red-600'>
                   {errors.transactionId.message}
                 </p>
               )}
             </div>
 
             {(isLoadingSettings || isLoadingAddresses) && (
-              <Alert className="bg-orange-50 border-orange-200 text-orange-800">
+              <Alert className='bg-orange-50 border-orange-200 text-orange-800'>
                 <AlertDescription>
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  <div className='flex items-center gap-2'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
                     Loading contract addresses...
                   </div>
                 </AlertDescription>
@@ -453,79 +597,98 @@ export default function Execute() {
             )}
 
             {(assetManagerError || addressError) && (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
+              <Alert variant='destructive'>
+                <XCircle className='h-4 w-4' />
                 <AlertDescription>
-                  {assetManagerError && `Error loading AssetManager: ${assetManagerError}`}
-                  {addressError && `Error loading FDC contract addresses: ${addressError}`}
+                  {assetManagerError &&
+                    `Error loading AssetManager: ${assetManagerError}`}
+                  {addressError &&
+                    `Error loading FDC contract addresses: ${addressError}`}
                 </AlertDescription>
               </Alert>
             )}
 
             {!isConnected && !isLoadingSettings && !isLoadingAddresses && (
-              <Alert className="bg-yellow-50 border-yellow-200 text-yellow-800">
+              <Alert className='bg-yellow-50 border-yellow-200 text-yellow-800'>
                 <AlertDescription>
-                  Please connect your wallet to execute minting on the blockchain.
+                  Please connect your wallet to execute minting on the
+                  blockchain.
                 </AlertDescription>
               </Alert>
             )}
 
             <Button
-              type="submit"
-              disabled={isLoading || !isConnected || isLoadingSettings || isLoadingAddresses || !!assetManagerError || !!addressError || isExecutePending}
-              className="w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400"
+              type='submit'
+              disabled={
+                isLoading ||
+                !isConnected ||
+                isLoadingSettings ||
+                isLoadingAddresses ||
+                !!assetManagerError ||
+                !!addressError ||
+                isExecutePending
+              }
+              className='w-full bg-orange-600 hover:bg-orange-700 disabled:bg-gray-400'
             >
               {isLoading || isExecutePending ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                   {currentStep || 'Executing Minting...'}
                 </>
               ) : (
                 <>
-                  <Play className="mr-2 h-4 w-4" />
+                  <Play className='mr-2 h-4 w-4' />
                   Execute Minting
                 </>
               )}
             </Button>
 
             {isLoading && currentStep && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  <span className="text-blue-800 font-medium">{currentStep}</span>
+              <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
+                <div className='flex items-center gap-2'>
+                  <Loader2 className='h-4 w-4 animate-spin text-blue-600' />
+                  <span className='text-blue-800 font-medium'>
+                    {currentStep}
+                  </span>
                 </div>
-                <p className="text-blue-600 text-sm mt-2">
-                  Please wait while the minting execution process completes. This may take several minutes.
+                <p className='text-blue-600 text-sm mt-2'>
+                  Please wait while the minting execution process completes.
+                  This may take several minutes.
                 </p>
               </div>
             )}
 
             {(error || writeError) && (
-              <Alert variant="destructive">
-                <XCircle className="h-4 w-4" />
+              <Alert variant='destructive'>
+                <XCircle className='h-4 w-4' />
                 <AlertDescription>
-                  {error || (writeError && `Transaction Error: ${writeError.message}`)}
+                  {error ||
+                    (writeError && `Transaction Error: ${writeError.message}`)}
                 </AlertDescription>
               </Alert>
             )}
 
             {success && (
-              <Alert className="bg-green-50 border-green-200 text-green-800">
-                <CheckCircle className="h-4 w-4" />
+              <Alert className='bg-green-50 border-green-200 text-green-800'>
+                <CheckCircle className='h-4 w-4' />
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
 
             {verificationResult !== null && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-orange-900">Payment Verification Result</h3>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">Verification Status:</span>
-                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    verificationResult 
-                      ? 'bg-green-100 text-green-800' 
-                      : 'bg-red-100 text-red-800'
-                  }`}>
+              <div className='space-y-4'>
+                <h3 className='text-lg font-semibold text-orange-900'>
+                  Payment Verification Result
+                </h3>
+                <div className='flex items-center gap-2'>
+                  <span className='font-medium'>Verification Status:</span>
+                  <div
+                    className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      verificationResult
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
                     {verificationResult ? '✅ Verified' : '❌ Failed'}
                   </div>
                 </div>
@@ -533,66 +696,107 @@ export default function Execute() {
             )}
 
             {proofData && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-orange-900">Proof Data</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">Voting Round:</span>
-                    <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+              <div className='space-y-4'>
+                <h3 className='text-lg font-semibold text-orange-900'>
+                  Proof Data
+                </h3>
+                <div className='space-y-2'>
+                  <div className='flex items-center gap-2'>
+                    <span className='font-medium'>Voting Round:</span>
+                    <code className='px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1'>
                       {proofData.response?.votingRound ?? 'Not available'}
                     </code>
                     {proofData.response?.votingRound && (
                       <button
-                        type="button"
-                        onClick={() => copyToClipboardWithTimeout(proofData.response.votingRound.toString(), setCopiedText)}
-                        className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                        type='button'
+                        onClick={() =>
+                          copyToClipboardWithTimeout(
+                            proofData.response.votingRound.toString(),
+                            setCopiedText
+                          )
+                        }
+                        className='h-6 w-6 p-0 hover:bg-gray-200 rounded'
                       >
-                        {copiedText === proofData.response.votingRound.toString() ? (
-                          <Check className="h-3 w-3 text-green-600" />
+                        {copiedText ===
+                        proofData.response.votingRound.toString() ? (
+                          <Check className='h-3 w-3 text-green-600' />
                         ) : (
-                          <Copy className="h-3 w-3 text-gray-500" />
+                          <Copy className='h-3 w-3 text-gray-500' />
                         )}
                       </button>
                     )}
                   </div>
-                  
-                  <div className="space-y-2">
-                    <span className="font-medium">Proof Array:</span>
-                    <div className="space-y-1">
-                      {proofData.proof && Array.isArray(proofData.proof) && proofData.proof.map((proofItem: string, index: number) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <span className="text-sm text-gray-600 w-8">[{index}]:</span>
-                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
-                            {proofItem.length > 20 
-                              ? `${proofItem.slice(0, 10)}...${proofItem.slice(-10)}`
-                              : proofItem
-                            }
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboardWithTimeout(proofItem, setCopiedText)}
-                            className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
-                          >
-                            {copiedText === proofItem ? (
-                              <Check className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <Copy className="h-3 w-3 text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                      ))}
+
+                  <div className='space-y-2'>
+                    <span className='font-medium'>Proof Array:</span>
+                    <div className='space-y-1'>
+                      {proofData.proof &&
+                        Array.isArray(proofData.proof) &&
+                        proofData.proof.map(
+                          (proofItem: string, index: number) => (
+                            <div
+                              key={index}
+                              className='flex items-center gap-2'
+                            >
+                              <span className='text-sm text-gray-600 w-8'>
+                                [{index}]:
+                              </span>
+                              <code className='px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1'>
+                                {proofItem.length > 20
+                                  ? `${proofItem.slice(0, 10)}...${proofItem.slice(-10)}`
+                                  : proofItem}
+                              </code>
+                              <button
+                                type='button'
+                                onClick={() =>
+                                  copyToClipboardWithTimeout(
+                                    proofItem,
+                                    setCopiedText
+                                  )
+                                }
+                                className='h-6 w-6 p-0 hover:bg-gray-200 rounded'
+                              >
+                                {copiedText === proofItem ? (
+                                  <Check className='h-3 w-3 text-green-600' />
+                                ) : (
+                                  <Copy className='h-3 w-3 text-gray-500' />
+                                )}
+                              </button>
+                            </div>
+                          )
+                        )}
                     </div>
                   </div>
-                  
-                  <div className="space-y-2">
-                    <span className="font-medium">Response Body:</span>
-                    <div className="bg-gray-100 rounded p-3 text-sm font-mono">
-                      <div><strong>Block Number:</strong> {proofData.response?.responseBody?.blockNumber}</div>
-                      <div><strong>Block Timestamp:</strong> {proofData.response?.responseBody?.blockTimestamp}</div>
-                      <div><strong>Spent Amount:</strong> {proofData.response?.responseBody?.spentAmount}</div>
-                      <div><strong>Received Amount:</strong> {proofData.response?.responseBody?.receivedAmount}</div>
-                      <div><strong>Status:</strong> {proofData.response?.responseBody?.status}</div>
-                      <div><strong>One to One:</strong> {proofData.response?.responseBody?.oneToOne ? 'Yes' : 'No'}</div>
+
+                  <div className='space-y-2'>
+                    <span className='font-medium'>Response Body:</span>
+                    <div className='bg-gray-100 rounded p-3 text-sm font-mono'>
+                      <div>
+                        <strong>Block Number:</strong>{' '}
+                        {proofData.response?.responseBody?.blockNumber}
+                      </div>
+                      <div>
+                        <strong>Block Timestamp:</strong>{' '}
+                        {proofData.response?.responseBody?.blockTimestamp}
+                      </div>
+                      <div>
+                        <strong>Spent Amount:</strong>{' '}
+                        {proofData.response?.responseBody?.spentAmount}
+                      </div>
+                      <div>
+                        <strong>Received Amount:</strong>{' '}
+                        {proofData.response?.responseBody?.receivedAmount}
+                      </div>
+                      <div>
+                        <strong>Status:</strong>{' '}
+                        {proofData.response?.responseBody?.status}
+                      </div>
+                      <div>
+                        <strong>One to One:</strong>{' '}
+                        {proofData.response?.responseBody?.oneToOne
+                          ? 'Yes'
+                          : 'No'}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -600,95 +804,145 @@ export default function Execute() {
             )}
 
             {transactionEvents && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-orange-900">Transaction Events</h3>
-                
+              <div className='space-y-4'>
+                <h3 className='text-lg font-semibold text-orange-900'>
+                  Transaction Events
+                </h3>
+
                 {transactionEvents?.mintingExecuted && (
-                  <div className="space-y-3">
-                    <h4 className="text-md font-semibold text-orange-800">MintingExecuted Event</h4>
-                    <div className="bg-orange-50 border border-orange-200 rounded p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Agent Vault:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                  <div className='space-y-3'>
+                    <h4 className='text-md font-semibold text-orange-800'>
+                      MintingExecuted Event
+                    </h4>
+                    <div className='bg-orange-50 border border-orange-200 rounded p-4 space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Agent Vault:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
                           {transactionEvents.mintingExecuted!.agentVault}
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.agentVault, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.mintingExecuted!.agentVault,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.mintingExecuted!.agentVault ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.mintingExecuted!.agentVault ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Collateral Reservation ID:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
-                          {transactionEvents.mintingExecuted!.collateralReservationId}
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Collateral Reservation ID:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
+                          {
+                            transactionEvents.mintingExecuted!
+                              .collateralReservationId
+                          }
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.collateralReservationId, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.mintingExecuted!
+                                .collateralReservationId,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.mintingExecuted!.collateralReservationId ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.mintingExecuted!
+                            .collateralReservationId ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Minted Amount UBA:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Minted Amount UBA:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
                           {transactionEvents.mintingExecuted!.mintedAmountUBA}
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.mintedAmountUBA, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.mintingExecuted!
+                                .mintedAmountUBA,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.mintingExecuted!.mintedAmountUBA ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.mintingExecuted!.mintedAmountUBA ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Agent Fee UBA:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Agent Fee UBA:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
                           {transactionEvents.mintingExecuted!.agentFeeUBA}
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.agentFeeUBA, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.mintingExecuted!.agentFeeUBA,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.mintingExecuted!.agentFeeUBA ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.mintingExecuted!.agentFeeUBA ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Pool Fee UBA:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Pool Fee UBA:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
                           {transactionEvents.mintingExecuted!.poolFeeUBA}
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.mintingExecuted!.poolFeeUBA, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.mintingExecuted!.poolFeeUBA,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.mintingExecuted!.poolFeeUBA ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.mintingExecuted!.poolFeeUBA ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
@@ -697,57 +951,98 @@ export default function Execute() {
                 )}
 
                 {transactionEvents?.redemptionTicketCreated && (
-                  <div className="space-y-3">
-                    <h4 className="text-md font-semibold text-orange-800">RedemptionTicketCreated Event</h4>
-                    <div className="bg-orange-50 border border-orange-200 rounded p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Agent Vault:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
-                          {transactionEvents.redemptionTicketCreated!.agentVault}
+                  <div className='space-y-3'>
+                    <h4 className='text-md font-semibold text-orange-800'>
+                      RedemptionTicketCreated Event
+                    </h4>
+                    <div className='bg-orange-50 border border-orange-200 rounded p-4 space-y-2'>
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Agent Vault:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
+                          {
+                            transactionEvents.redemptionTicketCreated!
+                              .agentVault
+                          }
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.agentVault, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.redemptionTicketCreated!
+                                .agentVault,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.redemptionTicketCreated!.agentVault ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.redemptionTicketCreated!
+                            .agentVault ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Redemption Ticket ID:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
-                          {transactionEvents.redemptionTicketCreated!.redemptionTicketId}
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Redemption Ticket ID:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
+                          {
+                            transactionEvents.redemptionTicketCreated!
+                              .redemptionTicketId
+                          }
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.redemptionTicketId, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.redemptionTicketCreated!
+                                .redemptionTicketId,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.redemptionTicketCreated!.redemptionTicketId ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.redemptionTicketCreated!
+                            .redemptionTicketId ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-orange-900">Ticket Value UBA:</span>
-                        <code className="px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1">
-                          {transactionEvents.redemptionTicketCreated!.ticketValueUBA}
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium text-orange-900'>
+                          Ticket Value UBA:
+                        </span>
+                        <code className='px-2 py-1 bg-orange-100 rounded text-sm font-mono flex-1'>
+                          {
+                            transactionEvents.redemptionTicketCreated!
+                              .ticketValueUBA
+                          }
                         </code>
                         <button
-                          type="button"
-                          onClick={() => copyToClipboardWithTimeout(transactionEvents.redemptionTicketCreated!.ticketValueUBA, setCopiedText)}
-                          className="h-6 w-6 p-0 hover:bg-orange-200 rounded"
+                          type='button'
+                          onClick={() =>
+                            copyToClipboardWithTimeout(
+                              transactionEvents.redemptionTicketCreated!
+                                .ticketValueUBA,
+                              setCopiedText
+                            )
+                          }
+                          className='h-6 w-6 p-0 hover:bg-orange-200 rounded'
                         >
-                          {copiedText === transactionEvents.redemptionTicketCreated!.ticketValueUBA ? (
-                            <Check className="h-3 w-3 text-green-600" />
+                          {copiedText ===
+                          transactionEvents.redemptionTicketCreated!
+                            .ticketValueUBA ? (
+                            <Check className='h-3 w-3 text-green-600' />
                           ) : (
-                            <Copy className="h-3 w-3 text-orange-500" />
+                            <Copy className='h-3 w-3 text-orange-500' />
                           )}
                         </button>
                       </div>
