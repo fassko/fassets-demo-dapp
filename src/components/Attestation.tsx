@@ -21,7 +21,6 @@ import { AttestationData } from '@/types/attestation';
 import { 
   retrieveDataAndProofBaseWithRetry, 
   calculateRoundId, 
-  getFdcRequestFee,
   FDC_CONSTANTS,
   preparePaymentAttestationRequest,
   verifyPayment,

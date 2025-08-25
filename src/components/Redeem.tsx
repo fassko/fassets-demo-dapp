@@ -35,7 +35,6 @@ import { publicClient } from '@/lib/publicClient';
 import { 
   retrieveDataAndProofBaseWithRetry, 
   calculateRoundId, 
-  getFdcRequestFee,
   FDC_CONSTANTS,
   prepareReferencedPaymentNonexistenceAttestationRequest,
   verifyReferencedPaymentNonexistence,

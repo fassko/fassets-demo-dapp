@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AssetManagerSettings from '@/components/AssetManagerSettings';
+import Settings from '@/components/Settings';
 import Mint from '@/components/Mint';
 import Transfer from '@/components/Transfer';
 import Redeem from '@/components/Redeem';
@@ -24,7 +24,7 @@ export default function Home() {
     <div className="font-sans p-8">
       <main className="flex flex-col gap-2">
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-        {activeTab === 'asset-manager' && <AssetManagerSettings />}
+        {activeTab === 'asset-manager' && <Settings />}
         {activeTab === 'mint-xrp' && <Mint />}
         {activeTab === 'xrp-attestation' && <Attestation />}
         {activeTab === 'execute' && <Execute />}

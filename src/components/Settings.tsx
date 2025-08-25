@@ -9,10 +9,10 @@ import { useAssetManager } from '@/hooks/useAssetManager';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { RefreshCw, Settings, Copy, Check } from "lucide-react";
+import { RefreshCw, Settings as SettingsIcon, Copy, Check } from "lucide-react";
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
-export default function AssetManagerSettings() {
+export default function Settings() {
   const { settings, isLoading: loading, error, refetchSettings } = useAssetManager();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
 
@@ -81,7 +81,7 @@ export default function AssetManagerSettings() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <Settings className="h-5 w-5 text-slate-600" />
+            <SettingsIcon className="h-5 w-5 text-slate-600" />
             Asset Manager FXRP Settings
           </CardTitle>
         </CardHeader>
@@ -183,4 +183,4 @@ export default function AssetManagerSettings() {
       </Card>
     </div>
   );
-} 
+}

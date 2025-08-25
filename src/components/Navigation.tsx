@@ -22,7 +22,7 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
   const mintingSubTabs = [
     { id: 'mint-xrp', label: 'Mint', color: 'blue', icon: Coins },
     { id: 'xrp-attestation', label: 'Attestation', color: 'purple', icon: CheckCircle },
-    { id: 'execute', label: 'Execute', color: 'amber', icon: Play },
+    { id: 'execute', label: 'Execute', color: 'orange', icon: Play },
   ];
 
   const isMintingActive = activeTab === 'mint-xrp' || activeTab === 'xrp-attestation' || activeTab === 'execute';
@@ -85,14 +85,22 @@ export default function Navigation({ activeTab, onTabChange }: NavigationProps) 
       {isMintingExpanded && (
         <div className="mt-2 px-4">
           <Tabs value={activeTab} onValueChange={onTabChange} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-blue-50 border border-blue-200">
+            <TabsList className="grid w-full grid-cols-3 bg-slate-50 border border-slate-200">
               {mintingSubTabs.map((tab) => {
                 const IconComponent = tab.icon;
                 return (
                   <TabsTrigger 
                     key={tab.id} 
                     value={tab.id} 
-                    className="text-sm transition-colors cursor-pointer flex items-center gap-2 data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300"
+                    className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${
+                      tab.color === 'blue'
+                        ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
+                        : tab.color === 'purple'
+                        ? 'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300'
+                        : tab.color === 'orange'
+                        ? 'data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900 data-[state=active]:border-orange-300'
+                        : 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
+                    }`}
                   >
                     <IconComponent className="h-4 w-4" />
                     {tab.label}

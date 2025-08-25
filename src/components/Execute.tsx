@@ -22,8 +22,6 @@ import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { publicClient } from '@/lib/publicClient';
 import { 
   retrieveDataAndProofBaseWithRetry, 
-  calculateRoundId, 
-  getFdcRequestFee,
   FDC_CONSTANTS,
   preparePaymentAttestationRequest,
   verifyPayment
