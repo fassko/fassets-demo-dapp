@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import AssetManagerSettings from '@/components/AssetManagerSettings';
 import Mint from '@/components/Mint';
 import Transfer from '@/components/Transfer';
@@ -11,6 +11,15 @@ import Navigation from '@/components/Navigation';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('asset-manager');
+
+  // Handle navigation state changes
+  useEffect(() => {
+    // If a minting sub-tab is selected, ensure the minting section is properly handled
+    if (['mint-xrp', 'xrp-attestation', 'execute'].includes(activeTab)) {
+      // The navigation component will handle the sub-navigation display
+    }
+  }, [activeTab]);
+
   return (
     <div className="font-sans p-8">
       <main className="flex flex-col gap-2">
