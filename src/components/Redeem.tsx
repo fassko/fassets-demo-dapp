@@ -16,10 +16,7 @@ import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { 
   iAssetManagerAbi,
-  useWriteIFdcHubRequestAttestation,
-  iFdcRequestFeeConfigurationsAbi,
-  iFlareSystemsManagerAbi,
-  iReferencedPaymentNonexistenceVerificationAbi
+  useWriteIFdcHubRequestAttestation
 } from "../generated";
 
 // UI components
@@ -35,7 +32,15 @@ import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
 // Utils
 import { publicClient } from '@/lib/publicClient';
-import { toHex } from '@/lib/utils';
+import { 
+  retrieveDataAndProofBaseWithRetry, 
+  calculateRoundId, 
+  getFdcRequestFee,
+  FDC_CONSTANTS,
+  prepareReferencedPaymentNonexistenceAttestationRequest,
+  verifyReferencedPaymentNonexistence,
+  submitAttestationRequest
+} from '@/lib/fdcUtils';
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -390,297 +395,6 @@ export default function Redeem() {
     setIsProcessing(isRedeemPending || isConfirming);
   }, [isRedeemPending, isConfirming]);
 
-  // FDC Attestation functions
-  const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
-  const VERIFIER_API_KEY_TESTNET = '00000000-0000-0000-0000-000000000000';
-  const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
-  const DA_LAYER_API_URL = `/api/proof-request`;
-  const urlTypeBase = 'xrp';
-  const attestationTypeBase = 'ReferencedPaymentNonexistence';
-  const sourceIdBase = 'testXRP';
-
-  // Sleep utility function
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-  // Base function to prepare attestation request
-  const prepareAttestationRequestBase = async (
-    url: string,
-    apiKey: string,
-    attestationTypeBase: string,
-    sourceIdBase: string,
-    requestBody: {
-      minimalBlockNumber: string;
-      deadlineBlockNumber: string;
-      deadlineTimestamp: string;
-      destinationAddressHash: string;
-      amount: string;
-      standardPaymentReference: string;
-      checkSourceAddresses: boolean;
-      sourceAddressesRoot: string;
-    }
-  ) => {
-    console.log("Url:", url, "\n");
-    const attestationType = toHex(attestationTypeBase);
-    const sourceId = toHex(sourceIdBase);
-
-    const request = {
-      attestationType: attestationType,
-      sourceId: sourceId,
-      requestBody: requestBody,
-    };
-    console.log("Prepared request:\n", request, "\n");
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
-    if (response.status != 200) {
-      throw new Error(`Response status is not OK, status ${response.status} ${response.statusText}\n`);
-    }
-    console.log("Response status is OK\n");
-
-    return await response.json();
-  };
-
-  // Prepare attestation request
-  const prepareAttestationRequest = async (data: {
-    minimalBlockNumber: string;
-    deadlineBlockNumber: string;
-    deadlineTimestamp: string;
-    destinationAddressHash: string;
-    amount: string;
-    standardPaymentReference: string;
-    checkSourceAddresses: boolean;
-    sourceAddressesRoot: string;
-  }) => {
-    const requestBody = {
-      minimalBlockNumber: data.minimalBlockNumber,
-      deadlineBlockNumber: data.deadlineBlockNumber,
-      deadlineTimestamp: data.deadlineTimestamp,
-      destinationAddressHash: data.destinationAddressHash,
-      amount: data.amount,
-      standardPaymentReference: data.standardPaymentReference,
-      checkSourceAddresses: data.checkSourceAddresses,
-      sourceAddressesRoot: data.sourceAddressesRoot,
-      ...(data.checkSourceAddresses && {
-        sourceAddressesRoot: data.sourceAddressesRoot
-      }),
-    };
-
-    const url = `${VERIFIER_URL_TESTNET}verifier/${urlTypeBase}/ReferencedPaymentNonexistence/prepareRequest`;
-    const apiKey = VERIFIER_API_KEY_TESTNET ?? "";
-
-    return await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);
-  };
-
-  // Get FDC request fee
-  const getFdcRequestFee = async (abiEncodedRequest: string) => {
-    if (!fdcAddresses?.fdcRequestFeeConfigurations) {
-      throw new Error('FDC Request Fee Configurations address not loaded');
-    }
-
-    return await publicClient.readContract({
-      address: fdcAddresses.fdcRequestFeeConfigurations,
-      abi: iFdcRequestFeeConfigurationsAbi,
-      functionName: 'getRequestFee',
-      args: [abiEncodedRequest as `0x${string}`],
-    });
-  };
-
-  // Calculate round ID from transaction
-  const calculateRoundId = async (transaction: { receipt: { blockNumber: bigint } }) => {
-    if (!fdcAddresses?.flareSystemsManager) {
-      throw new Error('Flare Systems Manager address not loaded');
-    }
-
-    const blockNumber = transaction.receipt.blockNumber;
-    const block = await publicClient.getBlock({ blockNumber });
-    const blockTimestamp = BigInt(block.timestamp);
-
-    const firsVotingRoundStartTs = BigInt(await publicClient.readContract({
-      address: fdcAddresses.flareSystemsManager,
-      abi: iFlareSystemsManagerAbi,
-      functionName: 'firstVotingRoundStartTs',
-    }));
-
-    const votingEpochDurationSeconds = BigInt(await publicClient.readContract({
-      address: fdcAddresses.flareSystemsManager,
-      abi: iFlareSystemsManagerAbi,
-      functionName: 'votingEpochDurationSeconds',
-    }));
-
-    console.log("Block timestamp:", blockTimestamp, "\n");
-    console.log("First voting round start ts:", firsVotingRoundStartTs, "\n");
-    console.log("Voting epoch duration seconds:", votingEpochDurationSeconds, "\n");
-
-    const roundId = Number((blockTimestamp - firsVotingRoundStartTs) / votingEpochDurationSeconds);
-    console.log("Calculated round id:", roundId, "\n");
-    
-    const currentVotingEpochId = Number(await publicClient.readContract({
-      address: fdcAddresses.flareSystemsManager,
-      abi: iFlareSystemsManagerAbi,
-      functionName: 'getCurrentVotingEpochId',
-    }));
-    console.log("Received round id:", currentVotingEpochId, "\n");
-    
-    return roundId;
-  };
-
-  // Post request to DA Layer
-  const postRequestToDALayer = async (url: string, request: Record<string, unknown>) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'x-api-key': DA_LAYER_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      throw new Error(`DA Layer request failed: ${response.status} ${response.statusText}`);
-    }
-
-    return await response.json();
-  };
-
-  // Retrieve data and proof base function
-  const retrieveDataAndProofBase = async (url: string, abiEncodedRequest: string, roundId: number) => {
-    console.log("Waiting for the round to finalize...");
-    
-    // Wait for round finalization (simplified - just wait a bit)
-    await sleep(30000);
-    console.log("Round finalized!\n");
-
-    const request = {
-      votingRoundId: roundId,
-      requestBytes: abiEncodedRequest,
-    };
-    console.log("Prepared request:\n", request, "\n");
-
-    await sleep(10000);
-    let proof = await postRequestToDALayer(url, request);
-    console.log("Waiting for the DA Layer to generate the proof...");
-    
-    // If we get a successful response with proof data, return immediately
-    if (proof.response && proof.proof && Array.isArray(proof.proof)) {
-      console.log("Proof generated on first attempt!\n");
-      console.log("Proof:", proof, "\n");
-      return proof;
-    }
-    
-    // Only retry if we don't have the proof data yet
-    while (!proof.response || !proof.proof || !Array.isArray(proof.proof)) {
-      await sleep(10000);
-      proof = await postRequestToDALayer(url, request);
-      
-      // If we get a successful response with proof data, break out of the loop
-      if (proof.response && proof.proof && Array.isArray(proof.proof)) {
-        break;
-      }
-    }
-    console.log("Proof generated!\n");
-
-    console.log("Proof:", proof, "\n");
-    return proof;
-  };
-
-  // Retrieve data and proof with retry
-  const retrieveDataAndProofBaseWithRetry = async (
-    url: string,
-    abiEncodedRequest: string,
-    roundId: number,
-    attempts: number = 10
-  ) => {
-    for (let i = 0; i < attempts; i++) {
-      try {
-        return await retrieveDataAndProofBase(url, abiEncodedRequest, roundId);
-      } catch (error) {
-        console.log(error, "\n", "Remaining attempts:", attempts - i, "\n");
-        await sleep(20000);
-      }
-    }
-    throw new Error(`Failed to retrieve data and proofs after ${attempts} attempts`);
-  };
-
-  // Verify payment nonexistence using FDC Verification contract
-  const verifyPaymentNonexistence = async (proofData: any) => {
-    if (!fdcAddresses?.fdcVerification) {
-      throw new Error('FDC Verification address not loaded');
-    }
-
-    if (!proofData.response || !proofData.proof) {
-      throw new Error('Proof data is incomplete');
-    }
-
-    // Extract data from proof response
-    const response = proofData.response;
-    const proof = proofData.proof;
-
-    // Call verifyReferencedPaymentNonexistence function
-    const result = await publicClient.readContract({
-      address: fdcAddresses.fdcVerification,
-      abi: iReferencedPaymentNonexistenceVerificationAbi,
-      functionName: 'verifyReferencedPaymentNonexistence',
-      args: [{
-        merkleProof: proof,
-        data: {
-          attestationType: response.attestationType,
-          sourceId: response.sourceId,
-          votingRound: BigInt(response.votingRound),
-          lowestUsedTimestamp: BigInt(response.lowestUsedTimestamp),
-          requestBody: {
-            minimalBlockNumber: BigInt(response.requestBody.minimalBlockNumber),
-            deadlineBlockNumber: BigInt(response.requestBody.deadlineBlockNumber),
-            deadlineTimestamp: BigInt(response.requestBody.deadlineTimestamp),
-            destinationAddressHash: response.requestBody.destinationAddressHash,
-            amount: BigInt(response.requestBody.amount),
-            standardPaymentReference: response.requestBody.standardPaymentReference,
-            checkSourceAddresses: response.requestBody.checkSourceAddresses,
-            sourceAddressesRoot: response.requestBody.sourceAddressesRoot,
-          },
-          responseBody: {
-            minimalBlockTimestamp: BigInt(response.responseBody.minimalBlockTimestamp),
-            firstOverflowBlockNumber: BigInt(response.responseBody.firstOverflowBlockNumber),
-            firstOverflowBlockTimestamp: BigInt(response.responseBody.firstOverflowBlockTimestamp),
-          },
-        }
-      }],
-    });
-
-    console.log('Payment nonexistence verification result:', result);
-    return result;
-  };
-
-  // Submit attestation request to FDC Hub
-  const submitAttestationRequest = async (abiEncodedRequest: string): Promise<void> => {
-    if (!isConnected) {
-      throw new Error('Please connect your wallet first');
-    }
-
-    if (!fdcAddresses?.fdcHub) {
-      throw new Error('FDC Hub address not loaded');
-    }
-
-    console.log('Submitting attestation request:', abiEncodedRequest);
-    
-    // Get the request fee
-    const requestFee = await getFdcRequestFee(abiEncodedRequest);
-    console.log('Request fee:', requestFee);
-
-    // Submit the attestation request
-    requestAttestation({
-      address: fdcAddresses.fdcHub,
-      args: [abiEncodedRequest as `0x${string}`],
-      value: requestFee,
-    });
-  };
-
   // Execute attestation after successful redemption
   const executeAttestation = async () => {
     if (!redemptionEvent || !deadlineBlockNumber || !deadlineTimestamp) {
@@ -721,7 +435,7 @@ export default function Redeem() {
       };
       
       // Prepare the attestation request using the verifier API
-      const attestationResponse = await prepareAttestationRequest(attestationRequestData);
+      const attestationResponse = await prepareReferencedPaymentNonexistenceAttestationRequest(attestationRequestData);
       console.log('Attestation response:', attestationResponse);
       
       // Create attestation data structure with the real ABI encoded request
@@ -735,7 +449,10 @@ export default function Redeem() {
       // Step 2: Submit attestation request
       setCurrentAttestationStep('Submitting attestation request to blockchain...');
       console.log('Submitting attestation request...');
-      await submitAttestationRequest(data.abiEncodedRequest);
+      if (!fdcAddresses) {
+        throw new Error('FDC contract addresses not loaded');
+      }
+      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, publicClient, requestAttestation);
       
       // Wait for transaction to be mined and calculate round ID
       setCurrentAttestationStep('Waiting for transaction confirmation...');
@@ -757,7 +474,14 @@ export default function Redeem() {
       const processAttestationTransaction = async () => {
         try {
           setCurrentAttestationStep('Calculating round ID from transaction...');
-          const roundId = await calculateRoundId({ receipt: { blockNumber: attestationReceipt.blockNumber } });
+          if (!fdcAddresses) {
+            throw new Error('FDC contract addresses not loaded');
+          }
+          const roundId = await calculateRoundId(
+            { receipt: { blockNumber: attestationReceipt.blockNumber } },
+            fdcAddresses,
+            publicClient
+          );
           console.log('Calculated round ID:', roundId);
           
           // Update attestationData with the calculated round ID
@@ -766,16 +490,20 @@ export default function Redeem() {
           // Start proof retrieval
           setCurrentAttestationStep('Retrieving proof from Data Availability Layer...');
           const proof = await retrieveDataAndProofBaseWithRetry(
-            DA_LAYER_API_URL,
+            FDC_CONSTANTS.DA_LAYER_API_URL,
             attestationData.abiEncodedRequest,
-            roundId
+            roundId,
+            FDC_CONSTANTS.DA_LAYER_API_KEY
           );
           
           setProofData(proof);
           
           // Verify the payment nonexistence
           setCurrentAttestationStep('Verifying payment nonexistence with FDC Verification contract...');
-          const verificationResult = await verifyPaymentNonexistence(proof);
+          if (!fdcAddresses) {
+            throw new Error('FDC contract addresses not loaded');
+          }
+          const verificationResult = await verifyReferencedPaymentNonexistence(proof, fdcAddresses, publicClient);
           setVerificationResult(verificationResult);
           
           setCurrentAttestationStep('');

@@ -20,7 +20,14 @@ import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { publicClient } from '@/lib/publicClient';
-import { toHex } from '@/lib/utils';
+import { 
+  retrieveDataAndProofBaseWithRetry, 
+  calculateRoundId, 
+  getFdcRequestFee,
+  FDC_CONSTANTS,
+  preparePaymentAttestationRequest,
+  verifyPayment
+} from '@/lib/fdcUtils';
 import { decodeEventLog } from 'viem';
 
 export default function Execute() {
@@ -62,153 +69,11 @@ export default function Execute() {
   const { data: receipt, isSuccess: isExecuteSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: executeHash });
 
   // Environment variables and constants
-  const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
-  const DA_LAYER_API_URL = `/api/proof-request`;
-  const urlTypeBase = 'xrp';
   const attestationTypeBase = 'Payment';
-  const sourceIdBase = 'testXRP';
-
-  // Sleep utility function
 
 
-  // Post request to DA Layer
-  const postRequestToDALayer = async (url: string, request: Record<string, unknown>) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'accept': 'application/json',
-        'x-api-key': DA_LAYER_API_KEY,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(request),
-    });
 
-    if (!response.ok) {
-      throw new Error(`DA Layer request failed: ${response.status} ${response.statusText}`);
-    }
 
-    return await response.json();
-  };
-
-  // Retrieve data and proof base function
-  const retrieveDataAndProofBase = async (url: string, abiEncodedRequest: string, roundId: number) => {
-    
-    const request = {
-      votingRoundId: roundId,
-      requestBytes: abiEncodedRequest,
-    };
-    console.log("Prepared request:\n", request, "\n");
-
-    const proof = await postRequestToDALayer(url, request);
-    
-    console.log("Proof:", proof, "\n");
-    return proof;
-  };
-
-  // Base function to prepare attestation request
-  const prepareAttestationRequestBase = async (
-    url: string,
-    apiKey: string,
-    attestationTypeBase: string,
-    sourceIdBase: string,
-    requestBody: { transactionId: string; inUtxo: string; utxo: string }
-  ) => {
-    console.log("Url:", url, "\n");
-    const attestationType = toHex(attestationTypeBase);
-    const sourceId = toHex(sourceIdBase);
-
-    const request = {
-      attestationType: attestationType,
-      sourceId: sourceId,
-      requestBody: requestBody,
-    };
-    console.log("Prepared request:\n", request, "\n");
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-API-KEY": apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
-    if (response.status != 200) {
-      throw new Error(`Response status is not OK, status ${response.status} ${response.statusText}\n`);
-    }
-    console.log("Response status is OK\n");
-
-    return await response.json();
-  };
-
-  // Prepare attestation request
-  const prepareAttestationRequest = async (transactionId: string, inUtxo: string = "0", utxo: string = "0") => {
-    const requestBody = {
-      transactionId: transactionId,
-      inUtxo: inUtxo,
-      utxo: utxo,
-    };
-
-    const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
-    const VERIFIER_API_KEY_TESTNET = '00000000-0000-0000-0000-000000000000';
-    const url = `${VERIFIER_URL_TESTNET}verifier/${urlTypeBase}/Payment/prepareRequest`;
-    const apiKey = VERIFIER_API_KEY_TESTNET ?? "";
-
-    return await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);
-  };
-
-  // Verify payment using FDC Verification contract
-  const verifyPayment = async (proofData: ProofData) => {
-    if (!fdcAddresses?.fdcVerification) {
-      throw new Error('FDC Verification address not loaded');
-    }
-
-    if (!proofData.response || !proofData.proof) {
-      throw new Error('Proof data is incomplete');
-    }
-
-    // Extract data from proof response
-    const response = proofData.response;
-    const proof = proofData.proof;
-
-    // Call verifyPayment function
-    const result = await publicClient.readContract({
-      address: fdcAddresses.fdcVerification,
-      abi: iPaymentVerificationAbi,
-      functionName: 'verifyPayment',
-      args: [{
-        merkleProof: proof,
-        data: {
-          attestationType: response.attestationType,
-          sourceId: response.sourceId,
-          votingRound: BigInt(response.votingRound),
-          lowestUsedTimestamp: BigInt(response.lowestUsedTimestamp),
-          requestBody: {
-            transactionId: response.requestBody.transactionId,
-            inUtxo: BigInt(response.requestBody.inUtxo),
-            utxo: BigInt(response.requestBody.utxo),
-          },
-          responseBody: {
-            blockNumber: BigInt(response.responseBody.blockNumber),
-            blockTimestamp: BigInt(response.responseBody.blockTimestamp),
-            sourceAddressHash: response.responseBody.sourceAddressHash,
-            sourceAddressesRoot: response.responseBody.sourceAddressesRoot,
-            receivingAddressHash: response.responseBody.receivingAddressHash,
-            intendedReceivingAddressHash: response.responseBody.intendedReceivingAddressHash,
-            spentAmount: BigInt(response.responseBody.spentAmount),
-            intendedSpentAmount: BigInt(response.responseBody.intendedSpentAmount),
-            receivedAmount: BigInt(response.responseBody.receivedAmount),
-            intendedReceivedAmount: BigInt(response.responseBody.intendedReceivedAmount),
-            standardPaymentReference: response.responseBody.standardPaymentReference,
-            oneToOne: response.responseBody.oneToOne,
-            status: response.responseBody.status,
-          },
-        }
-      }],
-    });
-
-    console.log('Payment verification result:', result);
-    return result;
-  };
 
   // Main execute minting process
   const executeMintingProcess = async (data: ExecuteFormData) => {
@@ -249,20 +114,26 @@ export default function Execute() {
       console.log('Preparing attestation request...');
       
       // Prepare the attestation request using the verifier API
-      const attestationResponse = await prepareAttestationRequest(transactionId);
+      const attestationResponse = await preparePaymentAttestationRequest(transactionId);
       console.log('Attestation response:', attestationResponse);
 
       // Step 2: Retrieve proof from Data Availability Layer
       setCurrentStep('Retrieving proof from Data Availability Layer...');
-      const proof =  await retrieveDataAndProofBase(DA_LAYER_API_URL,
-                                                    attestationResponse.abiEncodedRequest,
-                                                    fdcRoundId);
+      const proof = await retrieveDataAndProofBaseWithRetry(
+        FDC_CONSTANTS.DA_LAYER_API_URL,
+        attestationResponse.abiEncodedRequest,
+        fdcRoundId,
+        FDC_CONSTANTS.DA_LAYER_API_KEY
+      );
       
       setProofData(proof);
       
       // Step 3: Verify the payment
       setCurrentStep('Verifying payment with FDC Verification contract...');
-      const verificationResult = await verifyPayment(proof);
+      if (!fdcAddresses) {
+        throw new Error('FDC contract addresses not loaded');
+      }
+      const verificationResult = await verifyPayment(proof, fdcAddresses, publicClient);
       setVerificationResult(verificationResult);
       
       if (!verificationResult) {
