@@ -13,13 +13,12 @@ import { Loader2, CheckCircle, XCircle, Copy, Check, Play } from "lucide-react";
 import { ExecuteFormDataSchema, ExecuteFormData, ProofData } from '@/types/executeFormData';
 import { 
   useWriteIAssetManagerExecuteMinting,
-  iPaymentVerificationAbi,
   iAssetManagerAbi
 } from '@/generated';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import { publicClient } from '@/lib/publicClient';
+
 import { 
   retrieveDataAndProofBaseWithRetry, 
   FDC_CONSTANTS,
@@ -65,13 +64,6 @@ export default function Execute() {
 
   const { writeContract: executeMinting, data: executeHash, isPending: isExecutePending, error: writeError } = useWriteIAssetManagerExecuteMinting();
   const { data: receipt, isSuccess: isExecuteSuccess, error: receiptError } = useWaitForTransactionReceipt({ hash: executeHash });
-
-  // Environment variables and constants
-  const attestationTypeBase = 'Payment';
-
-
-
-
 
   // Main execute minting process
   const executeMintingProcess = async (data: ExecuteFormData) => {
@@ -131,7 +123,7 @@ export default function Execute() {
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-      const verificationResult = await verifyPayment(proof, fdcAddresses, publicClient);
+              const verificationResult = await verifyPayment(proof, fdcAddresses);
       setVerificationResult(verificationResult);
       
       if (!verificationResult) {

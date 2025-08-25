@@ -20,7 +20,7 @@ import {
 } from "../generated";
 
 // UI components
-import { ArrowRight, RefreshCw, Loader2, Wallet, XCircle, CheckCircle, Copy, Check, Shield, Lock, Eye, Search } from "lucide-react";
+import { ArrowRight, RefreshCw, Loader2, Wallet, XCircle, CheckCircle, Copy, Check, Shield } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +31,7 @@ import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
 // Utils
-import { publicClient } from '@/lib/publicClient';
+
 import { 
   retrieveDataAndProofBaseWithRetry, 
   calculateRoundId, 
@@ -81,7 +81,8 @@ export default function Redeem() {
     roundId: number | null;
   } | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [proofData, setProofData] = useState<any | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [proofData, setProofData] = useState<{ response: any; proof: any } | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
 
   // Asset manager and XRPL balance hooks
@@ -191,37 +192,8 @@ export default function Redeem() {
       // Get the latest testXRP index after successful redemption
       getTestXrpIndex();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRedeemSuccess, receipt, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
-
-  // Handle receipt errors
-  useEffect(() => {
-    if (receiptError) {
-      console.error('Transaction receipt error:', receiptError);
-      console.error('Receipt error details:', {
-        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
-        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
-        cause: receiptError instanceof Error ? receiptError.cause : undefined,
-        stack: receiptError instanceof Error ? receiptError.stack : undefined
-      });
-      
-      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
-    }
-  }, [receiptError]);
-
-  // Initialize XRPL connection
-  useEffect(() => {
-    const initXrpl = async () => {
-      try {
-        const client = new Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-        setXrplClient(client);
-      } catch (error) {
-        console.error('Error initializing XRPL connection:', error);
-      }
-    };
-
-    initXrpl();
-  }, []);
 
   const getTestXrpIndex = useCallback(async () => {
     if (!xrplClient) {
@@ -275,6 +247,36 @@ export default function Redeem() {
       setDeadlineTimestamp(null);
     }
   }, [xrplClient]);
+
+  // Handle receipt errors
+  useEffect(() => {
+    if (receiptError) {
+      console.error('Transaction receipt error:', receiptError);
+      console.error('Receipt error details:', {
+        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
+        message: receiptError instanceof Error ? receiptError.message : String(receiptError),
+        cause: receiptError instanceof Error ? receiptError.cause : undefined,
+        stack: receiptError instanceof Error ? receiptError.stack : undefined
+      });
+      
+      setError(`Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`);
+    }
+  }, [receiptError]);
+
+  // Initialize XRPL connection
+  useEffect(() => {
+    const initXrpl = async () => {
+      try {
+        const client = new Client('wss://s.altnet.rippletest.net:51233');
+        await client.connect();
+        setXrplClient(client);
+      } catch (error) {
+        console.error('Error initializing XRPL connection:', error);
+      }
+    };
+
+    initXrpl();
+  }, []);
 
   const refreshBalances = useCallback(async () => {
     try {
@@ -451,7 +453,7 @@ export default function Redeem() {
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, publicClient, requestAttestation);
+              await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, requestAttestation);
       
       // Wait for transaction to be mined and calculate round ID
       setCurrentAttestationStep('Waiting for transaction confirmation...');
@@ -478,8 +480,7 @@ export default function Redeem() {
           }
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: attestationReceipt.blockNumber } },
-            fdcAddresses,
-            publicClient
+            fdcAddresses
           );
           console.log('Calculated round ID:', roundId);
           
@@ -502,7 +503,7 @@ export default function Redeem() {
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
           }
-          const verificationResult = await verifyReferencedPaymentNonexistence(proof, fdcAddresses, publicClient);
+          const verificationResult = await verifyReferencedPaymentNonexistence(proof, fdcAddresses);
           setVerificationResult(verificationResult);
           
           setCurrentAttestationStep('');
@@ -516,7 +517,7 @@ export default function Redeem() {
 
       processAttestationTransaction();
     }
-  }, [isAttestationSuccess, attestationReceipt, attestationData]);
+  }, [isAttestationSuccess, attestationReceipt, attestationData, fdcAddresses]);
 
   // Handle attestation write contract errors
   useEffect(() => {

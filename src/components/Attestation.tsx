@@ -16,7 +16,7 @@ import {
 } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import { publicClient } from '@/lib/publicClient';
+
 import { AttestationData } from '@/types/attestation';
 import { 
   retrieveDataAndProofBaseWithRetry, 
@@ -63,8 +63,7 @@ export default function Attestation() {
           }
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: receipt.blockNumber } },
-            fdcAddresses,
-            publicClient
+            fdcAddresses
           );
           console.log('Calculated round ID:', roundId);
           
@@ -87,7 +86,7 @@ export default function Attestation() {
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
           }
-          const verificationResult = await verifyPayment(proof, fdcAddresses, publicClient);
+          const verificationResult = await verifyPayment(proof, fdcAddresses);
           setVerificationResult(verificationResult);
           
           setCurrentStep('');
@@ -101,7 +100,7 @@ export default function Attestation() {
 
       processTransaction();
     }
-  }, [isAttestationSuccess, receipt, attestationData]);
+  }, [isAttestationSuccess, receipt, attestationData, fdcAddresses]);
 
   // Handle write contract errors
   useEffect(() => {
@@ -122,9 +121,6 @@ export default function Attestation() {
       }
     }
   }, [writeError]);
-
-  // Environment variables and constants
-  const attestationTypeBase = 'Payment';
 
   // Main attestation process
   const executeAttestation = async (data: AttestationFormData) => {
@@ -172,7 +168,7 @@ export default function Attestation() {
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, publicClient, requestAttestation);
+      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, requestAttestation);
       
       // Wait for transaction to be mined and calculate round ID
       setCurrentStep('Waiting for transaction confirmation...');

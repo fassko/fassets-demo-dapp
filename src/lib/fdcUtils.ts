@@ -8,6 +8,25 @@ import {
   iReferencedPaymentNonexistenceVerificationAbi
 } from '@/generated';
 import { toHex } from '@/lib/utils';
+import { publicClient } from '@/lib/publicClient';
+
+// Type definitions based on generated ABI structures
+export type PaymentRequestBody = {
+  transactionId: string;
+  inUtxo: string;
+  utxo: string;
+};
+
+export type ReferencedPaymentNonexistenceRequestBody = {
+  minimalBlockNumber: string;
+  deadlineBlockNumber: string;
+  deadlineTimestamp: string;
+  destinationAddressHash: string;
+  amount: string;
+  standardPaymentReference: string;
+  checkSourceAddresses: boolean;
+  sourceAddressesRoot: string;
+};
 
 // Sleep utility function
 export const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -99,8 +118,7 @@ export const retrieveDataAndProofBaseWithRetry = async (
 // Calculate round ID from transaction
 export const calculateRoundId = async (
   transaction: { receipt: { blockNumber: bigint } },
-  fdcAddresses: { flareSystemsManager: string },
-  publicClient: any
+  fdcAddresses: { flareSystemsManager: string }
 ) => {
   if (!fdcAddresses?.flareSystemsManager) {
     throw new Error('Flare Systems Manager address not loaded');
@@ -111,13 +129,13 @@ export const calculateRoundId = async (
   const blockTimestamp = BigInt(block.timestamp);
 
   const firsVotingRoundStartTs = BigInt(await publicClient.readContract({
-    address: fdcAddresses.flareSystemsManager,
+    address: fdcAddresses.flareSystemsManager as `0x${string}`,
     abi: iFlareSystemsManagerAbi,
     functionName: 'firstVotingRoundStartTs',
   }));
 
   const votingEpochDurationSeconds = BigInt(await publicClient.readContract({
-    address: fdcAddresses.flareSystemsManager,
+    address: fdcAddresses.flareSystemsManager as `0x${string}`,
     abi: iFlareSystemsManagerAbi,
     functionName: 'votingEpochDurationSeconds',
   }));
@@ -130,7 +148,7 @@ export const calculateRoundId = async (
   console.log("Calculated round id:", roundId, "\n");
   
   const currentVotingEpochId = Number(await publicClient.readContract({
-    address: fdcAddresses.flareSystemsManager,
+    address: fdcAddresses.flareSystemsManager as `0x${string}`,
     abi: iFlareSystemsManagerAbi,
     functionName: 'getCurrentVotingEpochId',
   }));
@@ -142,15 +160,14 @@ export const calculateRoundId = async (
 // Get FDC request fee
 export const getFdcRequestFee = async (
   abiEncodedRequest: string,
-  fdcAddresses: { fdcRequestFeeConfigurations: string },
-  publicClient: any
+  fdcAddresses: { fdcRequestFeeConfigurations: string }
 ) => {
   if (!fdcAddresses?.fdcRequestFeeConfigurations) {
     throw new Error('FDC Request Fee Configurations address not loaded');
   }
 
   return await publicClient.readContract({
-    address: fdcAddresses.fdcRequestFeeConfigurations,
+    address: fdcAddresses.fdcRequestFeeConfigurations as `0x${string}`,
     abi: iFdcRequestFeeConfigurationsAbi,
     functionName: 'getRequestFee',
     args: [abiEncodedRequest as `0x${string}`],
@@ -173,7 +190,7 @@ export const prepareAttestationRequestBase = async (
   apiKey: string,
   attestationTypeBase: string,
   sourceIdBase: string,
-  requestBody: Record<string, any>
+  requestBody: PaymentRequestBody | ReferencedPaymentNonexistenceRequestBody
 ) => {
   console.log("Url:", url, "\n");
   const attestationType = toHex(attestationTypeBase);
@@ -204,7 +221,7 @@ export const prepareAttestationRequestBase = async (
 
 // Prepare Payment attestation request
 export const preparePaymentAttestationRequest = async (transactionId: string, inUtxo: string = "0", utxo: string = "0") => {
-  const requestBody = {
+  const requestBody: PaymentRequestBody = {
     transactionId: transactionId,
     inUtxo: inUtxo,
     utxo: utxo,
@@ -217,17 +234,8 @@ export const preparePaymentAttestationRequest = async (transactionId: string, in
 };
 
 // Prepare ReferencedPaymentNonexistence attestation request
-export const prepareReferencedPaymentNonexistenceAttestationRequest = async (data: {
-  minimalBlockNumber: string;
-  deadlineBlockNumber: string;
-  deadlineTimestamp: string;
-  destinationAddressHash: string;
-  amount: string;
-  standardPaymentReference: string;
-  checkSourceAddresses: boolean;
-  sourceAddressesRoot: string;
-}) => {
-  const requestBody = {
+export const prepareReferencedPaymentNonexistenceAttestationRequest = async (data: ReferencedPaymentNonexistenceRequestBody) => {
+  const requestBody: ReferencedPaymentNonexistenceRequestBody = {
     minimalBlockNumber: data.minimalBlockNumber,
     deadlineBlockNumber: data.deadlineBlockNumber,
     deadlineTimestamp: data.deadlineTimestamp,
@@ -246,9 +254,9 @@ export const prepareReferencedPaymentNonexistenceAttestationRequest = async (dat
 
 // Verify Payment using FDC Verification contract
 export const verifyPayment = async (
-  proofData: any,
-  fdcAddresses: { fdcVerification: string },
-  publicClient: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  proofData: { response: any; proof: any },
+  fdcAddresses: { fdcVerification: string }
 ) => {
   if (!fdcAddresses?.fdcVerification) {
     throw new Error('FDC Verification address not loaded');
@@ -264,7 +272,7 @@ export const verifyPayment = async (
 
   // Call verifyPayment function
   const result = await publicClient.readContract({
-    address: fdcAddresses.fdcVerification,
+    address: fdcAddresses.fdcVerification as `0x${string}`,
     abi: iPaymentVerificationAbi,
     functionName: 'verifyPayment',
     args: [{
@@ -304,9 +312,9 @@ export const verifyPayment = async (
 
 // Verify ReferencedPaymentNonexistence using FDC Verification contract
 export const verifyReferencedPaymentNonexistence = async (
-  proofData: any,
-  fdcAddresses: { fdcVerification: string },
-  publicClient: any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  proofData: { response: any; proof: any },
+  fdcAddresses: { fdcVerification: string }
 ) => {
   if (!fdcAddresses?.fdcVerification) {
     throw new Error('FDC Verification address not loaded');
@@ -322,7 +330,7 @@ export const verifyReferencedPaymentNonexistence = async (
 
   // Call verifyReferencedPaymentNonexistence function
   const result = await publicClient.readContract({
-    address: fdcAddresses.fdcVerification,
+    address: fdcAddresses.fdcVerification as `0x${string}`,
     abi: iReferencedPaymentNonexistenceVerificationAbi,
     functionName: 'verifyReferencedPaymentNonexistence',
     args: [{
@@ -343,19 +351,9 @@ export const verifyReferencedPaymentNonexistence = async (
           sourceAddressesRoot: response.requestBody.sourceAddressesRoot,
         },
         responseBody: {
-          blockNumber: BigInt(response.responseBody.blockNumber),
-          blockTimestamp: BigInt(response.responseBody.blockTimestamp),
-          sourceAddressHash: response.responseBody.sourceAddressHash,
-          sourceAddressesRoot: response.responseBody.sourceAddressesRoot,
-          receivingAddressHash: response.responseBody.receivingAddressHash,
-          intendedReceivingAddressHash: response.responseBody.intendedReceivingAddressHash,
-          spentAmount: BigInt(response.responseBody.spentAmount),
-          intendedSpentAmount: BigInt(response.responseBody.intendedSpentAmount),
-          receivedAmount: BigInt(response.responseBody.receivedAmount),
-          intendedReceivedAmount: BigInt(response.responseBody.intendedReceivedAmount),
-          standardPaymentReference: response.responseBody.standardPaymentReference,
-          oneToOne: response.responseBody.oneToOne,
-          status: response.responseBody.status,
+          minimalBlockTimestamp: BigInt(response.responseBody.minimalBlockTimestamp),
+          firstOverflowBlockNumber: BigInt(response.responseBody.firstOverflowBlockNumber),
+          firstOverflowBlockTimestamp: BigInt(response.responseBody.firstOverflowBlockTimestamp),
         },
       }
     }],
@@ -369,7 +367,7 @@ export const verifyReferencedPaymentNonexistence = async (
 export const submitAttestationRequest = async (
   abiEncodedRequest: string,
   fdcAddresses: { fdcHub: string; fdcRequestFeeConfigurations: string },
-  publicClient: any,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   requestAttestation: any
 ): Promise<void> => {
   if (!fdcAddresses?.fdcHub) {
@@ -379,7 +377,7 @@ export const submitAttestationRequest = async (
   console.log('Submitting attestation request:', abiEncodedRequest);
   
   // Get the request fee
-  const requestFee = await getFdcRequestFee(abiEncodedRequest, fdcAddresses, publicClient);
+  const requestFee = await getFdcRequestFee(abiEncodedRequest, fdcAddresses);
   console.log('Request fee:', requestFee);
 
   // Submit the attestation request
