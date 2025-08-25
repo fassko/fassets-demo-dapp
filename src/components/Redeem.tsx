@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
@@ -20,18 +19,18 @@ import {
 } from "../generated";
 
 // UI components
-import { ArrowRight, RefreshCw, Loader2, Wallet, XCircle, CheckCircle, Copy, Check, Shield } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
+import XRPLBalanceCard from "@/components/XRPLBalanceCard";
+import XRPLedgerInfoCard from "@/components/XRPLedgerInfoCard";
+import RedemptionEventCard from "@/components/RedemptionEventCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
+
 import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-
-// Utils
-
 import { 
   retrieveDataAndProofBaseWithRetry, 
   calculateRoundId, 
@@ -40,6 +39,11 @@ import {
   verifyReferencedPaymentNonexistence,
   submitAttestationRequest
 } from '@/lib/fdcUtils';
+import {
+  getLatestLedgerInfoWithFDCDeadlines,
+  getAccountBalance,
+  isValidXRPAddress
+} from '@/lib/xrpUtils';
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,7 +52,6 @@ export default function Redeem() {
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
-  const [xrplClient, setXrplClient] = useState<Client | null>(null);
 
   const [redemptionEvent, setRedemptionEvent] = useState<{
     agentVault: string;
@@ -196,49 +199,20 @@ export default function Redeem() {
   }, [isRedeemSuccess, receipt, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
 
   const getTestXrpIndex = useCallback(async () => {
-    if (!xrplClient) {
-      console.warn('XRPL client not available');
-      return;
-    }
-
     try {
       console.log('Fetching latest testXRP index and close time...');
       
-      // Get the latest ledger info
-      const ledgerInfo = await xrplClient.request({
-        command: 'ledger',
-        ledger_index: 'validated'
-      });
+      const { ledgerInfo, fdcDeadlines } = await getLatestLedgerInfoWithFDCDeadlines();
       
-      console.log('Latest ledger info:', ledgerInfo);
+      setTestXrpIndex(ledgerInfo.ledgerIndex.toString());
+      setCloseTime(ledgerInfo.closeTime.toString());
+      setDeadlineBlockNumber(fdcDeadlines.deadlineBlockNumber);
+      setDeadlineTimestamp(fdcDeadlines.deadlineTimestamp);
       
-      // Get the latest testXRP index from the ledger
-      const testXrpIndexValue = ledgerInfo.result.ledger_index;
-      setTestXrpIndex(testXrpIndexValue.toString());
-      
-      // Get the close time (latest timestamp)
-      const closeTimeValue = ledgerInfo.result.ledger.close_time;
-      setCloseTime(closeTimeValue.toString());
-      
-      // Calculate FDC deadline values
-      // L = latest validated ledger_index
-      // T_ripple = that ledger's close_time (Ripple epoch seconds)
-      const L = testXrpIndexValue;
-      const T_ripple = closeTimeValue;
-      
-      // deadlineBlockNumber = L + 225 (≈ 225 ledgers of confirmation)
-      const deadlineBlockNumberValue = L + 225;
-      setDeadlineBlockNumber(deadlineBlockNumberValue.toString());
-      
-      // deadlineTimestamp = (T_ripple + 946684800) + 900
-      // (add 946,684,800 to convert Ripple→UNIX, then add ~15 minutes for 3 ledgers)
-      const deadlineTimestampValue = (T_ripple + 946684800) + 900;
-      setDeadlineTimestamp(deadlineTimestampValue.toString());
-      
-      console.log('Latest testXRP index:', testXrpIndexValue);
-      console.log('Latest close time:', closeTimeValue);
-      console.log('FDC deadline block number:', deadlineBlockNumberValue);
-      console.log('FDC deadline timestamp:', deadlineTimestampValue);
+      console.log('Latest testXRP index:', ledgerInfo.ledgerIndex);
+      console.log('Latest close time:', ledgerInfo.closeTime);
+      console.log('FDC deadline block number:', fdcDeadlines.deadlineBlockNumber);
+      console.log('FDC deadline timestamp:', fdcDeadlines.deadlineTimestamp);
     } catch (error) {
       console.error('Error fetching testXRP index and close time:', error);
       setTestXrpIndex(null);
@@ -246,7 +220,7 @@ export default function Redeem() {
       setDeadlineBlockNumber(null);
       setDeadlineTimestamp(null);
     }
-  }, [xrplClient]);
+  }, []);
 
   // Handle receipt errors
   useEffect(() => {
@@ -263,35 +237,15 @@ export default function Redeem() {
     }
   }, [receiptError]);
 
-  // Initialize XRPL connection
-  useEffect(() => {
-    const initXrpl = async () => {
-      try {
-        const client = new Client('wss://s.altnet.rippletest.net:51233');
-        await client.connect();
-        setXrplClient(client);
-      } catch (error) {
-        console.error('Error initializing XRPL connection:', error);
-      }
-    };
 
-    initXrpl();
-  }, []);
 
   const refreshBalances = useCallback(async () => {
     try {
       // Refresh XRPL balance
-      if (xrplClient && xrplAddress) {
+      if (xrplAddress) {
         try {
-          const accountInfo = await xrplClient.request({
-            command: 'account_info',
-            account: xrplAddress,
-            ledger_index: 'validated'
-          });
-          
-          const balanceInDrops = accountInfo.result.account_data.Balance;
-          const balanceInXRP = parseFloat(balanceInDrops) / 1000000;
-          setXrplBalance(balanceInXRP.toString());
+          const accountInfo = await getAccountBalance(xrplAddress);
+          setXrplBalance(accountInfo.balanceInXRP);
         } catch (error) {
           console.error('Error fetching XRPL balance:', error);
           setXrplBalance('0');
@@ -305,19 +259,19 @@ export default function Redeem() {
     } catch (error) {
       console.error('Error refreshing balances:', error);
     }
-  }, [xrplClient, xrplAddress, userAddress, settings, assetManagerAddress, refetchFxrpBalance]);
+  }, [xrplAddress, userAddress, settings, assetManagerAddress, refetchFxrpBalance]);
 
-  // Refresh XRPL balance when client and address are available
+  // Refresh XRPL balance when address is available
   useEffect(() => {
-    if (xrplClient && xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
+    if (xrplAddress && xrplAddress.startsWith('r') && xrplAddress.length >= 25) {
       refreshBalances();
     }
-  }, [xrplClient, xrplAddress, refreshBalances]);
+  }, [xrplAddress, refreshBalances]);
 
   const isValidXrplAddress = (address: string): boolean => {
     try {
       RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({ xrplAddress: address });
-      return true;
+      return isValidXRPAddress(address);
     } catch {
       return false;
     }
@@ -329,9 +283,7 @@ export default function Redeem() {
     
     if (isValid) {
       setXrplAddress(address);
-      if (xrplClient) {
-        refreshBalances();
-      }
+      refreshBalances();
     } else {
       setXrplAddress(address);
     }
@@ -453,7 +405,7 @@ export default function Redeem() {
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-              await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, requestAttestation);
+      await submitAttestationRequest(data.abiEncodedRequest, fdcAddresses, requestAttestation);
       
       // Wait for transaction to be mined and calculate round ID
       setCurrentAttestationStep('Waiting for transaction confirmation...');
@@ -556,34 +508,10 @@ export default function Redeem() {
           {/* Balance Overview Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {/* XRPL Balance Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-900">
-                  <Wallet className="h-5 w-5 text-green-600" />
-                  XRPL Balance
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Wallet className="h-5 w-5 text-green-600" />
-                    <Badge variant="secondary" className="text-lg bg-green-100 text-green-800">
-                      {xrplBalance} XRP
-                    </Badge>
-                  </div>
-                  <Button 
-                    onClick={refreshBalances}
-                    variant="outline"
-                    size="sm"
-                    className="border-green-300 hover:bg-green-100 cursor-pointer"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Refresh
-                  </Button>
-                </div>
-                <p className="text-xs text-green-600 mt-2">XRPL Balance</p>
-              </CardContent>
-            </Card>
+            <XRPLBalanceCard 
+              balance={xrplBalance}
+              onRefresh={refreshBalances}
+            />
 
             {/* FXRP Balance Card */}
             <FXRPBalanceCard
@@ -711,396 +639,34 @@ export default function Redeem() {
               </Alert>
             )}
 
-            {redemptionEvent && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-green-900">Redemption Event</h3>
-                
-                <div className="space-y-3">
-                  <h4 className="text-md font-semibold text-green-800">RedemptionRequested Event</h4>
-                  <div className="bg-green-50 border border-green-200 rounded p-4 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Request ID:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.requestId}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Payment Reference:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.paymentReference}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Agent Vault:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.agentVault}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Redeemer:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.redeemer}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Payment Address:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.paymentAddress}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Value UBA:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.valueUBA}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Fee UBA:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.feeUBA}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Executor:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.executor}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Executor Fee Nat Wei:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.executorFeeNatWei}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">First Underlying Block:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.firstUnderlyingBlock}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Last Underlying Block:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.lastUnderlyingBlock}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Last Underlying Timestamp:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1">
-                        {redemptionEvent.lastUnderlyingTimestamp}
-                      </code>
-                    </div>
-                  </div>
-                </div>
-
-                {/* FDC Attestation Section */}
-                <div className="space-y-4">
-                  <h4 className="text-md font-semibold text-green-800">FDC Payment Nonexistence Attestation</h4>
-                  
-                  <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Minimal Block Number:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {redemptionEvent.firstUnderlyingBlock}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Deadline Block Number:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {deadlineBlockNumber || 'Calculating...'}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Deadline Timestamp:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {deadlineTimestamp || 'Calculating...'}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Destination Address:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {redemptionEvent.paymentAddress}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Value UBA:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {redemptionEvent.valueUBA}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Fee UBA:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {redemptionEvent.feeUBA}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Net Amount (UBA):</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {(BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)).toString()}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Net Amount (XRP):</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {((BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)) / BigInt(1000000)).toString()}
-                      </code>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Payment Reference:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {redemptionEvent.paymentReference}
-                      </code>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={executeAttestation}
-                    disabled={isAttestationLoading || !deadlineBlockNumber || !deadlineTimestamp || !isConnected || isLoadingAddresses || !!addressError}
-                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
-                  >
-                    {isAttestationLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {currentAttestationStep || 'Executing Attestation...'}
-                      </>
-                                      ) : (
-                    <>
-                      <Shield className="mr-2 h-4 w-4" />
-                      Execute Payment Nonexistence Attestation
-                    </>
-                  )}
-                  </Button>
-
-                  {isAttestationLoading && currentAttestationStep && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                        <span className="text-blue-800 font-medium">{currentAttestationStep}</span>
-                      </div>
-                      <p className="text-blue-600 text-sm mt-2">
-                        Please wait while the attestation process completes. This may take several minutes.
-                      </p>
-                    </div>
-                  )}
-
-                  {attestationError && (
-                    <Alert variant="destructive">
-                      <XCircle className="h-4 w-4" />
-                      <AlertDescription>{attestationError}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {attestationSuccess && (
-                    <Alert className="bg-green-50 border-green-200 text-green-800">
-                      <CheckCircle className="h-4 w-4" />
-                      <AlertDescription>{attestationSuccess}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  {attestationData && (
-                    <div className="space-y-4">
-                      <h5 className="text-md font-semibold text-green-800">Attestation Data</h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">ABI Encoded Request:</span>
-                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
-                            {attestationData.abiEncodedRequest.length > 20 
-                              ? `${attestationData.abiEncodedRequest.slice(0, 10)}...${attestationData.abiEncodedRequest.slice(-10)}`
-                              : attestationData.abiEncodedRequest
-                            }
-                          </code>
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboardWithTimeout(attestationData.abiEncodedRequest, setCopiedText)}
-                            className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
-                          >
-                            {copiedText === attestationData.abiEncodedRequest ? (
-                              <Check className="h-3 w-3 text-green-600" />
-                            ) : (
-                              <Copy className="h-3 w-3 text-gray-500" />
-                            )}
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">Round ID:</span>
-                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
-                            {attestationData.roundId ?? 'Calculating...'}
-                          </code>
-                          {attestationData.roundId !== null && (
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboardWithTimeout(attestationData.roundId!.toString(), setCopiedText)}
-                              className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
-                            >
-                              {copiedText === attestationData.roundId!.toString() ? (
-                                <Check className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-gray-500" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {verificationResult !== null && (
-                    <div className="space-y-4">
-                      <h5 className="text-md font-semibold text-green-800">Payment Nonexistence Verification Result</h5>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Verification Status:</span>
-                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          verificationResult 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-red-100 text-red-800'
-                        }`}>
-                          {verificationResult ? '✅ Payment Nonexistence Verified' : '❌ Payment Found or Verification Failed'}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {proofData && (
-                    <div className="space-y-4">
-                      <h5 className="text-md font-semibold text-green-800">Proof Data</h5>
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">Voting Round:</span>
-                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
-                            {proofData.response?.votingRound ?? 'Not available'}
-                          </code>
-                          {proofData.response?.votingRound && (
-                            <button
-                              type="button"
-                              onClick={() => copyToClipboardWithTimeout(proofData.response.votingRound.toString(), setCopiedText)}
-                              className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
-                            >
-                              {copiedText === proofData.response.votingRound.toString() ? (
-                                <Check className="h-3 w-3 text-green-600" />
-                              ) : (
-                                <Copy className="h-3 w-3 text-gray-500" />
-                              )}
-                            </button>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <span className="font-medium">Proof Array:</span>
-                          <div className="space-y-1">
-                            {proofData.proof && Array.isArray(proofData.proof) && proofData.proof.map((proofItem: string, index: number) => (
-                              <div key={index} className="flex items-center gap-2">
-                                <span className="text-sm text-gray-600 w-8">[{index}]:</span>
-                                <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
-                                  {proofItem.length > 20 
-                                    ? `${proofItem.slice(0, 10)}...${proofItem.slice(-10)}`
-                                    : proofItem
-                                  }
-                                </code>
-                                <button
-                                  type="button"
-                                  onClick={() => copyToClipboardWithTimeout(proofItem, setCopiedText)}
-                                  className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
-                                >
-                                  {copiedText === proofItem ? (
-                                    <Check className="h-3 w-3 text-green-600" />
-                                  ) : (
-                                    <Copy className="h-3 w-3 text-gray-500" />
-                                  )}
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <span className="font-medium">Response Body:</span>
-                          <div className="bg-gray-100 rounded p-3 text-sm font-mono">
-                            <div><strong>Minimal Block Timestamp:</strong> {proofData.response?.responseBody?.minimalBlockTimestamp}</div>
-                            <div><strong>First Overflow Block Number:</strong> {proofData.response?.responseBody?.firstOverflowBlockNumber}</div>
-                            <div><strong>First Overflow Block Timestamp:</strong> {proofData.response?.responseBody?.firstOverflowBlockTimestamp}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+                        {redemptionEvent && (
+              <RedemptionEventCard
+                redemptionEvent={redemptionEvent}
+                deadlineBlockNumber={deadlineBlockNumber}
+                deadlineTimestamp={deadlineTimestamp}
+                isAttestationLoading={isAttestationLoading}
+                currentAttestationStep={currentAttestationStep}
+                isConnected={isConnected}
+                isLoadingAddresses={isLoadingAddresses}
+                addressError={addressError}
+                attestationError={attestationError}
+                attestationSuccess={attestationSuccess}
+                attestationData={attestationData}
+                verificationResult={verificationResult}
+                proofData={proofData}
+                copiedText={copiedText}
+                onExecuteAttestation={executeAttestation}
+                onCopyToClipboard={copyToClipboardWithTimeout}
+                setCopiedText={setCopiedText}
+              />
             )}
 
-            {(testXrpIndex || closeTime || deadlineBlockNumber || deadlineTimestamp) && (
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-green-900">Latest XRPL Ledger Info</h3>
-                <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3">
-                  {testXrpIndex && (
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">TestXRP Index:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {testXrpIndex}
-                      </code>
-                    </div>
-                  )}
-                  {closeTime && (
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Close Time:</span>
-                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                        {closeTime}
-                      </code>
-                    </div>
-                  )}
-                  {closeTime && (
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-green-900">Readable Time:</span>
-                      <span className="text-sm text-green-800">
-                        {new Date((parseInt(closeTime) + 946684800) * 1000).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
-                  
-                  {/* FDC Deadline Values */}
-                  {(deadlineBlockNumber || deadlineTimestamp) && (
-                    <div className="pt-3 border-t border-green-300 space-y-2">
-                      <h4 className="text-md font-semibold text-green-800">FDC Deadline Values</h4>
-                      
-                      {deadlineBlockNumber && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-green-900">Deadline Block Number:</span>
-                          <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                            {deadlineBlockNumber}
-                          </code>
-                        </div>
-                      )}
-                      
-                      {deadlineTimestamp && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-green-900">Deadline Timestamp:</span>
-                          <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
-                            {deadlineTimestamp}
-                          </code>
-                        </div>
-                      )}
-                      
-                      {deadlineTimestamp && (
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-green-900">Deadline Readable:</span>
-                          <span className="text-sm text-green-800">
-                            {new Date(parseInt(deadlineTimestamp) * 1000).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                      
-                      <p className="text-xs text-green-600">
-                        FDC deadline: ~15 minutes confirmation window
-                      </p>
-                    </div>
-                  )}
-                  
-                  <p className="text-xs text-green-600 mt-2">
-                    Latest validated ledger information from XRPL testnet
-                  </p>
-                </div>
-              </div>
-            )}
+                        <XRPLedgerInfoCard
+              testXrpIndex={testXrpIndex}
+              closeTime={closeTime}
+              deadlineBlockNumber={deadlineBlockNumber}
+              deadlineTimestamp={deadlineTimestamp}
+            />
           </form>
         </CardContent>
       </Card>
