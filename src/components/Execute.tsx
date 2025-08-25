@@ -13,8 +13,8 @@ import { Loader2, CheckCircle, XCircle, Copy, Check, Play } from 'lucide-react';
 import {
   ExecuteFormDataSchema,
   ExecuteFormData,
-  ProofData,
 } from '@/types/executeFormData';
+import { PaymentProofData } from '@/lib/fdcUtils';
 import {
   useWriteIAssetManagerExecuteMinting,
   iAssetManagerAbi,
@@ -24,7 +24,7 @@ import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
 import {
-  retrieveDataAndProofBaseWithRetry,
+  retrievePaymentDataAndProofWithRetry,
   FDC_CONSTANTS,
   preparePaymentAttestationRequest,
   verifyPayment,
@@ -45,7 +45,7 @@ export default function Execute() {
   const [success, setSuccess] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<string>('');
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [proofData, setProofData] = useState<ProofData | null>(null);
+  const [proofData, setProofData] = useState<PaymentProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(
     null
   );
@@ -133,7 +133,7 @@ export default function Execute() {
 
       // Step 2: Retrieve proof from Data Availability Layer
       setCurrentStep('Retrieving proof from Data Availability Layer...');
-      const proof = await retrieveDataAndProofBaseWithRetry(
+      const proof = await retrievePaymentDataAndProofWithRetry(
         FDC_CONSTANTS.DA_LAYER_API_URL,
         attestationResponse.abiEncodedRequest,
         fdcRoundId,

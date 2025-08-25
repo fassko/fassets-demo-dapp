@@ -28,6 +28,62 @@ export type ReferencedPaymentNonexistenceRequestBody = {
   sourceAddressesRoot: string;
 };
 
+// Proof data types for each attestation type
+export type PaymentProofData = {
+  response: {
+    attestationType: `0x${string}`;
+    sourceId: `0x${string}`;
+    votingRound: string;
+    lowestUsedTimestamp: string;
+    requestBody: {
+      transactionId: `0x${string}`;
+      inUtxo: string;
+      utxo: string;
+    };
+    responseBody: {
+      blockNumber: string;
+      blockTimestamp: string;
+      sourceAddressHash: `0x${string}`;
+      sourceAddressesRoot: `0x${string}`;
+      receivingAddressHash: `0x${string}`;
+      intendedReceivingAddressHash: `0x${string}`;
+      spentAmount: string;
+      intendedSpentAmount: string;
+      receivedAmount: string;
+      intendedReceivedAmount: string;
+      standardPaymentReference: `0x${string}`;
+      oneToOne: boolean;
+      status: number;
+    };
+  };
+  proof: `0x${string}`[];
+};
+
+export type ReferencedPaymentNonexistenceProofData = {
+  response: {
+    attestationType: `0x${string}`;
+    sourceId: `0x${string}`;
+    votingRound: string;
+    lowestUsedTimestamp: string;
+    requestBody: {
+      minimalBlockNumber: string;
+      deadlineBlockNumber: string;
+      deadlineTimestamp: string;
+      destinationAddressHash: `0x${string}`;
+      amount: string;
+      standardPaymentReference: `0x${string}`;
+      checkSourceAddresses: boolean;
+      sourceAddressesRoot: `0x${string}`;
+    };
+    responseBody: {
+      minimalBlockTimestamp: string;
+      firstOverflowBlockNumber: string;
+      firstOverflowBlockTimestamp: string;
+    };
+  };
+  proof: `0x${string}`[];
+};
+
 // Sleep utility function
 export const sleep = (ms: number) =>
   new Promise(resolve => setTimeout(resolve, ms));
@@ -57,13 +113,15 @@ export const postRequestToDALayer = async (
   return await response.json();
 };
 
-// Retrieve data and proof base function
-export const retrieveDataAndProofBase = async (
+// Generic function to retrieve data and proof for any attestation type
+export const retrieveDataAndProof = async <
+  T extends PaymentProofData | ReferencedPaymentNonexistenceProofData,
+>(
   url: string,
   abiEncodedRequest: string,
   roundId: number,
   apiKey: string
-) => {
+): Promise<T> => {
   console.log('Waiting for the round to finalize...');
 
   // Wait for round finalization (simplified - just wait a bit)
@@ -84,7 +142,7 @@ export const retrieveDataAndProofBase = async (
   if (proof.response && proof.proof && Array.isArray(proof.proof)) {
     console.log('Proof generated on first attempt!\n');
     console.log('Proof:', proof, '\n');
-    return proof;
+    return proof as T;
   }
 
   // Only retry if we don't have the proof data yet
@@ -100,20 +158,51 @@ export const retrieveDataAndProofBase = async (
   console.log('Proof generated!\n');
 
   console.log('Proof:', proof, '\n');
-  return proof;
+  return proof as T;
 };
 
-// Retrieve data and proof with retry
-export const retrieveDataAndProofBaseWithRetry = async (
+// Type-safe wrapper functions for specific attestation types
+export const retrievePaymentDataAndProof = async (
+  url: string,
+  abiEncodedRequest: string,
+  roundId: number,
+  apiKey: string
+): Promise<PaymentProofData> => {
+  return retrieveDataAndProof<PaymentProofData>(
+    url,
+    abiEncodedRequest,
+    roundId,
+    apiKey
+  );
+};
+
+export const retrieveReferencedPaymentNonexistenceDataAndProof = async (
+  url: string,
+  abiEncodedRequest: string,
+  roundId: number,
+  apiKey: string
+): Promise<ReferencedPaymentNonexistenceProofData> => {
+  return retrieveDataAndProof<ReferencedPaymentNonexistenceProofData>(
+    url,
+    abiEncodedRequest,
+    roundId,
+    apiKey
+  );
+};
+
+// Generic retry wrapper function
+export const retrieveDataAndProofWithRetry = async <
+  T extends PaymentProofData | ReferencedPaymentNonexistenceProofData,
+>(
   url: string,
   abiEncodedRequest: string,
   roundId: number,
   apiKey: string,
   attempts: number = 10
-) => {
+): Promise<T> => {
   for (let i = 0; i < attempts; i++) {
     try {
-      return await retrieveDataAndProofBase(
+      return await retrieveDataAndProof<T>(
         url,
         abiEncodedRequest,
         roundId,
@@ -128,6 +217,40 @@ export const retrieveDataAndProofBaseWithRetry = async (
     `Failed to retrieve data and proofs after ${attempts} attempts`
   );
 };
+
+// Type-safe retry wrapper functions for specific attestation types
+export const retrievePaymentDataAndProofWithRetry = async (
+  url: string,
+  abiEncodedRequest: string,
+  roundId: number,
+  apiKey: string,
+  attempts: number = 10
+): Promise<PaymentProofData> => {
+  return retrieveDataAndProofWithRetry<PaymentProofData>(
+    url,
+    abiEncodedRequest,
+    roundId,
+    apiKey,
+    attempts
+  );
+};
+
+export const retrieveReferencedPaymentNonexistenceDataAndProofWithRetry =
+  async (
+    url: string,
+    abiEncodedRequest: string,
+    roundId: number,
+    apiKey: string,
+    attempts: number = 10
+  ): Promise<ReferencedPaymentNonexistenceProofData> => {
+    return retrieveDataAndProofWithRetry<ReferencedPaymentNonexistenceProofData>(
+      url,
+      abiEncodedRequest,
+      roundId,
+      apiKey,
+      attempts
+    );
+  };
 
 // Calculate round ID from transaction
 export const calculateRoundId = async (
@@ -300,8 +423,7 @@ export const prepareReferencedPaymentNonexistenceAttestationRequest = async (
 
 // Verify Payment using FDC Verification contract
 export const verifyPayment = async (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  proofData: { response: any; proof: any },
+  proofData: PaymentProofData,
   fdcAddresses: { fdcVerification: string }
 ) => {
   if (!fdcAddresses?.fdcVerification) {
@@ -366,8 +488,7 @@ export const verifyPayment = async (
 
 // Verify ReferencedPaymentNonexistence using FDC Verification contract
 export const verifyReferencedPaymentNonexistence = async (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  proofData: { response: any; proof: any },
+  proofData: ReferencedPaymentNonexistenceProofData,
   fdcAddresses: { fdcVerification: string }
 ) => {
   if (!fdcAddresses?.fdcVerification) {
@@ -447,7 +568,7 @@ export const submitAttestationRequest = async (
 
   // Submit the attestation request
   requestAttestation({
-    address: fdcAddresses.fdcHub,
+    address: fdcAddresses.fdcHub as `0x${string}`,
     args: [abiEncodedRequest as `0x${string}`],
     value: requestFee,
   });

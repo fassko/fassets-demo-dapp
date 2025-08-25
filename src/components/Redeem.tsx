@@ -35,12 +35,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
-  retrieveDataAndProofBaseWithRetry,
+  retrieveReferencedPaymentNonexistenceDataAndProofWithRetry,
   calculateRoundId,
   FDC_CONSTANTS,
   prepareReferencedPaymentNonexistenceAttestationRequest,
   verifyReferencedPaymentNonexistence,
   submitAttestationRequest,
+  ReferencedPaymentNonexistenceProofData,
 } from '@/lib/fdcUtils';
 import {
   getLatestLedgerInfoWithFDCDeadlines,
@@ -95,12 +96,8 @@ export default function Redeem() {
     roundId: number | null;
   } | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [proofData, setProofData] = useState<{
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    response: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    proof: any;
-  } | null>(null);
+  const [proofData, setProofData] =
+    useState<ReferencedPaymentNonexistenceProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(
     null
   );
@@ -571,12 +568,13 @@ export default function Redeem() {
           setCurrentAttestationStep(
             'Retrieving proof from Data Availability Layer...'
           );
-          const proof = await retrieveDataAndProofBaseWithRetry(
-            FDC_CONSTANTS.DA_LAYER_API_URL,
-            attestationData.abiEncodedRequest,
-            roundId,
-            FDC_CONSTANTS.DA_LAYER_API_KEY
-          );
+          const proof =
+            await retrieveReferencedPaymentNonexistenceDataAndProofWithRetry(
+              FDC_CONSTANTS.DA_LAYER_API_URL,
+              attestationData.abiEncodedRequest,
+              roundId,
+              FDC_CONSTANTS.DA_LAYER_API_KEY
+            );
 
           setProofData(proof);
 

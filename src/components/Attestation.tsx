@@ -13,15 +13,15 @@ import { Loader2, CheckCircle, XCircle, Copy, Check } from 'lucide-react';
 import {
   AttestationFormDataSchema,
   AttestationFormData,
-  ProofData,
 } from '@/types/attestationFormData';
+import { PaymentProofData } from '@/lib/fdcUtils';
 import { useWriteIFdcHubRequestAttestation } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 
 import { AttestationData } from '@/types/attestation';
 import {
-  retrieveDataAndProofBaseWithRetry,
+  retrievePaymentDataAndProofWithRetry,
   calculateRoundId,
   FDC_CONSTANTS,
   preparePaymentAttestationRequest,
@@ -45,7 +45,7 @@ export default function Attestation() {
   const [attestationData, setAttestationData] =
     useState<AttestationData | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
-  const [proofData, setProofData] = useState<ProofData | null>(null);
+  const [proofData, setProofData] = useState<PaymentProofData | null>(null);
   const [verificationResult, setVerificationResult] = useState<boolean | null>(
     null
   );
@@ -93,7 +93,7 @@ export default function Attestation() {
 
           // Start proof retrieval
           setCurrentStep('Retrieving proof from Data Availability Layer...');
-          const proof = await retrieveDataAndProofBaseWithRetry(
+          const proof = await retrievePaymentDataAndProofWithRetry(
             FDC_CONSTANTS.DA_LAYER_API_URL,
             attestationData.abiEncodedRequest,
             Number(roundId),
