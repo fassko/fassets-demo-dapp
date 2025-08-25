@@ -5,7 +5,7 @@ import { Client } from 'xrpl';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { decodeEventLog } from 'viem';
+import { decodeEventLog, keccak256 } from 'viem';
 
 // Form data schema
 import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFormData';
@@ -13,10 +13,17 @@ import { RedeemXRPFormDataSchema, RedeemXRPFormData } from '@/types/redeemXRPFor
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { iAssetManagerAbi } from "../generated";
+import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { 
+  iAssetManagerAbi,
+  useWriteIFdcHubRequestAttestation,
+  iFdcRequestFeeConfigurationsAbi,
+  iFlareSystemsManagerAbi,
+  iReferencedPaymentNonexistenceVerificationAbi
+} from "../generated";
 
 // UI components
-import { ArrowRight, RefreshCw, Loader2, Wallet } from "lucide-react";
+import { ArrowRight, RefreshCw, Loader2, Wallet, XCircle, CheckCircle, Copy, Check, Shield, Lock, Eye, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +31,11 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { FXRPBalanceCard } from "@/components/ui/fxrp-balance-card";
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+
+// Utils
+import { publicClient } from '@/lib/publicClient';
+import { toHex } from '@/lib/utils';
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -48,9 +60,34 @@ export default function Redeem() {
     executor: string;
     executorFeeNatWei: string;
   } | null>(null);
+  
+  // FDC attestation deadline values
+  const [testXrpIndex, setTestXrpIndex] = useState<string | null>(null);
+  const [closeTime, setCloseTime] = useState<string | null>(null);
+  const [deadlineBlockNumber, setDeadlineBlockNumber] = useState<string | null>(null);
+  const [deadlineTimestamp, setDeadlineTimestamp] = useState<string | null>(null);
 
+  // FDC Attestation state
+  const [isAttestationLoading, setIsAttestationLoading] = useState<boolean>(false);
+  const [attestationError, setAttestationError] = useState<string | null>(null);
+  const [attestationSuccess, setAttestationSuccess] = useState<string | null>(null);
+  const [currentAttestationStep, setCurrentAttestationStep] = useState<string>('');
+  const [attestationData, setAttestationData] = useState<{
+    abiEncodedRequest: string;
+    roundId: number | null;
+  } | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
+  const [proofData, setProofData] = useState<any | null>(null);
+  const [verificationResult, setVerificationResult] = useState<boolean | null>(null);
+
+  // Asset manager and XRPL balance hooks
   const { assetManagerAddress, settings, isLoading: isLoadingSettings, error: assetManagerError } = useAssetManager();
   const { fxrpBalance, refetchFxrpBalance, balanceError, userAddress, isConnected } = useFXRPBalance();
+  const { addresses: fdcAddresses, isLoading: isLoadingAddresses, error: addressError } = useFdcContracts();
+
+  // FDC Attestation contract functions
+  const { writeContract: requestAttestation, data: attestationHash, error: writeAttestationError } = useWriteIFdcHubRequestAttestation();
+  const { data: attestationReceipt, isSuccess: isAttestationSuccess } = useWaitForTransactionReceipt({ hash: attestationHash });
 
   const {
     register,
@@ -75,8 +112,6 @@ export default function Redeem() {
   const { isLoading: isConfirming, isSuccess: isRedeemSuccess, data: receipt, error: receiptError } = useWaitForTransactionReceipt({
     hash: redeemHash,
   });
-
-
 
   // Handle successful redemption
   useEffect(() => {
@@ -136,6 +171,7 @@ export default function Redeem() {
             });
             
             // Break after finding the first RedemptionRequested event
+            // For this demo app we only need to process the first event
             break;
           }
         } catch (error) {
@@ -147,6 +183,9 @@ export default function Redeem() {
       setSuccess(`Successfully redeemed ${watchedAmount} lots to ${xrplAddress}`);
       reset();
       refetchFxrpBalance();
+      
+      // Get the latest testXRP index after successful redemption
+      getTestXrpIndex();
     }
   }, [isRedeemSuccess, receipt, watchedAmount, xrplAddress, reset, refetchFxrpBalance]);
 
@@ -179,6 +218,59 @@ export default function Redeem() {
 
     initXrpl();
   }, []);
+
+  const getTestXrpIndex = useCallback(async () => {
+    if (!xrplClient) {
+      console.warn('XRPL client not available');
+      return;
+    }
+
+    try {
+      console.log('Fetching latest testXRP index and close time...');
+      
+      // Get the latest ledger info
+      const ledgerInfo = await xrplClient.request({
+        command: 'ledger',
+        ledger_index: 'validated'
+      });
+      
+      console.log('Latest ledger info:', ledgerInfo);
+      
+      // Get the latest testXRP index from the ledger
+      const testXrpIndexValue = ledgerInfo.result.ledger_index;
+      setTestXrpIndex(testXrpIndexValue.toString());
+      
+      // Get the close time (latest timestamp)
+      const closeTimeValue = ledgerInfo.result.ledger.close_time;
+      setCloseTime(closeTimeValue.toString());
+      
+      // Calculate FDC deadline values
+      // L = latest validated ledger_index
+      // T_ripple = that ledger's close_time (Ripple epoch seconds)
+      const L = testXrpIndexValue;
+      const T_ripple = closeTimeValue;
+      
+      // deadlineBlockNumber = L + 225 (≈ 225 ledgers of confirmation)
+      const deadlineBlockNumberValue = L + 225;
+      setDeadlineBlockNumber(deadlineBlockNumberValue.toString());
+      
+      // deadlineTimestamp = (T_ripple + 946684800) + 900
+      // (add 946,684,800 to convert Ripple→UNIX, then add ~15 minutes for 3 ledgers)
+      const deadlineTimestampValue = (T_ripple + 946684800) + 900;
+      setDeadlineTimestamp(deadlineTimestampValue.toString());
+      
+      console.log('Latest testXRP index:', testXrpIndexValue);
+      console.log('Latest close time:', closeTimeValue);
+      console.log('FDC deadline block number:', deadlineBlockNumberValue);
+      console.log('FDC deadline timestamp:', deadlineTimestampValue);
+    } catch (error) {
+      console.error('Error fetching testXRP index and close time:', error);
+      setTestXrpIndex(null);
+      setCloseTime(null);
+      setDeadlineBlockNumber(null);
+      setDeadlineTimestamp(null);
+    }
+  }, [xrplClient]);
 
   const refreshBalances = useCallback(async () => {
     try {
@@ -297,6 +389,427 @@ export default function Redeem() {
   useEffect(() => {
     setIsProcessing(isRedeemPending || isConfirming);
   }, [isRedeemPending, isConfirming]);
+
+  // FDC Attestation functions
+  const VERIFIER_URL_TESTNET = 'https://fdc-verifiers-testnet.flare.network/';
+  const VERIFIER_API_KEY_TESTNET = '00000000-0000-0000-0000-000000000000';
+  const DA_LAYER_API_KEY = '00000000-0000-0000-0000-000000000000';
+  const DA_LAYER_API_URL = `/api/proof-request`;
+  const urlTypeBase = 'xrp';
+  const attestationTypeBase = 'ReferencedPaymentNonexistence';
+  const sourceIdBase = 'testXRP';
+
+  // Sleep utility function
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+  // Base function to prepare attestation request
+  const prepareAttestationRequestBase = async (
+    url: string,
+    apiKey: string,
+    attestationTypeBase: string,
+    sourceIdBase: string,
+    requestBody: {
+      minimalBlockNumber: string;
+      deadlineBlockNumber: string;
+      deadlineTimestamp: string;
+      destinationAddressHash: string;
+      amount: string;
+      standardPaymentReference: string;
+      checkSourceAddresses: boolean;
+      sourceAddressesRoot: string;
+    }
+  ) => {
+    console.log("Url:", url, "\n");
+    const attestationType = toHex(attestationTypeBase);
+    const sourceId = toHex(sourceIdBase);
+
+    const request = {
+      attestationType: attestationType,
+      sourceId: sourceId,
+      requestBody: requestBody,
+    };
+    console.log("Prepared request:\n", request, "\n");
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(request),
+    });
+    if (response.status != 200) {
+      throw new Error(`Response status is not OK, status ${response.status} ${response.statusText}\n`);
+    }
+    console.log("Response status is OK\n");
+
+    return await response.json();
+  };
+
+  // Prepare attestation request
+  const prepareAttestationRequest = async (data: {
+    minimalBlockNumber: string;
+    deadlineBlockNumber: string;
+    deadlineTimestamp: string;
+    destinationAddressHash: string;
+    amount: string;
+    standardPaymentReference: string;
+    checkSourceAddresses: boolean;
+    sourceAddressesRoot: string;
+  }) => {
+    const requestBody = {
+      minimalBlockNumber: data.minimalBlockNumber,
+      deadlineBlockNumber: data.deadlineBlockNumber,
+      deadlineTimestamp: data.deadlineTimestamp,
+      destinationAddressHash: data.destinationAddressHash,
+      amount: data.amount,
+      standardPaymentReference: data.standardPaymentReference,
+      checkSourceAddresses: data.checkSourceAddresses,
+      sourceAddressesRoot: data.sourceAddressesRoot,
+      ...(data.checkSourceAddresses && {
+        sourceAddressesRoot: data.sourceAddressesRoot
+      }),
+    };
+
+    const url = `${VERIFIER_URL_TESTNET}verifier/${urlTypeBase}/ReferencedPaymentNonexistence/prepareRequest`;
+    const apiKey = VERIFIER_API_KEY_TESTNET ?? "";
+
+    return await prepareAttestationRequestBase(url, apiKey, attestationTypeBase, sourceIdBase, requestBody);
+  };
+
+  // Get FDC request fee
+  const getFdcRequestFee = async (abiEncodedRequest: string) => {
+    if (!fdcAddresses?.fdcRequestFeeConfigurations) {
+      throw new Error('FDC Request Fee Configurations address not loaded');
+    }
+
+    return await publicClient.readContract({
+      address: fdcAddresses.fdcRequestFeeConfigurations,
+      abi: iFdcRequestFeeConfigurationsAbi,
+      functionName: 'getRequestFee',
+      args: [abiEncodedRequest as `0x${string}`],
+    });
+  };
+
+  // Calculate round ID from transaction
+  const calculateRoundId = async (transaction: { receipt: { blockNumber: bigint } }) => {
+    if (!fdcAddresses?.flareSystemsManager) {
+      throw new Error('Flare Systems Manager address not loaded');
+    }
+
+    const blockNumber = transaction.receipt.blockNumber;
+    const block = await publicClient.getBlock({ blockNumber });
+    const blockTimestamp = BigInt(block.timestamp);
+
+    const firsVotingRoundStartTs = BigInt(await publicClient.readContract({
+      address: fdcAddresses.flareSystemsManager,
+      abi: iFlareSystemsManagerAbi,
+      functionName: 'firstVotingRoundStartTs',
+    }));
+
+    const votingEpochDurationSeconds = BigInt(await publicClient.readContract({
+      address: fdcAddresses.flareSystemsManager,
+      abi: iFlareSystemsManagerAbi,
+      functionName: 'votingEpochDurationSeconds',
+    }));
+
+    console.log("Block timestamp:", blockTimestamp, "\n");
+    console.log("First voting round start ts:", firsVotingRoundStartTs, "\n");
+    console.log("Voting epoch duration seconds:", votingEpochDurationSeconds, "\n");
+
+    const roundId = Number((blockTimestamp - firsVotingRoundStartTs) / votingEpochDurationSeconds);
+    console.log("Calculated round id:", roundId, "\n");
+    
+    const currentVotingEpochId = Number(await publicClient.readContract({
+      address: fdcAddresses.flareSystemsManager,
+      abi: iFlareSystemsManagerAbi,
+      functionName: 'getCurrentVotingEpochId',
+    }));
+    console.log("Received round id:", currentVotingEpochId, "\n");
+    
+    return roundId;
+  };
+
+  // Post request to DA Layer
+  const postRequestToDALayer = async (url: string, request: Record<string, unknown>) => {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'x-api-key': DA_LAYER_API_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(request),
+    });
+
+    if (!response.ok) {
+      throw new Error(`DA Layer request failed: ${response.status} ${response.statusText}`);
+    }
+
+    return await response.json();
+  };
+
+  // Retrieve data and proof base function
+  const retrieveDataAndProofBase = async (url: string, abiEncodedRequest: string, roundId: number) => {
+    console.log("Waiting for the round to finalize...");
+    
+    // Wait for round finalization (simplified - just wait a bit)
+    await sleep(30000);
+    console.log("Round finalized!\n");
+
+    const request = {
+      votingRoundId: roundId,
+      requestBytes: abiEncodedRequest,
+    };
+    console.log("Prepared request:\n", request, "\n");
+
+    await sleep(10000);
+    let proof = await postRequestToDALayer(url, request);
+    console.log("Waiting for the DA Layer to generate the proof...");
+    
+    // If we get a successful response with proof data, return immediately
+    if (proof.response && proof.proof && Array.isArray(proof.proof)) {
+      console.log("Proof generated on first attempt!\n");
+      console.log("Proof:", proof, "\n");
+      return proof;
+    }
+    
+    // Only retry if we don't have the proof data yet
+    while (!proof.response || !proof.proof || !Array.isArray(proof.proof)) {
+      await sleep(10000);
+      proof = await postRequestToDALayer(url, request);
+      
+      // If we get a successful response with proof data, break out of the loop
+      if (proof.response && proof.proof && Array.isArray(proof.proof)) {
+        break;
+      }
+    }
+    console.log("Proof generated!\n");
+
+    console.log("Proof:", proof, "\n");
+    return proof;
+  };
+
+  // Retrieve data and proof with retry
+  const retrieveDataAndProofBaseWithRetry = async (
+    url: string,
+    abiEncodedRequest: string,
+    roundId: number,
+    attempts: number = 10
+  ) => {
+    for (let i = 0; i < attempts; i++) {
+      try {
+        return await retrieveDataAndProofBase(url, abiEncodedRequest, roundId);
+      } catch (error) {
+        console.log(error, "\n", "Remaining attempts:", attempts - i, "\n");
+        await sleep(20000);
+      }
+    }
+    throw new Error(`Failed to retrieve data and proofs after ${attempts} attempts`);
+  };
+
+  // Verify payment nonexistence using FDC Verification contract
+  const verifyPaymentNonexistence = async (proofData: any) => {
+    if (!fdcAddresses?.fdcVerification) {
+      throw new Error('FDC Verification address not loaded');
+    }
+
+    if (!proofData.response || !proofData.proof) {
+      throw new Error('Proof data is incomplete');
+    }
+
+    // Extract data from proof response
+    const response = proofData.response;
+    const proof = proofData.proof;
+
+    // Call verifyReferencedPaymentNonexistence function
+    const result = await publicClient.readContract({
+      address: fdcAddresses.fdcVerification,
+      abi: iReferencedPaymentNonexistenceVerificationAbi,
+      functionName: 'verifyReferencedPaymentNonexistence',
+      args: [{
+        merkleProof: proof,
+        data: {
+          attestationType: response.attestationType,
+          sourceId: response.sourceId,
+          votingRound: BigInt(response.votingRound),
+          lowestUsedTimestamp: BigInt(response.lowestUsedTimestamp),
+          requestBody: {
+            minimalBlockNumber: BigInt(response.requestBody.minimalBlockNumber),
+            deadlineBlockNumber: BigInt(response.requestBody.deadlineBlockNumber),
+            deadlineTimestamp: BigInt(response.requestBody.deadlineTimestamp),
+            destinationAddressHash: response.requestBody.destinationAddressHash,
+            amount: BigInt(response.requestBody.amount),
+            standardPaymentReference: response.requestBody.standardPaymentReference,
+            checkSourceAddresses: response.requestBody.checkSourceAddresses,
+            sourceAddressesRoot: response.requestBody.sourceAddressesRoot,
+          },
+          responseBody: {
+            minimalBlockTimestamp: BigInt(response.responseBody.minimalBlockTimestamp),
+            firstOverflowBlockNumber: BigInt(response.responseBody.firstOverflowBlockNumber),
+            firstOverflowBlockTimestamp: BigInt(response.responseBody.firstOverflowBlockTimestamp),
+          },
+        }
+      }],
+    });
+
+    console.log('Payment nonexistence verification result:', result);
+    return result;
+  };
+
+  // Submit attestation request to FDC Hub
+  const submitAttestationRequest = async (abiEncodedRequest: string): Promise<void> => {
+    if (!isConnected) {
+      throw new Error('Please connect your wallet first');
+    }
+
+    if (!fdcAddresses?.fdcHub) {
+      throw new Error('FDC Hub address not loaded');
+    }
+
+    console.log('Submitting attestation request:', abiEncodedRequest);
+    
+    // Get the request fee
+    const requestFee = await getFdcRequestFee(abiEncodedRequest);
+    console.log('Request fee:', requestFee);
+
+    // Submit the attestation request
+    requestAttestation({
+      address: fdcAddresses.fdcHub,
+      args: [abiEncodedRequest as `0x${string}`],
+      value: requestFee,
+    });
+  };
+
+  // Execute attestation after successful redemption
+  const executeAttestation = async () => {
+    if (!redemptionEvent || !deadlineBlockNumber || !deadlineTimestamp) {
+      console.log('Missing required data for attestation');
+      return;
+    }
+
+    if (!fdcAddresses) {
+      setAttestationError('FDC contract addresses not loaded. Please wait and try again.');
+      return;
+    }
+
+    if (addressError) {
+      setAttestationError(`Error loading contract addresses: ${addressError}`);
+      return;
+    }
+
+    setIsAttestationLoading(true);
+    setAttestationError(null);
+    setAttestationSuccess(null);
+    setCurrentAttestationStep('');
+    setAttestationData(null);
+
+    try {
+      // Step 1: Prepare attestation request
+      setCurrentAttestationStep('Preparing attestation request...');
+      console.log('Preparing attestation request...');
+      
+      const attestationRequestData = {
+        minimalBlockNumber: redemptionEvent.firstUnderlyingBlock,
+        deadlineBlockNumber: deadlineBlockNumber,
+        deadlineTimestamp: deadlineTimestamp,
+        destinationAddressHash: keccak256(redemptionEvent.paymentAddress as `0x${string}`),
+        amount: (BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)).toString(), // Value UBA minus Fee UBA
+        standardPaymentReference: redemptionEvent.paymentReference,
+        checkSourceAddresses: false,
+        sourceAddressesRoot: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      };
+      
+      // Prepare the attestation request using the verifier API
+      const attestationResponse = await prepareAttestationRequest(attestationRequestData);
+      console.log('Attestation response:', attestationResponse);
+      
+      // Create attestation data structure with the real ABI encoded request
+      const data = {
+        abiEncodedRequest: attestationResponse.abiEncodedRequest,
+        roundId: null, // Will be calculated after transaction
+      };
+      console.log('Attestation data:', data);
+      setAttestationData(data);
+
+      // Step 2: Submit attestation request
+      setCurrentAttestationStep('Submitting attestation request to blockchain...');
+      console.log('Submitting attestation request...');
+      await submitAttestationRequest(data.abiEncodedRequest);
+      
+      // Wait for transaction to be mined and calculate round ID
+      setCurrentAttestationStep('Waiting for transaction confirmation...');
+      
+      setCurrentAttestationStep('');
+      setAttestationSuccess('Attestation request submitted! Waiting for confirmation...');
+    } catch (error) {
+      console.error('Attestation error:', error);
+      setCurrentAttestationStep('');
+      setAttestationError(error instanceof Error ? error.message : 'An unexpected error occurred');
+    } finally {
+      setIsAttestationLoading(false);
+    }
+  };
+
+  // Handle attestation transaction success and calculate round ID
+  useEffect(() => {
+    if (isAttestationSuccess && attestationReceipt && attestationData && attestationData.roundId === null) {
+      const processAttestationTransaction = async () => {
+        try {
+          setCurrentAttestationStep('Calculating round ID from transaction...');
+          const roundId = await calculateRoundId({ receipt: { blockNumber: attestationReceipt.blockNumber } });
+          console.log('Calculated round ID:', roundId);
+          
+          // Update attestationData with the calculated round ID
+          setAttestationData(prevData => prevData ? { ...prevData, roundId } : null);
+          
+          // Start proof retrieval
+          setCurrentAttestationStep('Retrieving proof from Data Availability Layer...');
+          const proof = await retrieveDataAndProofBaseWithRetry(
+            DA_LAYER_API_URL,
+            attestationData.abiEncodedRequest,
+            roundId
+          );
+          
+          setProofData(proof);
+          
+          // Verify the payment nonexistence
+          setCurrentAttestationStep('Verifying payment nonexistence with FDC Verification contract...');
+          const verificationResult = await verifyPaymentNonexistence(proof);
+          setVerificationResult(verificationResult);
+          
+          setCurrentAttestationStep('');
+          setAttestationSuccess(`Round ID ${roundId} calculated, proof retrieved, and payment nonexistence verified successfully! Verification result: ${verificationResult}`);
+        } catch (error) {
+          console.error('Error processing attestation transaction:', error);
+          setCurrentAttestationStep('');
+          setAttestationError(error instanceof Error ? error.message : 'Error processing attestation transaction');
+        }
+      };
+
+      processAttestationTransaction();
+    }
+  }, [isAttestationSuccess, attestationReceipt, attestationData]);
+
+  // Handle attestation write contract errors
+  useEffect(() => {
+    if (writeAttestationError) {
+      console.error('Attestation write contract error:', writeAttestationError);
+      
+      // Handle specific error types
+      if (writeAttestationError.message.includes('User denied transaction signature') || writeAttestationError.message.includes('user rejected')) {
+        setAttestationError('Attestation transaction was cancelled by the user.');
+      } else if (writeAttestationError.message.includes('execution reverted')) {
+        setAttestationError('Attestation transaction failed: The contract rejected the transaction. This could be due to invalid parameters, insufficient funds, or network issues.');
+      } else if (writeAttestationError.message.includes('insufficient funds')) {
+        setAttestationError('Insufficient funds to complete the attestation transaction. Please check your wallet balance.');
+      } else if (writeAttestationError.message.includes('request fee')) {
+        setAttestationError('Insufficient request fee. Please ensure you have enough FLR to pay the attestation request fee.');
+      } else {
+        setAttestationError(`Attestation transaction failed: ${writeAttestationError.message}`);
+      }
+    }
+  }, [writeAttestationError]);
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6">
@@ -550,6 +1063,313 @@ export default function Redeem() {
                       </code>
                     </div>
                   </div>
+                </div>
+
+                {/* FDC Attestation Section */}
+                <div className="space-y-4">
+                  <h4 className="text-md font-semibold text-green-800">FDC Payment Nonexistence Attestation</h4>
+                  
+                  <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Minimal Block Number:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {redemptionEvent.firstUnderlyingBlock}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Deadline Block Number:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {deadlineBlockNumber || 'Calculating...'}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Deadline Timestamp:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {deadlineTimestamp || 'Calculating...'}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Destination Address:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {redemptionEvent.paymentAddress}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Value UBA:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {redemptionEvent.valueUBA}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Fee UBA:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {redemptionEvent.feeUBA}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Net Amount (UBA):</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {(BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)).toString()}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Net Amount (XRP):</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {((BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)) / BigInt(1000000)).toString()}
+                      </code>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Payment Reference:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {redemptionEvent.paymentReference}
+                      </code>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={executeAttestation}
+                    disabled={isAttestationLoading || !deadlineBlockNumber || !deadlineTimestamp || !isConnected || isLoadingAddresses || !!addressError}
+                    className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400"
+                  >
+                    {isAttestationLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {currentAttestationStep || 'Executing Attestation...'}
+                      </>
+                                      ) : (
+                    <>
+                      <Shield className="mr-2 h-4 w-4" />
+                      Execute Payment Nonexistence Attestation
+                    </>
+                  )}
+                  </Button>
+
+                  {isAttestationLoading && currentAttestationStep && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                        <span className="text-blue-800 font-medium">{currentAttestationStep}</span>
+                      </div>
+                      <p className="text-blue-600 text-sm mt-2">
+                        Please wait while the attestation process completes. This may take several minutes.
+                      </p>
+                    </div>
+                  )}
+
+                  {attestationError && (
+                    <Alert variant="destructive">
+                      <XCircle className="h-4 w-4" />
+                      <AlertDescription>{attestationError}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {attestationSuccess && (
+                    <Alert className="bg-green-50 border-green-200 text-green-800">
+                      <CheckCircle className="h-4 w-4" />
+                      <AlertDescription>{attestationSuccess}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {attestationData && (
+                    <div className="space-y-4">
+                      <h5 className="text-md font-semibold text-green-800">Attestation Data</h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">ABI Encoded Request:</span>
+                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                            {attestationData.abiEncodedRequest.length > 20 
+                              ? `${attestationData.abiEncodedRequest.slice(0, 10)}...${attestationData.abiEncodedRequest.slice(-10)}`
+                              : attestationData.abiEncodedRequest
+                            }
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboardWithTimeout(attestationData.abiEncodedRequest, setCopiedText)}
+                            className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                          >
+                            {copiedText === attestationData.abiEncodedRequest ? (
+                              <Check className="h-3 w-3 text-green-600" />
+                            ) : (
+                              <Copy className="h-3 w-3 text-gray-500" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Round ID:</span>
+                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                            {attestationData.roundId ?? 'Calculating...'}
+                          </code>
+                          {attestationData.roundId !== null && (
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboardWithTimeout(attestationData.roundId!.toString(), setCopiedText)}
+                              className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                            >
+                              {copiedText === attestationData.roundId!.toString() ? (
+                                <Check className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-gray-500" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {verificationResult !== null && (
+                    <div className="space-y-4">
+                      <h5 className="text-md font-semibold text-green-800">Payment Nonexistence Verification Result</h5>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">Verification Status:</span>
+                        <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                          verificationResult 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {verificationResult ? '✅ Payment Nonexistence Verified' : '❌ Payment Found or Verification Failed'}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {proofData && (
+                    <div className="space-y-4">
+                      <h5 className="text-md font-semibold text-green-800">Proof Data</h5>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">Voting Round:</span>
+                          <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                            {proofData.response?.votingRound ?? 'Not available'}
+                          </code>
+                          {proofData.response?.votingRound && (
+                            <button
+                              type="button"
+                              onClick={() => copyToClipboardWithTimeout(proofData.response.votingRound.toString(), setCopiedText)}
+                              className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                            >
+                              {copiedText === proofData.response.votingRound.toString() ? (
+                                <Check className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <Copy className="h-3 w-3 text-gray-500" />
+                              )}
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <span className="font-medium">Proof Array:</span>
+                          <div className="space-y-1">
+                            {proofData.proof && Array.isArray(proofData.proof) && proofData.proof.map((proofItem: string, index: number) => (
+                              <div key={index} className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600 w-8">[{index}]:</span>
+                                <code className="px-2 py-1 bg-gray-100 rounded text-sm font-mono flex-1">
+                                  {proofItem.length > 20 
+                                    ? `${proofItem.slice(0, 10)}...${proofItem.slice(-10)}`
+                                    : proofItem
+                                  }
+                                </code>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboardWithTimeout(proofItem, setCopiedText)}
+                                  className="h-6 w-6 p-0 hover:bg-gray-200 rounded"
+                                >
+                                  {copiedText === proofItem ? (
+                                    <Check className="h-3 w-3 text-green-600" />
+                                  ) : (
+                                    <Copy className="h-3 w-3 text-gray-500" />
+                                  )}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          <span className="font-medium">Response Body:</span>
+                          <div className="bg-gray-100 rounded p-3 text-sm font-mono">
+                            <div><strong>Minimal Block Timestamp:</strong> {proofData.response?.responseBody?.minimalBlockTimestamp}</div>
+                            <div><strong>First Overflow Block Number:</strong> {proofData.response?.responseBody?.firstOverflowBlockNumber}</div>
+                            <div><strong>First Overflow Block Timestamp:</strong> {proofData.response?.responseBody?.firstOverflowBlockTimestamp}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {(testXrpIndex || closeTime || deadlineBlockNumber || deadlineTimestamp) && (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-green-900">Latest XRPL Ledger Info</h3>
+                <div className="bg-green-50 border border-green-200 rounded p-4 space-y-3">
+                  {testXrpIndex && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">TestXRP Index:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {testXrpIndex}
+                      </code>
+                    </div>
+                  )}
+                  {closeTime && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Close Time:</span>
+                      <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                        {closeTime}
+                      </code>
+                    </div>
+                  )}
+                  {closeTime && (
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-green-900">Readable Time:</span>
+                      <span className="text-sm text-green-800">
+                        {new Date((parseInt(closeTime) + 946684800) * 1000).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* FDC Deadline Values */}
+                  {(deadlineBlockNumber || deadlineTimestamp) && (
+                    <div className="pt-3 border-t border-green-300 space-y-2">
+                      <h4 className="text-md font-semibold text-green-800">FDC Deadline Values</h4>
+                      
+                      {deadlineBlockNumber && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-green-900">Deadline Block Number:</span>
+                          <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                            {deadlineBlockNumber}
+                          </code>
+                        </div>
+                      )}
+                      
+                      {deadlineTimestamp && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-green-900">Deadline Timestamp:</span>
+                          <code className="px-2 py-1 bg-green-100 rounded text-sm font-mono">
+                            {deadlineTimestamp}
+                          </code>
+                        </div>
+                      )}
+                      
+                      {deadlineTimestamp && (
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-green-900">Deadline Readable:</span>
+                          <span className="text-sm text-green-800">
+                            {new Date(parseInt(deadlineTimestamp) * 1000).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                      
+                      <p className="text-xs text-green-600">
+                        FDC deadline: ~15 minutes confirmation window
+                      </p>
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-green-600 mt-2">
+                    Latest validated ledger information from XRPL testnet
+                  </p>
                 </div>
               </div>
             )}
