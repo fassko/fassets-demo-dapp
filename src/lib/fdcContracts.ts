@@ -1,0 +1,56 @@
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
+import { ethers } from 'ethers';
+import { extractContractAddress } from './contractAddress';
+
+export interface FdcContractAddresses {
+  fdcHub: `0x${string}`;
+  fdcRequestFeeConfigurations: `0x${string}`;
+  flareSystemsManager: `0x${string}`;
+  fdcVerification: `0x${string}`;
+}
+
+export async function getFdcContractAddresses(): Promise<FdcContractAddresses> {
+  try {
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+
+      // Get FDC Hub address
+      const fdcHub = coston2.products.FdcHub;
+      const fdcHubAddressResult = await fdcHub.getAddress(provider);
+
+      // Get FDC Request Fee Configurations address
+      const fdcRequestFeeConfigurations =
+        coston2.products.FdcRequestFeeConfigurations;
+      const fdcRequestFeeConfigurationsAddressResult =
+        await fdcRequestFeeConfigurations.getAddress(provider);
+
+      // Get Flare Systems Manager address
+      const flareSystemsManager = coston2.products.FlareSystemsManager;
+      const flareSystemsManagerAddressResult =
+        await flareSystemsManager.getAddress(provider);
+
+      // Get FDC Verification address
+      const fdcVerification = coston2.products.FdcVerification;
+      const fdcVerificationAddressResult =
+        await fdcVerification.getAddress(provider);
+
+      return {
+        fdcHub: extractContractAddress(fdcHubAddressResult),
+        fdcRequestFeeConfigurations: extractContractAddress(
+          fdcRequestFeeConfigurationsAddressResult
+        ),
+        flareSystemsManager: extractContractAddress(
+          flareSystemsManagerAddressResult
+        ),
+        fdcVerification: extractContractAddress(fdcVerificationAddressResult),
+      };
+    } else {
+      throw new Error(
+        'MetaMask is not installed. Please install MetaMask to use this feature.'
+      );
+    }
+  } catch (error) {
+    console.error('Error getting FDC contract addresses:', error);
+    throw error;
+  }
+}
