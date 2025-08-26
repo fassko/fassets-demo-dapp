@@ -24,9 +24,9 @@ import {
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import { PaymentProofData } from '@/lib/fdcUtils';
 import {
   FDC_CONSTANTS,
+  PaymentProofData,
   preparePaymentAttestationRequest,
   retrievePaymentDataAndProofWithRetry,
   verifyPayment,
@@ -37,6 +37,7 @@ import {
 } from '@/types/executeFormData';
 
 export default function Execute() {
+  // Form
   const {
     register,
     handleSubmit,
@@ -81,12 +82,16 @@ export default function Execute() {
     error: addressError,
   } = useFdcContracts();
 
+  // Write contract with executeMinting function
+  // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
   const {
     writeContract: executeMinting,
     data: executeHash,
     isPending: isExecutePending,
     error: writeError,
   } = useWriteIAssetManagerExecuteMinting();
+
+  // Wait for execute minting transaction receipt
   const {
     data: receipt,
     isSuccess: isExecuteSuccess,
@@ -127,16 +132,18 @@ export default function Execute() {
     setVerificationResult(null);
 
     try {
-      // Step 1: Prepare attestation request
+      // Prepare attestation request
       setCurrentStep('Preparing attestation request...');
       console.log('Preparing attestation request...');
 
       // Prepare the attestation request using the verifier API
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-request
       const attestationResponse =
         await preparePaymentAttestationRequest(transactionId);
       console.log('Attestation response:', attestationResponse);
 
-      // Step 2: Retrieve proof from Data Availability Layer
+      // Retrieve proof from Data Availability Layer
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#retrieving-the-proof
       setCurrentStep('Retrieving proof from Data Availability Layer...');
       const proof = await retrievePaymentDataAndProofWithRetry(
         FDC_CONSTANTS.DA_LAYER_API_URL,
@@ -147,7 +154,8 @@ export default function Execute() {
 
       setProofData(proof);
 
-      // Step 3: Verify the payment
+      // Verify the payment
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#verifying-the-data
       setCurrentStep('Verifying payment with FDC Verification contract...');
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
@@ -161,7 +169,8 @@ export default function Execute() {
         );
       }
 
-      // Step 4: Execute minting
+      // Execute minting on AssetManager contract
+      // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
       setCurrentStep('Executing minting on AssetManager contract...');
       console.log(
         'Executing minting with proof and collateral reservation ID:',
@@ -310,15 +319,6 @@ export default function Execute() {
   useEffect(() => {
     if (receiptError) {
       console.error('Transaction receipt error:', receiptError);
-      console.error('Receipt error details:', {
-        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
-        message:
-          receiptError instanceof Error
-            ? receiptError.message
-            : String(receiptError),
-        cause: receiptError instanceof Error ? receiptError.cause : undefined,
-        stack: receiptError instanceof Error ? receiptError.stack : undefined,
-      });
 
       setError(
         `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
@@ -429,6 +429,9 @@ export default function Execute() {
       };
 
       // Process each log in the transaction receipt
+      // Decode the logs as various events:
+      // MintingExecuted: https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
+      // RedemptionTicketCreated: https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
       for (const log of receipt.logs) {
         try {
           // Try to decode the log as various events
