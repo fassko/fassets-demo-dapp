@@ -1,5 +1,6 @@
-import { createPublicClient, http } from 'viem';
 import { flareTestnet } from 'wagmi/chains';
+
+import { createPublicClient, http } from 'viem';
 
 /**
  * Shared public client for Flare Testnet

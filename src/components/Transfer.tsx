@@ -1,29 +1,32 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
+import { Loader2, Send } from 'lucide-react';
+
 import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+
 import { erc20Abi } from 'viem';
 
-// Form data schema
-import {
-  SendFXRPFormDataSchema,
-  SendFXRPFormData,
-} from '@/types/sendFXRPFormData';
-
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+// UI components
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-
-// UI components
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Send, Loader2 } from 'lucide-react';
-import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
+// Form data schema
+import {
+  SendFXRPFormData,
+  SendFXRPFormDataSchema,
+} from '@/types/sendFXRPFormData';
 
 export default function Transfer() {
   const [error, setError] = useState<string | null>(null);

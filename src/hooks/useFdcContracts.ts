@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import {
-  getFdcContractAddresses,
   FdcContractAddresses,
+  getFdcContractAddresses,
 } from '@/lib/fdcContracts';
 
 export function useFdcContracts() {

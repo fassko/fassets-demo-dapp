@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { useAccount, useReadContract } from 'wagmi';
+
 import { erc20Abi } from 'viem';
+
 import { useAssetManager } from './useAssetManager';
 
 export function useFXRPBalance() {

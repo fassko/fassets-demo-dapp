@@ -19,24 +19,47 @@ A comprehensive demo application showcasing Flare Network's cross-chain capabili
 - Input validation and error handling
 - Transaction status feedback
 
-## Code Formatting
+## Code Formatting & Import Sorting
 
-This project uses Prettier for code formatting and ESLint for code linting.
+This project uses Prettier for code formatting and ESLint for code linting, with automatic import sorting configured.
+
+### Import Sorting
+
+The project uses ESLint with the `eslint-plugin-import` to automatically organize imports in a consistent order:
+
+1. **React imports** (react, react-\*)
+2. **External library imports** (organized by package)
+3. **Internal imports** (@/\*)
+4. **Relative imports** (./\*)
+
+The import order is enforced by ESLint rules and can be automatically fixed using the linting commands.
 
 ### Formatting Commands
 
 ```bash
-# Format all files
+# Format all files (including import sorting)
 npm run format
 
 # Check formatting without making changes
 npm run format:check
+
+# Sort imports only
+npm run sort:imports
+
+# Check import sorting without making changes
+npm run sort:imports:check
 
 # Lint code
 npm run lint
 
 # Fix linting issues automatically
 npm run lint:fix
+
+# Fix all issues (linting + formatting)
+npm run fix:all
+
+# Check all issues (linting + formatting)
+npm run check:all
 ```
 
 ### Editor Setup

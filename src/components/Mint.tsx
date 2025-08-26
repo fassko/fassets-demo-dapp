@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useForm, Controller } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+
+import { Coins, Loader2 } from 'lucide-react';
+import { flareTestnet } from 'wagmi/chains';
+
+import { Controller, useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
+
 import {
   useAccount,
   useReadContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
 
-// Form data schema
-import {
-  MintXRPFormDataSchema,
-  MintXRPFormData,
-} from '@/types/mintXRPFormData';
+import { createPublicClient, decodeEventLog, http } from 'viem';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -26,21 +30,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Coins, Loader2 } from 'lucide-react';
 import { SuccessMessage } from '@/components/ui/success-message';
-
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useReservationFee } from '@/hooks/useReservationFee';
+// Form data schema
 import {
-  iAssetManagerAbi,
+  MintXRPFormData,
+  MintXRPFormDataSchema,
+} from '@/types/mintXRPFormData';
+
+import {
   iAgentOwnerRegistryAbi,
+  iAssetManagerAbi,
   useWriteIAssetManagerReserveCollateral,
 } from '../generated';
-import { decodeEventLog, createPublicClient, http } from 'viem';
-import { flareTestnet } from 'wagmi/chains';
 
 export default function Mint() {
   const [error, setError] = useState<string | null>(null);

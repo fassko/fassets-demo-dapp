@@ -1,53 +1,57 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+
+import { ArrowRight, Loader2 } from 'lucide-react';
+
 import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+
 import { decodeEventLog, keccak256 } from 'viem';
 
-// Form data schema
-import {
-  RedeemXRPFormDataSchema,
-  RedeemXRPFormData,
-} from '@/types/redeemXRPFormData';
-
+import RedemptionEventCard from '@/components/RedemptionEventCard';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import XRPLBalanceCard from '@/components/XRPLBalanceCard';
+import XRPLedgerInfoCard from '@/components/XRPLedgerInfoCard';
 // Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
-import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+import {
+  FDC_CONSTANTS,
+  ReferencedPaymentNonexistenceProofData,
+  calculateRoundId,
+  prepareReferencedPaymentNonexistenceAttestationRequest,
+  retrieveReferencedPaymentNonexistenceDataAndProofWithRetry,
+  submitAttestationRequest,
+  verifyReferencedPaymentNonexistence,
+} from '@/lib/fdcUtils';
+import {
+  getAccountBalance,
+  getLatestLedgerInfoWithFDCDeadlines,
+  isValidXRPAddress,
+} from '@/lib/xrpUtils';
+// Form data schema
+import {
+  RedeemXRPFormData,
+  RedeemXRPFormDataSchema,
+} from '@/types/redeemXRPFormData';
+
+// UI components
+
 import {
   iAssetManagerAbi,
   useWriteIFdcHubRequestAttestation,
 } from '../generated';
-
-// UI components
-import { ArrowRight, Loader2 } from 'lucide-react';
-import XRPLBalanceCard from '@/components/XRPLBalanceCard';
-import XRPLedgerInfoCard from '@/components/XRPLedgerInfoCard';
-import RedemptionEventCard from '@/components/RedemptionEventCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-
-import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
-import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import {
-  retrieveReferencedPaymentNonexistenceDataAndProofWithRetry,
-  calculateRoundId,
-  FDC_CONSTANTS,
-  prepareReferencedPaymentNonexistenceAttestationRequest,
-  verifyReferencedPaymentNonexistence,
-  submitAttestationRequest,
-  ReferencedPaymentNonexistenceProofData,
-} from '@/lib/fdcUtils';
-import {
-  getLatestLedgerInfoWithFDCDeadlines,
-  getAccountBalance,
-  isValidXRPAddress,
-} from '@/lib/xrpUtils';
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);

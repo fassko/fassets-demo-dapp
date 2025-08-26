@@ -1,15 +1,17 @@
+import { useEffect, useState } from 'react';
+
 import {
-  Shield,
-  Loader2,
-  XCircle,
-  CheckCircle,
-  Copy,
   Check,
+  CheckCircle,
   Clock,
+  Copy,
+  Loader2,
+  Shield,
+  XCircle,
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 
 interface RedemptionEvent {
   requestId: string;

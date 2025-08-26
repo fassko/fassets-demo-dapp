@@ -2,15 +2,18 @@
 
 import { useState } from 'react';
 
-// Hooks and contract functions
+// UI Components
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+
+// Asset manager hooks
 import { useAssetManager } from '@/hooks/useAssetManager';
 
-// UI components
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { RefreshCw, Settings as SettingsIcon, Copy, Check } from 'lucide-react';
-import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+// Utilities
+import { truncateAddress } from '@/lib/utils';
 
 export default function Settings() {
   const {
@@ -19,18 +22,8 @@ export default function Settings() {
     error,
     refetchSettings,
   } = useAssetManager();
+
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
-
-  // Helper function to truncate address
-  function truncateAddress(address: string) {
-    if (address.length <= 12) return address;
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  }
-
-  // Helper function to copy address to clipboard
-  const copyToClipboard = async (address: string) => {
-    await copyToClipboardWithTimeout(address, setCopiedAddress);
-  };
 
   // Helper function to create explorer link with copy functionality
   function createExplorerLink(address: string, explorer: string = 'coston2') {
@@ -48,7 +41,7 @@ export default function Settings() {
         <Button
           variant='ghost'
           size='sm'
-          onClick={() => copyToClipboard(address)}
+          onClick={() => copyToClipboardWithTimeout(address, setCopiedAddress)}
           className='h-6 w-6 p-0 hover:bg-slate-100'
         >
           {isCopied ? (

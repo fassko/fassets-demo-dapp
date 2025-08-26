@@ -1,5 +1,7 @@
-import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
 import { ethers } from 'ethers';
+
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
+
 import { extractContractAddress } from './contractAddress';
 
 export interface FdcContractAddresses {
@@ -14,22 +16,26 @@ export async function getFdcContractAddresses(): Promise<FdcContractAddresses> {
     if (typeof window !== 'undefined' && window.ethereum) {
       const provider = new ethers.BrowserProvider(window.ethereum);
 
-      // Get FDC Hub address
+      // Get FDC Hub address from Flare Contracts Registry
+      // https://dev.flare.network/network/guides/flare-contracts-registry
       const fdcHub = coston2.products.FdcHub;
       const fdcHubAddressResult = await fdcHub.getAddress(provider);
 
-      // Get FDC Request Fee Configurations address
+      // Get FDC Request Fee Configurations address from Flare Contracts Registry
+      // https://dev.flare.network/network/guides/flare-contracts-registry
       const fdcRequestFeeConfigurations =
         coston2.products.FdcRequestFeeConfigurations;
       const fdcRequestFeeConfigurationsAddressResult =
         await fdcRequestFeeConfigurations.getAddress(provider);
 
-      // Get Flare Systems Manager address
+      // Get Flare Systems Manager address from Flare Contracts Registry
+      // https://dev.flare.network/network/guides/flare-contracts-registry
       const flareSystemsManager = coston2.products.FlareSystemsManager;
       const flareSystemsManagerAddressResult =
         await flareSystemsManager.getAddress(provider);
 
-      // Get FDC Verification address
+      // Get FDC Verification address from Flare Contracts Registry
+      // https://dev.flare.network/network/guides/flare-contracts-registry
       const fdcVerification = coston2.products.FdcVerification;
       const fdcVerificationAddressResult =
         await fdcVerification.getAddress(provider);

@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+
 import { useReadContract } from 'wagmi';
+
 import { getAssetManagerAddress } from '@/lib/assetManager';
+
+// Import the generated type for the IAssetManager
 import { iAssetManagerAbi } from '../generated';
 
 export function useAssetManager() {
@@ -9,7 +13,7 @@ export function useAssetManager() {
   >(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Get AssetManager address
+  // Get AssetManager address from Flare Contracts Registry at startup
   useEffect(() => {
     const fetchAddress = async () => {
       try {
@@ -33,7 +37,11 @@ export function useAssetManager() {
     refetch: refetchSettings,
   } = useReadContract({
     address: assetManagerAddress!,
+    // Use the iAssetManager ABI to read the settings
+    // from the generated types
     abi: iAssetManagerAbi,
+    // Use the getSettings function to read the settings
+    // Guide: https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
     functionName: 'getSettings',
     query: {
       enabled: !!assetManagerAddress,

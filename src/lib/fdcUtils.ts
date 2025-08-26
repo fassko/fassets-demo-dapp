@@ -1,14 +1,13 @@
 // FDC (Flare Data Connector) utility functions
 // Shared functions used across Attestation, Execute, and Redeem components
-
 import {
   iFdcRequestFeeConfigurationsAbi,
   iFlareSystemsManagerAbi,
   iPaymentVerificationAbi,
   iReferencedPaymentNonexistenceVerificationAbi,
 } from '@/generated';
-import { toHex } from '@/lib/utils';
 import { publicClient } from '@/lib/publicClient';
+import { toHex } from '@/lib/utils';
 
 // Type definitions based on generated ABI structures
 export type PaymentRequestBody = {

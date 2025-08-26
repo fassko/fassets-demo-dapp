@@ -1,14 +1,15 @@
 'use client';
 
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  Settings,
-  Coins,
-  CheckCircle,
-  Send,
   ArrowRight,
+  CheckCircle,
+  Coins,
   Play,
+  Send,
+  Settings,
 } from 'lucide-react';
+
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface NavigationProps {
   activeTab: string;

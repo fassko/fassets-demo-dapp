@@ -1,5 +1,7 @@
-import { Copy, Check } from 'lucide-react';
 import { useState } from 'react';
+
+import { Check, Copy } from 'lucide-react';
+
 import { copyToClipboardWithBooleanState } from '@/lib/clipboard';
 
 interface SuccessMessageProps {
@@ -22,14 +24,6 @@ export function SuccessMessage({
     useState<boolean>(false);
   const [copiedPaymentReference, setCopiedPaymentReference] =
     useState<boolean>(false);
-
-  // Helper function to copy text to clipboard
-  const copyToClipboard = async (
-    text: string,
-    setter: (value: boolean) => void
-  ) => {
-    await copyToClipboardWithBooleanState(text, setter);
-  };
 
   // Extract just the number from payment amount (remove "XRP")
   const paymentAmountNumber = paymentAmount.replace(' XRP', '');
@@ -54,7 +48,10 @@ export function SuccessMessage({
           <button
             type='button'
             onClick={() =>
-              copyToClipboard(reservationId, setCopiedReservationId)
+              copyToClipboardWithBooleanState(
+                reservationId,
+                setCopiedReservationId
+              )
             }
             className='h-6 w-6 p-0 hover:bg-gray-200 rounded'
           >
@@ -73,7 +70,10 @@ export function SuccessMessage({
           <button
             type='button'
             onClick={() =>
-              copyToClipboard(paymentAmountNumber, setCopiedPaymentAmount)
+              copyToClipboardWithBooleanState(
+                paymentAmountNumber,
+                setCopiedPaymentAmount
+              )
             }
             className='h-6 w-6 p-0 hover:bg-gray-200 rounded'
           >
@@ -92,7 +92,7 @@ export function SuccessMessage({
           <button
             type='button'
             onClick={() =>
-              copyToClipboard(paymentAddress, () =>
+              copyToClipboardWithBooleanState(paymentAddress, () =>
                 setCopiedAddress(paymentAddress)
               )
             }
@@ -113,7 +113,10 @@ export function SuccessMessage({
           <button
             type='button'
             onClick={() =>
-              copyToClipboard(paymentReference, setCopiedPaymentReference)
+              copyToClipboardWithBooleanState(
+                paymentReference,
+                setCopiedPaymentReference
+              )
             }
             className='h-6 w-6 p-0 hover:bg-gray-200 rounded'
           >

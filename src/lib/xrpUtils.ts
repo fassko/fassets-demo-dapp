@@ -1,6 +1,5 @@
 // XRP (XRP Ledger) utility functions
 // Shared functions for XRP client management, balance fetching, and ledger operations
-
 import { Client } from 'xrpl';
 
 // XRP Ledger connection configuration

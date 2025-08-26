@@ -1,5 +1,7 @@
-import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
 import { ethers } from 'ethers';
+
+import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';
+
 import { extractContractAddress } from './contractAddress';
 
 export async function getAssetManagerAddress(): Promise<`0x${string}`> {

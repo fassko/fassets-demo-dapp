@@ -1,33 +1,37 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useEffect, useState } from 'react';
+
+import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
+
 import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+
+import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, CheckCircle, XCircle, Copy, Check } from 'lucide-react';
-import {
-  AttestationFormDataSchema,
-  AttestationFormData,
-} from '@/types/attestationFormData';
-import { PaymentProofData } from '@/lib/fdcUtils';
 import { useWriteIFdcHubRequestAttestation } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-
+import {
+  FDC_CONSTANTS,
+  PaymentProofData,
+  calculateRoundId,
+  preparePaymentAttestationRequest,
+  retrievePaymentDataAndProofWithRetry,
+  submitAttestationRequest,
+  verifyPayment,
+} from '@/lib/fdcUtils';
 import { AttestationData } from '@/types/attestation';
 import {
-  retrievePaymentDataAndProofWithRetry,
-  calculateRoundId,
-  FDC_CONSTANTS,
-  preparePaymentAttestationRequest,
-  verifyPayment,
-  submitAttestationRequest,
-} from '@/lib/fdcUtils';
+  AttestationFormData,
+  AttestationFormDataSchema,
+} from '@/types/attestationFormData';
 
 export default function Attestation() {
   const {
