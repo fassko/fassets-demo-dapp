@@ -69,7 +69,7 @@ export default function Mint() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
-  const { address: userAddress, isConnected } = useAccount();
+  const { isConnected } = useAccount();
 
   // Form handling
   const {
