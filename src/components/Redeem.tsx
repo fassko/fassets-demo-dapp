@@ -21,7 +21,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import XRPLBalanceCard from '@/components/XRPLBalanceCard';
 import XRPLedgerInfoCard from '@/components/XRPLedgerInfoCard';
-// Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
@@ -40,13 +39,10 @@ import {
   getLatestLedgerInfoWithFDCDeadlines,
   isValidXRPAddress,
 } from '@/lib/xrpUtils';
-// Form data schema
 import {
   RedeemXRPFormData,
   RedeemXRPFormDataSchema,
 } from '@/types/redeemXRPFormData';
-
-// UI components
 
 import {
   iAssetManagerAbi,
@@ -106,13 +102,19 @@ export default function Redeem() {
     null
   );
 
-  // Asset manager and XRPL balance hooks
+  // FAssets Asset manager hook
   const {
     assetManagerAddress,
     settings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // FXRP balance hook
+  // Use the useFXRPBalance hook to get the FXRP balance
+  // FXRP is an ERC20 token
+  // FXRP address comes from the settings
+  // dev.flare.network/fassets/developer-guides/fassets-fxrp-address
   const {
     fxrpBalance,
     refetchFxrpBalance,
@@ -120,21 +122,28 @@ export default function Redeem() {
     userAddress,
     isConnected,
   } = useFXRPBalance();
+
+  // FDC contracts hook
+  // It gets the FDC contracts from the Flare Contracts Registry
+  // https://dev.flare.network/network/guides/flare-contracts-registry
   const {
     addresses: fdcAddresses,
     isLoading: isLoadingAddresses,
     error: addressError,
   } = useFdcContracts();
 
-  // FDC Attestation contract functions
+  // FDC Attestation contract functions hook
   const {
     writeContract: requestAttestation,
     data: attestationHash,
     error: writeAttestationError,
   } = useWriteIFdcHubRequestAttestation();
+
+  // Wait for the FDC attestation transaction receipt
   const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
     useWaitForTransactionReceipt({ hash: attestationHash });
 
+  // Form
   const {
     register,
     handleSubmit,
@@ -277,6 +286,8 @@ export default function Redeem() {
     try {
       console.log('Fetching latest testXRP index and close time...');
 
+      // Get the latest ledger info and FDC attestation request deadlines
+      // See the `calculateFDCDeadline` function for detailed comments
       const { ledgerInfo, fdcDeadlines } =
         await getLatestLedgerInfoWithFDCDeadlines();
 
@@ -406,9 +417,19 @@ export default function Redeem() {
       // Call the redeem function using wagmi - Diamond proxy approach
       redeemContract({
         address: assetManagerAddress!,
+        // Use the AssetManager ABI from the Flare Contracts Registry
+        // https://dev.flare.network/network/guides/flare-contracts-registry
         abi: iAssetManagerAbi,
+        // Use the redeem function from the AssetManager ABI
+        // https://dev.flare.network/fassets/reference/IAssetManager#redeem
         functionName: 'redeem',
-        args: [BigInt(lots), data.xrplAddress, assetManagerAddress!],
+        // Parameters for the redeem function
+        // Lots, XRPL address, executor (zero address for this demo)
+        args: [
+          BigInt(lots),
+          data.xrplAddress,
+          '0x0000000000000000000000000000000000000000',
+        ],
       });
     } catch (error) {
       console.error('Error redeeming to XRP:', error);
@@ -476,10 +497,13 @@ export default function Redeem() {
     setAttestationData(null);
 
     try {
-      // Step 1: Prepare attestation request
+      // Prepare attestation request
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-request
       setCurrentAttestationStep('Preparing attestation request...');
       console.log('Preparing attestation request...');
 
+      // Prepare the referenced payment nonexistence attestation request data
+      // https://dev.flare.network/fdc/attestation-types/referenced-payment-nonexistence
       const attestationRequestData = {
         minimalBlockNumber: redemptionEvent.firstUnderlyingBlock,
         deadlineBlockNumber: deadlineBlockNumber,
@@ -491,12 +515,14 @@ export default function Redeem() {
           BigInt(redemptionEvent.valueUBA) - BigInt(redemptionEvent.feeUBA)
         ).toString(), // Value UBA minus Fee UBA
         standardPaymentReference: redemptionEvent.paymentReference,
+        // These two fields are not used because XRP Ledger is not a utxo chain
         checkSourceAddresses: false,
         sourceAddressesRoot:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
       };
 
       // Prepare the attestation request using the verifier API
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-request
       const attestationResponse =
         await prepareReferencedPaymentNonexistenceAttestationRequest(
           attestationRequestData
@@ -504,6 +530,7 @@ export default function Redeem() {
       console.log('Attestation response:', attestationResponse);
 
       // Create attestation data structure with the real ABI encoded request
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-request
       const data = {
         abiEncodedRequest: attestationResponse.abiEncodedRequest,
         roundId: null, // Will be calculated after transaction
@@ -511,7 +538,8 @@ export default function Redeem() {
       console.log('Attestation data:', data);
       setAttestationData(data);
 
-      // Step 2: Submit attestation request
+      // Submit attestation request
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#submitting-the-request
       setCurrentAttestationStep(
         'Submitting attestation request to blockchain...'
       );
@@ -526,6 +554,7 @@ export default function Redeem() {
       );
 
       // Wait for transaction to be mined and calculate round ID
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#waiting-for-confirmation
       setCurrentAttestationStep('Waiting for transaction confirmation...');
 
       setCurrentAttestationStep('');
@@ -569,6 +598,7 @@ export default function Redeem() {
           );
 
           // Start proof retrieval
+          // https://dev.flare.network/fdc/guides/fdc-by-hand#retrieving-the-proof
           setCurrentAttestationStep(
             'Retrieving proof from Data Availability Layer...'
           );
@@ -583,6 +613,7 @@ export default function Redeem() {
           setProofData(proof);
 
           // Verify the payment nonexistence
+          // https://dev.flare.network/fdc/guides/fdc-by-hand#verifying-the-data
           setCurrentAttestationStep(
             'Verifying payment nonexistence with FDC Verification contract...'
           );

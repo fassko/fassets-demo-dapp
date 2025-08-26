@@ -6,9 +6,16 @@ import { Client } from 'xrpl';
 export const XRP_CONFIG = {
   TESTNET_URL: 'wss://s.altnet.rippletest.net:51233',
   DROPS_PER_XRP: 1000000, // 1 XRP = 1,000,000 drops
+  // Using 15 minutes because it's the minimum time allowed for an agent to pay for a redemption or a minter to pay for minting.
+  // https://dev.flare.network/fassets/operational-parameters
   FDC_LEDGER_CONFIRMATION: 225, // Number of ledgers for FDC confirmation
   FDC_TIMESTAMP_OFFSET: 946684800, // Ripple epoch to UNIX epoch conversion
-  FDC_TIMESTAMP_BUFFER: 900, // 15 minutes buffer for FDC deadline
+  // 15 minutes buffer for FDC deadline
+  // Underlying seconds for payment
+  // underlyingSecondsForPayment from the operational parameters
+  // https://dev.flare.network/fassets/operational-parameters
+  // The minimum time allowed for an agent to pay for a redemption or a minter to pay for minting.
+  FDC_TIMESTAMP_BUFFER: 900,
 } as const;
 
 // XRP Ledger data types
