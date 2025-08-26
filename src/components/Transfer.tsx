@@ -37,9 +37,16 @@ export default function Transfer() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // FXRP balance hook
+  // Use the useFXRPBalance hook to get the FXRP balance
+  // FXRP is an ERC20 token
+  // FXRP address comes from the settings
+  // dev.flare.network/fassets/developer-guides/fassets-fxrp-address
   const { fxrpBalance, refetchFxrpBalance, balanceError, isConnected } =
     useFXRPBalance();
 
+  // Form
   const {
     register,
     handleSubmit,
@@ -56,7 +63,7 @@ export default function Transfer() {
 
   const watchedAmount = watch('amount');
 
-  // Write contract for transfer function
+  // Write contract for transfer function hook
   const {
     data: transferHash,
     writeContract: transferContract,
@@ -126,6 +133,8 @@ export default function Transfer() {
       }
 
       // Convert amount to wei using correct decimals
+      // Get the decimals from the asset manager settings
+      // https://dev.flare.network/fassets/reference/IAssetManager#getsettings
       const decimals = Number(settings.assetDecimals);
       const amountInWei = BigInt(
         Math.floor(parseFloat(data.amount) * Math.pow(10, decimals))
@@ -133,7 +142,10 @@ export default function Transfer() {
 
       // Call the transfer function using wagmi
       transferContract({
+        // Use the FXRP token address from the settings
+        // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
         address: settings.fAsset as `0x${string}`,
+        // Use the ERC20 ABI
         abi: erc20Abi,
         functionName: 'transfer',
         args: [data.recipientAddress as `0x${string}`, amountInWei],

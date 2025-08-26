@@ -12,12 +12,15 @@ export function useFXRPBalance() {
   const { settings, assetManagerAddress } = useAssetManager();
 
   // Read FXRP balance using wagmi
+  // FXRP is an ERC20 token
   const {
     data: fxrpBalanceData,
     refetch: refetchFxrpBalance,
     isLoading: isLoadingBalance,
     error: balanceError,
   } = useReadContract({
+    // Get the FXRP token address from the settings
+    // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
     address: settings?.fAsset as `0x${string}`,
     abi: erc20Abi,
     functionName: 'balanceOf',
