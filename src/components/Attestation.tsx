@@ -34,6 +34,7 @@ import {
 } from '@/types/attestationFormData';
 
 export default function Attestation() {
+  // Form
   const {
     register,
     handleSubmit,
@@ -56,17 +57,24 @@ export default function Attestation() {
 
   const { isConnected } = useAccount();
 
+  // FDC contracts hook
+  // It gets the FDC contracts from the Flare Contracts Registry
+  // https://dev.flare.network/network/guides/flare-contracts-registry
   const {
     addresses: fdcAddresses,
     isLoading: isLoadingAddresses,
     error: addressError,
   } = useFdcContracts();
 
+  // Write contract with requestAttestation function
+  // https://dev.flare.network/fdc/reference/IFdcHub#requestattestation
   const {
     writeContract: requestAttestation,
     data: attestationHash,
     error: writeError,
   } = useWriteIFdcHubRequestAttestation();
+
+  // Wait for transaction receipt
   const { data: receipt, isSuccess: isAttestationSuccess } =
     useWaitForTransactionReceipt({ hash: attestationHash });
 
@@ -84,6 +92,8 @@ export default function Attestation() {
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
           }
+          // Calculate round ID from transaction receipt
+          // https://dev.flare.network/fdc/guides/fdc-by-hand#waiting-for-the-voting-round-to-finalize
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: receipt.blockNumber } },
             fdcAddresses
@@ -97,6 +107,7 @@ export default function Attestation() {
 
           // Start proof retrieval
           setCurrentStep('Retrieving proof from Data Availability Layer...');
+          // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-proof-request
           const proof = await retrievePaymentDataAndProofWithRetry(
             FDC_CONSTANTS.DA_LAYER_API_URL,
             attestationData.abiEncodedRequest,
@@ -107,6 +118,7 @@ export default function Attestation() {
           setProofData(proof);
 
           // Verify the payment
+          // https://dev.flare.network/fdc/guides/fdc-by-hand#verifying-the-data
           setCurrentStep('Verifying payment with FDC Verification contract...');
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
@@ -183,11 +195,11 @@ export default function Attestation() {
     setAttestationData(null);
 
     try {
-      // Step 1: Prepare attestation request
       setCurrentStep('Preparing attestation request...');
       console.log('Preparing attestation request...');
 
       // Prepare the attestation request using the verifier API
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#preparing-the-request
       const attestationResponse =
         await preparePaymentAttestationRequest(transactionId);
       console.log('Attestation response:', attestationResponse);
@@ -200,7 +212,8 @@ export default function Attestation() {
       console.log('Attestation data:', data);
       setAttestationData(data);
 
-      // Step 2: Submit attestation request
+      // Submit attestation request
+      // https://dev.flare.network/fdc/guides/fdc-by-hand#submitting-the-request
       setCurrentStep('Submitting attestation request to blockchain...');
       console.log('Submitting attestation request...');
       if (!isConnected) {
