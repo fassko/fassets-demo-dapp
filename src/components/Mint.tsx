@@ -31,10 +31,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
-// Hooks and contract functions
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useReservationFee } from '@/hooks/useReservationFee';
-// Form data schema
 import {
   MintXRPFormData,
   MintXRPFormDataSchema,
@@ -49,6 +47,8 @@ import {
 export default function Mint() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<React.ReactNode | null>(null);
+
+  // Hold available FAssets agents in state
   const [availableAgents, setAvailableAgents] = useState<
     Array<{
       agentVault: string;
@@ -71,15 +71,7 @@ export default function Mint() {
   } = useAssetManager();
   const { address: userAddress, isConnected } = useAccount();
 
-  // Debug account and chain state
-  useEffect(() => {
-    console.log('Account and chain state:', {
-      userAddress,
-      isConnected,
-      hasAddress: !!userAddress,
-    });
-  }, [userAddress, isConnected]);
-
+  // Form handling
   const {
     register,
     handleSubmit,
@@ -114,58 +106,28 @@ export default function Mint() {
   const { data: availableAgentsData, isLoading: isLoadingAgentsData } =
     useReadContract({
       address: assetManagerAddress!,
+      // Use the IAssetManager generated ABI to read the available agents
       abi: iAssetManagerAbi,
+      // Use the getAvailableAgentsDetailedList function to get the available agents
       functionName: 'getAvailableAgentsDetailedList',
       query: {
         enabled: !!assetManagerAddress,
       },
-      args: [BigInt(1), BigInt(100)],
+      // List agents from index 0 to 100
+      args: [BigInt(0), BigInt(100)],
     });
 
   // Write contract for reserveCollateral function
+  // Use the generated wagmi hook
+  // useWriteIAssetManagerReserveCollateral to write with the reserveCollateral function
   const {
     data: reserveHash,
-    writeContract: reserveContract,
+    writeContract: reserveCollateral,
     isPending: isReservePending,
     error: writeError,
   } = useWriteIAssetManagerReserveCollateral();
 
-  // Debug wagmi hook state
-  useEffect(() => {
-    console.log('Wagmi hook state:', {
-      reserveHash,
-      isReservePending,
-      writeError: writeError?.message,
-      reserveContract: typeof reserveContract,
-      hasWriteContract: !!reserveContract,
-    });
-  }, [reserveHash, isReservePending, writeError, reserveContract]);
-
-  // Add global error handler for uncaught errors
-  useEffect(() => {
-    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('Unhandled promise rejection:', event.reason);
-      setError(`Unhandled error: ${event.reason?.message || event.reason}`);
-    };
-
-    const handleError = (event: ErrorEvent) => {
-      console.error('Global error:', event.error);
-      setError(`Global error: ${event.error?.message || event.message}`);
-    };
-
-    window.addEventListener('unhandledrejection', handleUnhandledRejection);
-    window.addEventListener('error', handleError);
-
-    return () => {
-      window.removeEventListener(
-        'unhandledrejection',
-        handleUnhandledRejection
-      );
-      window.removeEventListener('error', handleError);
-    };
-  }, []);
-
-  // Wait for transaction receipt
+  // Wait for collateral reservation transaction receipt
   const {
     isLoading: isConfirming,
     isSuccess: isReserveSuccess,
@@ -179,15 +141,6 @@ export default function Mint() {
   useEffect(() => {
     if (receiptError) {
       console.error('Transaction receipt error:', receiptError);
-      console.error('Receipt error details:', {
-        name: receiptError instanceof Error ? receiptError.name : 'Unknown',
-        message:
-          receiptError instanceof Error
-            ? receiptError.message
-            : String(receiptError),
-        cause: receiptError instanceof Error ? receiptError.cause : undefined,
-        stack: receiptError instanceof Error ? receiptError.stack : undefined,
-      });
 
       setError(
         `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
@@ -195,11 +148,14 @@ export default function Mint() {
     }
   }, [receiptError]);
 
-  // Process settings when loaded
+  // Process settings at startup
   useEffect(() => {
     if (settings) {
+      // Get the lot size from the settings
       const lotSizeRaw = settings.lotSizeAMG.toString();
+      // Get the asset decimals from the settings
       const decimals = Number(settings.assetDecimals);
+      // Convert the lot size to a human readable format
       const lotSizeHumanReadable = (
         Number(lotSizeRaw) / Math.pow(10, decimals)
       ).toFixed(decimals);
@@ -207,11 +163,13 @@ export default function Mint() {
     }
   }, [settings]);
 
-  // Process available agents when loaded
+  // Process available agents at startup
   useEffect(() => {
     const fetchAgentsWithNames = async () => {
       if (availableAgentsData && settings) {
         const agents = availableAgentsData[0]; // First element is the agents array
+
+        // Filter agents with available lots
         const availableAgentsWithCollateral = agents.filter(
           agent => agent.freeCollateralLots > BigInt(0)
         );
@@ -226,10 +184,14 @@ export default function Mint() {
                 transport: http(),
               });
 
+              // Get agent name from AgentOwnerRegistry contract
               const agentName = await client.readContract({
                 address: settings.agentOwnerRegistry as `0x${string}`,
+                // Use the AgentOwnerRegistry generated ABI to read the getAgentName function
                 abi: iAgentOwnerRegistryAbi,
+                // Use the getAgentName function to get the agent name
                 functionName: 'getAgentName',
+                // Use the ownerManagementAddress to get the agent name
                 args: [agent.ownerManagementAddress],
               });
 
@@ -269,6 +231,7 @@ export default function Mint() {
       console.log('Transaction receipt:', receipt);
 
       // Try to decode the CollateralReserved event from the transaction logs
+      // https://dev.flare.network/fassets/reference/IAssetManagerEvents#collateralreserved
       try {
         if (receipt.logs && receipt.logs.length > 0) {
           console.log('Transaction logs:', receipt.logs);
@@ -305,6 +268,7 @@ export default function Mint() {
                 const totalXRP = Number(totalUBA) / 10 ** 6;
                 console.log(`You need to pay ${totalXRP} XRP`);
 
+                // Show the success message
                 setSuccess(
                   <SuccessMessage
                     reservationId={decodedLog.args.collateralReservationId.toString()}
@@ -337,29 +301,10 @@ export default function Mint() {
   }, [isReserveSuccess, receipt, reset]);
 
   async function mint(data: MintXRPFormData) {
-    console.log('=== MINT FUNCTION START ===');
     setError(null);
     setSuccess(null);
 
-    // Add a timeout to catch silent failures
-    const mintTimeout = setTimeout(() => {
-      console.error(
-        'Mint function timeout - function took too long to complete'
-      );
-      setError(
-        'Transaction timeout: The mint function took too long to complete. This may indicate a silent failure.'
-      );
-    }, 60000); // 60 second timeout
-
     console.log('Mint function called with data:', data);
-    console.log('Current state:', {
-      assetManagerAddress,
-      isConnected,
-      settings: !!settings,
-      availableAgents: availableAgents.length,
-      reserveContract: !!reserveContract,
-      writeError: writeError?.message,
-    });
 
     try {
       console.log('Step 1: Validating inputs...');
@@ -398,36 +343,36 @@ export default function Mint() {
       }
 
       console.log('Step 4: Preparing transaction parameters...');
+      // Not using the executor in this demo
+      // That means we use zero address
       const executor = '0x0000000000000000000000000000000000000000';
 
+      // Get agent fee
       const agentFeeBIPS = selectedAgent.feeBIPS.toString();
       console.log('Agent fee BIPS:', agentFeeBIPS);
 
       console.log('Calling reserveCollateral with:', {
+        address: assetManagerAddress,
         agentVault: data.agentVault,
         lots: lotsNumber,
         agentFeeBIPS: parseInt(agentFeeBIPS),
         reservationFee: currentFeeAmount.toString(),
-      });
-
-      console.log('About to call reserveContract with:', {
-        address: assetManagerAddress,
+        reservationFeeFLR: Number(currentFeeAmount) / Math.pow(10, 18),
         args: [
           data.agentVault,
           BigInt(data.lots),
           BigInt(agentFeeBIPS),
           executor,
         ],
-        value: currentFeeAmount, // Use BigInt directly
-        valueInFLR: Number(currentFeeAmount) / Math.pow(10, 18),
+        value: currentFeeAmount,
       });
 
-      // Check if reserveContract is available
-      if (!reserveContract) {
-        throw new Error('reserveContract function is not available');
+      // Check if reserveCollateral function is available
+      if (!reserveCollateral) {
+        throw new Error('reserveCollateral function is not available');
       }
 
-      // Check if the contract is properly configured
+      // Check if the asset manager contract is properly configured
       if (!assetManagerAddress) {
         throw new Error('AssetManager address is not configured');
       }
@@ -435,29 +380,26 @@ export default function Mint() {
       console.log('>> assetManagerAddress:', assetManagerAddress);
 
       // Call the reserveCollateral function using the generated hook
-      console.log('Attempting to call reserveContract with:', {
+      // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
+      const result = reserveCollateral({
+        // Use the asset manager address
         address: assetManagerAddress,
+        // Pass the parameters to the reserveCollateral function
         args: [
-          data.agentVault,
-          BigInt(data.lots),
-          BigInt(agentFeeBIPS),
-          executor,
-        ],
-        value: currentFeeAmount.toString(),
-      });
-
-      const result = reserveContract({
-        address: assetManagerAddress,
-        args: [
+          // Agent vault address
           data.agentVault as `0x${string}`,
+          // Lots
           BigInt(data.lots),
+          // Agent fee in BIPS
           BigInt(agentFeeBIPS),
+          // Executor is zero address
           executor as `0x${string}`,
         ],
-        value: currentFeeAmount, // Use BigInt directly
+        // Send the fee in native chain token
+        value: currentFeeAmount,
       });
 
-      console.log('reserveContract called successfully, result:', result);
+      console.log('reserveCollateral called successfully, result:', result);
     } catch (error) {
       console.error('Error minting XRP:', error);
 
@@ -485,7 +427,6 @@ export default function Mint() {
         );
       }
     } finally {
-      clearTimeout(mintTimeout);
       console.log('=== MINT FUNCTION END ===');
     }
   }
@@ -536,60 +477,6 @@ export default function Mint() {
     }
   }, [reserveHash]);
 
-  // Monitor transaction timeout
-  useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
-
-    if (isReservePending && !reserveHash) {
-      // If transaction is pending but no hash after 30 seconds, show error
-      timeoutId = setTimeout(() => {
-        console.error('Transaction timeout: No hash received after 30 seconds');
-        setError(
-          'Transaction timeout: No transaction hash received. The transaction may have failed silently.'
-        );
-      }, 30000);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [isReservePending, reserveHash]);
-
-  // Debug: Monitor write contract state
-  useEffect(() => {
-    console.log('Write contract state:', {
-      isReservePending,
-      isConfirming,
-      reserveHash,
-      writeError,
-      isProcessing,
-      error,
-      assetManagerError,
-      feeError,
-    });
-
-    // Log when any error state changes
-    if (error || writeError || assetManagerError || feeError) {
-      console.log('Error state detected:', {
-        error,
-        writeError: writeError?.message,
-        assetManagerError,
-        feeError,
-      });
-    }
-  }, [
-    isReservePending,
-    isConfirming,
-    reserveHash,
-    writeError,
-    isProcessing,
-    error,
-    assetManagerError,
-    feeError,
-  ]);
-
   return (
     <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
@@ -600,10 +487,7 @@ export default function Mint() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className='text-blue-700 mb-6'>
-            Reserve collateral and mint FXRP tokens by providing XRP to the
-            Asset Manager.
-          </p>
+          <p className='text-blue-700 mb-6'>Reserve collateral to mint FXRP</p>
 
           <form onSubmit={handleSubmit(mint)} className='space-y-6'>
             <div className='space-y-4'>

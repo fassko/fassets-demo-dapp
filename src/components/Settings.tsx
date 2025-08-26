@@ -2,17 +2,13 @@
 
 import { useState } from 'react';
 
-// UI Components
+import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
-
-// Asset manager hooks
 import { useAssetManager } from '@/hooks/useAssetManager';
-
-// Utilities
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { truncateAddress } from '@/lib/utils';
 
 export default function Settings() {
