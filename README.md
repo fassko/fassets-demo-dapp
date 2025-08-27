@@ -19,60 +19,6 @@ A comprehensive demo application showcasing Flare Network's cross-chain capabili
 - Input validation and error handling
 - Transaction status feedback
 
-## Code Formatting & Import Sorting
-
-This project uses Prettier for code formatting and ESLint for code linting, with automatic import sorting configured.
-
-### Import Sorting
-
-The project uses ESLint with the `eslint-plugin-import` to automatically organize imports in a consistent order:
-
-1. **React imports** (react, react-\*)
-2. **External library imports** (organized by package)
-3. **Internal imports** (@/\*)
-4. **Relative imports** (./\*)
-
-The import order is enforced by ESLint rules and can be automatically fixed using the linting commands.
-
-### Formatting Commands
-
-```bash
-# Format all files (including import sorting)
-npm run format
-
-# Check formatting without making changes
-npm run format:check
-
-# Sort imports only
-npm run sort:imports
-
-# Check import sorting without making changes
-npm run sort:imports:check
-
-# Lint code
-npm run lint
-
-# Fix linting issues automatically
-npm run lint:fix
-
-# Fix all issues (linting + formatting)
-npm run fix:all
-
-# Check all issues (linting + formatting)
-npm run check:all
-```
-
-### Editor Setup
-
-For the best development experience, install the following VS Code extensions:
-
-- Prettier - Code formatter
-- ESLint
-- Tailwind CSS IntelliSense
-- TypeScript and JavaScript Language Features
-
-The project includes VS Code settings that will automatically format your code on save.
-
 ## Getting Started
 
 ### Prerequisites
@@ -108,13 +54,6 @@ pnpm dev
 bun dev
 ```
 
-### Adding New Features
-
-1. Create new components in `src/components/`
-2. Add navigation tabs in `Navigation.tsx`
-3. Update the main page to include new components
-4. Add any utility functions in `src/utils/`
-
 ## Troubleshooting
 
 ### Common Issues
@@ -123,14 +62,6 @@ bun dev
 2. **Network errors**: Verify you're connected to Flare Coston2 testnet
 3. **Transaction failures**: Check your account has sufficient FLR for gas fees
 4. **Balance not updating**: Click the "Refresh Balance" buttons
-
-### Debug Mode
-
-Open browser developer tools to view:
-
-- Console logs for transaction details
-- Network tab for API calls
-- React DevTools for component state
 
 ## Contributing
 
