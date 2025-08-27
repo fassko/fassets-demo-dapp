@@ -1,16 +1,14 @@
 // FDC (Flare Data Connector) utility functions
 // Taken from the this guide https://dev.flare.network/fdc/guides/fdc-by-hand
 
-import { publicClient } from '@/lib/publicClient';
-import { toHex } from '@/lib/utils';
-
-// Import ABIType generated contracts
 import {
   iFdcRequestFeeConfigurationsAbi,
   iFlareSystemsManagerAbi,
   iPaymentVerificationAbi,
   iReferencedPaymentNonexistenceVerificationAbi,
 } from '@/generated';
+import { publicClient } from '@/lib/publicClient';
+import { toHex } from '@/lib/utils';
 
 // Type definitions based on generated ABI structures
 export type PaymentRequestBody = {

@@ -1,9 +1,5 @@
 'use client';
 
-// Execute FXRP minting
-// https://dev.flare.network/fassets/reference/IAssetManager#executeminting
-// https://dev.flare.network/fassets/developer-guides/fassets-mint/
-
 import { useEffect, useState } from 'react';
 
 import { Check, CheckCircle, Copy, Loader2, Play, XCircle } from 'lucide-react';
@@ -11,28 +7,25 @@ import { Check, CheckCircle, Copy, Loader2, Play, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 
 import { decodeEventLog } from 'viem';
+
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { copyToClipboardWithTimeout } from '@/lib/clipboard';
-
-import { useAssetManager } from '@/hooks/useAssetManager';
-import { useFdcContracts } from '@/hooks/useFdcContracts';
-
-// Import ABIType generated contract and hook
 import {
   iAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting,
 } from '@/generated';
-
+import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
   PaymentProofData,
@@ -67,6 +60,10 @@ const ExecuteFormDataSchema = z.object({
 });
 
 type ExecuteFormData = z.infer<typeof ExecuteFormDataSchema>;
+
+// Execute FXRP minting
+// https://dev.flare.network/fassets/reference/IAssetManager#executeminting
+// https://dev.flare.network/fassets/developer-guides/fassets-mint/
 
 export default function Execute() {
   // Form

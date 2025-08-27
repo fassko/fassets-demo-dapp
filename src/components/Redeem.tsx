@@ -7,11 +7,12 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 
 import { decodeEventLog, keccak256 } from 'viem';
+
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

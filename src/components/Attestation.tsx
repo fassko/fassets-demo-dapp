@@ -1,9 +1,5 @@
 'use client';
 
-// Flare Data Connector XRP Payment attestation
-// https://dev.flare.network/fdc/attestation-types/payment
-// https://dev.flare.network/fdc/guides/fdc-by-hand
-
 import { useEffect, useState } from 'react';
 
 import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
@@ -11,9 +7,10 @@ import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

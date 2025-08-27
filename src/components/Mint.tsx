@@ -1,9 +1,5 @@
 'use client';
 
-// Reserve collateral for FXRP minting
-// https://dev.flare.network/fassets/developer-guides/fassets-mint
-// https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
-
 import { useEffect, useState } from 'react';
 
 import { Coins, Loader2 } from 'lucide-react';
@@ -12,7 +8,6 @@ import { flareTestnet } from 'wagmi/chains';
 import { Controller, useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 
 import {
   useAccount,
@@ -21,6 +16,8 @@ import {
 } from 'wagmi';
 
 import { createPublicClient, decodeEventLog, http } from 'viem';
+
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -39,7 +36,6 @@ import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
 
-// Import ABIType generated contracts
 import {
   iAgentOwnerRegistryAbi,
   iAssetManagerAbi,
@@ -127,6 +123,10 @@ function useReservationFee(
     getCurrentFeeAsNumber,
   };
 }
+
+// Reserve collateral for FXRP minting
+// https://dev.flare.network/fassets/developer-guides/fassets-mint
+// https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
 
 export default function Mint() {
   const [error, setError] = useState<string | null>(null);

@@ -1,16 +1,17 @@
 'use client';
 
-// Transfer FXRP
-// FXRP is an ERC20 token
-// https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry
+import { useEffect, useState } from 'react';
 
 import { Loader2, Send } from 'lucide-react';
-import { useEffect, useState } from 'react';
+
 import { useForm } from 'react-hook-form';
-import { erc20Abi } from 'viem';
-import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+
+import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+
+import { erc20Abi } from 'viem';
+
 import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -19,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 

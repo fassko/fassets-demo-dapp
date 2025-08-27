@@ -1,19 +1,19 @@
 'use client';
 
-// FAssets AssetManagerFXRP settings
-// https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
-// https://dev.flare.network/fassets/operational-parameters
-
 import { useState } from 'react';
+
+import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
-import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
-
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { truncateAddress } from '@/lib/utils';
+
+// FAssets AssetManagerFXRP settings
+// https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
+// https://dev.flare.network/fassets/operational-parameters
 
 export default function Settings() {
   // Use FAssets asset manager hook to read settings
