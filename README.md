@@ -62,37 +62,38 @@ The application is organized into several key components that demonstrate differ
 
 #### `Settings.tsx` - Asset Manager Configuration
 
-- **Purpose**: Displays and manages FAssets AssetManagerFXRP contract settings
-- **Documentation**: [FAssets Settings Guide](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity) | [Operational Parameters](https://dev.flare.network/fassets/operational-parameters)
+Displays and manages FAssets AssetManagerFXRP contract settings
+
+**Documentation**: [FAssets Settings Guide](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity) | [Operational Parameters](https://dev.flare.network/fassets/operational-parameters)
 
 #### `Mint.tsx` - FXRP Minting Interface
 
-- **Purpose**: Enables users to mint FXRP by reserving FLR collateral
-- **Documentation**: [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint) | [IAssetManager Reference](https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral)
+Enables users to mint FXRP by reserving FLR collateral
+**Documentation**: [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint) | [IAssetManager Reference](https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral)
 
 #### `Execute.tsx` - Minting Execution
 
-- **Purpose**: Executes the actual FXRP minting after collateral reservation
-- **Documentation**: [IAssetManager ExecuteMinting](https://dev.flare.network/fassets/reference/IAssetManager#executeminting) | [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint/)
+Executes the actual FXRP minting after collateral reservation
+**Documentation**: [IAssetManager ExecuteMinting](https://dev.flare.network/fassets/reference/IAssetManager#executeminting) | [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint/)
 
 ### FDC (Flare Data Connector) Components
 
 #### `Attestation.tsx` - Cross-Chain Verification
 
-- **Purpose**: Demonstrates FDC attestation for XRP payment verification
-- **Documentation**: [FDC Payment Attestation](https://dev.flare.network/fdc/attestation-types/payment) | [FDC Implementation Guide](https://dev.flare.network/fdc/guides/fdc-by-hand)
+Demonstrates FDC attestation for XRP payment verification
+**Documentation**: [FDC Payment Attestation](https://dev.flare.network/fdc/attestation-types/payment) | [FDC Implementation Guide](https://dev.flare.network/fdc/guides/fdc-by-hand)
 
 ### FXRP Transfer & Redemption Components
 
 #### `Transfer.tsx` - FXRP Transfers
 
-- **Purpose**: Enables FXRP transfers between Flare addresses
-- **Documentation**: [FAssets Asset Manager Registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry)
+Enables FXRP transfers between Flare addresses
+**Documentation**: [FAssets Asset Manager Registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry)
 
 #### `Redeem.tsx` - FXRP to XRP Redemption
 
-- **Purpose**: Facilitates redemption of FXRP back to native XRP on XRPL
-- **Documentation**: [FAssets Redemption Guide](https://dev.flare.network/fassets/developer-guides/fassets-redeem)
+Facilitates redemption of FXRP back to native XRP on XRPL
+**Documentation**: [FAssets Redemption Guide](https://dev.flare.network/fassets/developer-guides/fassets-redeem)
 
 ## Troubleshooting
 
