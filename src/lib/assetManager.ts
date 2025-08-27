@@ -1,3 +1,6 @@
+// Utility function to get the FAssets AssetManagerFXRP contract address
+// https://dev.flare.network/network/guides/flare-contracts-registry
+
 import { ethers } from 'ethers';
 
 import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';

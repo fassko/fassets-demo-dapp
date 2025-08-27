@@ -1,5 +1,9 @@
 'use client';
 
+// Execute FXRP minting
+// https://dev.flare.network/fassets/reference/IAssetManager#executeminting
+// https://dev.flare.network/fassets/developer-guides/fassets-mint/
+
 import { useEffect, useState } from 'react';
 
 import { Check, CheckCircle, Copy, Loader2, Play, XCircle } from 'lucide-react';
@@ -7,6 +11,7 @@ import { Check, CheckCircle, Copy, Loader2, Play, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 
@@ -17,13 +22,17 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+
+import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFdcContracts } from '@/hooks/useFdcContracts';
+
+// Import ABIType generated contract and hook
 import {
   iAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting,
 } from '@/generated';
-import { useAssetManager } from '@/hooks/useAssetManager';
-import { useFdcContracts } from '@/hooks/useFdcContracts';
-import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+
 import {
   FDC_CONSTANTS,
   PaymentProofData,
@@ -31,10 +40,33 @@ import {
   retrievePaymentDataAndProofWithRetry,
   verifyPayment,
 } from '@/lib/fdcUtils';
-import {
-  ExecuteFormData,
-  ExecuteFormDataSchema,
-} from '@/types/executeFormData';
+
+// Form data types
+const ExecuteFormDataSchema = z.object({
+  collateralReservationId: z
+    .string()
+    .min(1, 'Collateral reservation ID is required')
+    .refine(
+      val => /^\d+$/.test(val.trim()),
+      'Collateral reservation ID must be a valid number'
+    ),
+  fdcRoundId: z
+    .string()
+    .min(1, 'FDC round ID is required')
+    .refine(
+      val => /^\d+$/.test(val.trim()),
+      'FDC round ID must be a valid number'
+    ),
+  transactionId: z
+    .string()
+    .min(1, 'Transaction ID is required')
+    .refine(
+      val => /^[A-F0-9]{64}$/i.test(val.trim()),
+      'Transaction ID must be a valid 64-character hexadecimal XRPL transaction ID'
+    ),
+});
+
+type ExecuteFormData = z.infer<typeof ExecuteFormDataSchema>;
 
 export default function Execute() {
   // Form
@@ -71,11 +103,16 @@ export default function Execute() {
   } | null>(null);
 
   const { isConnected } = useAccount();
+
+  // Use FAssets asset manager hook to read settings
   const {
     assetManagerAddress,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // Use FDC contracts hook to read FDC contract addresses
+  // https://dev.flare.network/fdc/guides/fdc-by-hand
   const {
     addresses: fdcAddresses,
     isLoading: isLoadingAddresses,
@@ -177,6 +214,8 @@ export default function Execute() {
         collateralReservationId
       );
 
+      // Execute minting on AssetManager contract
+      // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
       executeMinting({
         address: assetManagerAddress,
         args: [
@@ -429,9 +468,9 @@ export default function Execute() {
       };
 
       // Process each log in the transaction receipt
-      // Decode the logs as various events:
-      // MintingExecuted: https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
-      // RedemptionTicketCreated: https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
+      // Decode the logs for various events:
+      // * MintingExecuted: https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
+      // * RedemptionTicketCreated: https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
       for (const log of receipt.logs) {
         try {
           // Try to decode the log as various events

@@ -16,6 +16,24 @@ interface NavigationProps {
   onTabChange: (tab: string) => void;
 }
 
+// Color mapping for tab states
+const getTabColorClasses = (color: string): string => {
+  const colorMap = {
+    slate:
+      'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300',
+    blue: 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300',
+    purple:
+      'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300',
+    orange:
+      'data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900 data-[state=active]:border-orange-300',
+    cyan: 'data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-900 data-[state=active]:border-cyan-300',
+    green:
+      'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300',
+  };
+
+  return colorMap[color as keyof typeof colorMap] || colorMap.blue;
+};
+
 export default function Navigation({
   activeTab,
   onTabChange,
@@ -44,21 +62,7 @@ export default function Navigation({
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${
-                  tab.color === 'slate'
-                    ? 'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300'
-                    : tab.color === 'blue'
-                      ? 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
-                      : tab.color === 'purple'
-                        ? 'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300'
-                        : tab.color === 'orange'
-                          ? 'data-[state=active]:bg-orange-100 data-[state=active]:text-orange-900 data-[state=active]:border-orange-300'
-                          : tab.color === 'cyan'
-                            ? 'data-[state=active]:bg-cyan-100 data-[state=active]:text-cyan-900 data-[state=active]:border-cyan-300'
-                            : tab.color === 'green'
-                              ? 'data-[state=active]:bg-green-100 data-[state=active]:text-green-900 data-[state=active]:border-green-300'
-                              : 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300'
-                }`}
+                className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${getTabColorClasses(tab.color)}`}
               >
                 <IconComponent className='h-4 w-4' />
                 {tab.label}

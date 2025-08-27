@@ -1,3 +1,6 @@
+// Hook to get the FDC contract addresses
+// https://dev.flare.network/fdc/guides/fdc-by-hand
+
 import { useEffect, useState } from 'react';
 
 import {

@@ -1,3 +1,6 @@
+// Hook to get the FXRP balance
+// https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
+
 import { useEffect, useState } from 'react';
 
 import { useAccount, useReadContract } from 'wagmi';
@@ -22,6 +25,7 @@ export function useFXRPBalance() {
     // Get the FXRP token address from the settings
     // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
     address: settings?.fAsset as `0x${string}`,
+    // FXRP is an ERC20 token
     abi: erc20Abi,
     functionName: 'balanceOf',
     args: [userAddress as `0x${string}`],

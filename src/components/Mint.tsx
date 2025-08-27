@@ -1,5 +1,9 @@
 'use client';
 
+// Reserve collateral for FXRP minting
+// https://dev.flare.network/fassets/developer-guides/fassets-mint
+// https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
+
 import { useEffect, useState } from 'react';
 
 import { Coins, Loader2 } from 'lucide-react';
@@ -8,6 +12,7 @@ import { flareTestnet } from 'wagmi/chains';
 import { Controller, useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import {
   useAccount,
@@ -32,23 +37,101 @@ import {
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
-import { useReservationFee } from '@/hooks/useReservationFee';
-import {
-  MintXRPFormData,
-  MintXRPFormDataSchema,
-} from '@/types/mintXRPFormData';
+import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
 
+// Import ABIType generated contracts
 import {
   iAgentOwnerRegistryAbi,
   iAssetManagerAbi,
   useWriteIAssetManagerReserveCollateral,
 } from '../generated';
 
+// Form data types
+const MintXRPFormDataSchema = z.object({
+  agentVault: z.string().min(1, 'Agent vault address is required'),
+  lots: z
+    .string()
+    .min(1, 'Lots amount is required')
+    .refine(
+      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      'Lots must be a positive number'
+    )
+    .refine(
+      val => Number.isInteger(parseFloat(val)),
+      'Lots must be a whole number (no decimals)'
+    ),
+});
+
+type MintXRPFormData = z.infer<typeof MintXRPFormDataSchema>;
+
+// Reservation fee hook
+function useReservationFee(
+  assetManagerAddress: string | undefined,
+  lots: string,
+  agentVault: string
+) {
+  const [reservationFee, setReservationFee] = useState<string>('0');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Calculate reservation fee when lots or agent vault changes
+  useEffect(() => {
+    const calculateFee = async () => {
+      if (assetManagerAddress && lots && agentVault && !isNaN(parseInt(lots))) {
+        setIsLoading(true);
+        setError(null);
+
+        try {
+          const feeWei = await calculateReservationFee(
+            assetManagerAddress,
+            lots
+          );
+          const feeInFLR = weiToFLR(feeWei).toString();
+          setReservationFee(feeInFLR);
+        } catch (error) {
+          console.error('Error calculating reservation fee:', error);
+          setReservationFee('0');
+          setError('Failed to calculate reservation fee');
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setReservationFee('0');
+        setError(null);
+      }
+    };
+
+    calculateFee();
+  }, [assetManagerAddress, lots, agentVault]);
+
+  // Function to get current fee at transaction time (returns BigInt for precision)
+  // Fee can change at transaction time
+  const getCurrentFee = async (lotsNumber: number): Promise<bigint> => {
+    if (!assetManagerAddress) {
+      throw new Error('AssetManager address not loaded');
+    }
+    return calculateReservationFee(assetManagerAddress, lotsNumber.toString());
+  };
+
+  // Function to get current fee as number for display purposes
+  const getCurrentFeeAsNumber = async (lotsNumber: number): Promise<number> => {
+    const feeWei = await getCurrentFee(lotsNumber);
+    return weiToFLR(feeWei);
+  };
+
+  return {
+    reservationFee,
+    isLoading,
+    error,
+    getCurrentFee,
+    getCurrentFeeAsNumber,
+  };
+}
+
 export default function Mint() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<React.ReactNode | null>(null);
 
-  // Hold available FAssets agents in state
   const [availableAgents, setAvailableAgents] = useState<
     Array<{
       agentVault: string;
@@ -102,13 +185,14 @@ export default function Mint() {
     watchedAgentVault
   );
 
-  // Read available agents
+  // Read available agents hook
   const { data: availableAgentsData, isLoading: isLoadingAgentsData } =
     useReadContract({
       address: assetManagerAddress!,
       // Use the IAssetManager generated ABI to read the available agents
       abi: iAssetManagerAbi,
       // Use the getAvailableAgentsDetailedList function to get the available agents
+      // https://dev.flare.network/fassets/reference/IAssetManager/#getAvailableAgentsDetailedList
       functionName: 'getAvailableAgentsDetailedList',
       query: {
         enabled: !!assetManagerAddress,
@@ -120,6 +204,7 @@ export default function Mint() {
   // Write contract for reserveCollateral function
   // Use the generated wagmi hook
   // useWriteIAssetManagerReserveCollateral to write with the reserveCollateral function
+  // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
   const {
     data: reserveHash,
     writeContract: reserveCollateral,
@@ -151,6 +236,7 @@ export default function Mint() {
   // Process settings at startup
   useEffect(() => {
     if (settings) {
+      // https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
       // Get the lot size from the settings
       const lotSizeRaw = settings.lotSizeAMG.toString();
       // Get the asset decimals from the settings
@@ -190,6 +276,7 @@ export default function Mint() {
                 // Use the AgentOwnerRegistry generated ABI to read the getAgentName function
                 abi: iAgentOwnerRegistryAbi,
                 // Use the getAgentName function to get the agent name
+                // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentname
                 functionName: 'getAgentName',
                 // Use the ownerManagementAddress to get the agent name
                 args: [agent.ownerManagementAddress],
@@ -348,6 +435,8 @@ export default function Mint() {
       const executor = '0x0000000000000000000000000000000000000000';
 
       // Get agent fee
+      // https://dev.flare.network/fassets/reference/IAssetManager/#getavailableagentsdetailedlist
+      // https://dev.flare.network/fassets/developer-guides/fassets-mint/
       const agentFeeBIPS = selectedAgent.feeBIPS.toString();
       console.log('Agent fee BIPS:', agentFeeBIPS);
 

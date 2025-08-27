@@ -1,37 +1,54 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+// Transfer FXRP
+// FXRP is an ERC20 token
+// https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry
 
 import { Loader2, Send } from 'lucide-react';
-
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
-import { zodResolver } from '@hookform/resolvers/zod';
-
+import { erc20Abi } from 'viem';
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 
-import { erc20Abi } from 'viem';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-// UI components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-// Hooks and contract functions
+
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-// Form data schema
-import {
-  SendFXRPFormData,
-  SendFXRPFormDataSchema,
-} from '@/types/sendFXRPFormData';
+
+// Form data types
+const SendFXRPFormDataSchema = z.object({
+  recipientAddress: z
+    .string()
+    .min(1, 'Recipient address is required')
+    .regex(/^0x[a-fA-F0-9]{40}$/, 'Invalid Flare address format'),
+  amount: z
+    .string()
+    .min(1, 'Amount is required')
+    .refine(
+      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      'Amount must be a positive number'
+    )
+    .refine(
+      val => parseFloat(val) <= 1000000,
+      'Amount cannot exceed 1,000,000'
+    ),
+});
+
+type SendFXRPFormData = z.infer<typeof SendFXRPFormDataSchema>;
 
 export default function Transfer() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  // Use FAssets asset manager hook to read settings
   const {
     settings,
     isLoading: isLoadingSettings,
@@ -46,7 +63,7 @@ export default function Transfer() {
   const { fxrpBalance, refetchFxrpBalance, balanceError, isConnected } =
     useFXRPBalance();
 
-  // Form
+  // React Hook Form
   const {
     register,
     handleSubmit,

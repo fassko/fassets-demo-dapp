@@ -1,3 +1,6 @@
+// FDC contract addresses
+// More info: https://dev.flare.network/fdc/overview
+
 import { ethers } from 'ethers';
 
 import { coston2 } from '@flarenetwork/flare-periphery-contract-artifacts';

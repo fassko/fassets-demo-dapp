@@ -7,20 +7,21 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
 
 import { decodeEventLog, keccak256 } from 'viem';
 
-import RedemptionEventCard from '@/components/RedemptionEventCard';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import XRPLBalanceCard from '@/components/XRPLBalanceCard';
-import XRPLedgerInfoCard from '@/components/XRPLedgerInfoCard';
+import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
+import XRPLBalanceCard from '@/components/ui/XRPLBalanceCard';
+import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
@@ -39,15 +40,34 @@ import {
   getLatestLedgerInfoWithFDCDeadlines,
   isValidXRPAddress,
 } from '@/lib/xrpUtils';
-import {
-  RedeemXRPFormData,
-  RedeemXRPFormDataSchema,
-} from '@/types/redeemXRPFormData';
+import { AttestationData } from '@/types/attestation';
 
 import {
   iAssetManagerAbi,
   useWriteIFdcHubRequestAttestation,
 } from '../generated';
+
+// Form data types
+const RedeemXRPFormDataSchema = z.object({
+  xrplAddress: z
+    .string()
+    .min(25, 'Address is too short')
+    .max(35, 'Address is too long')
+    .regex(/^r[1-9A-Za-km-z]{20,34}$/, 'Invalid XRPL address'),
+  amount: z
+    .string()
+    .min(1, 'Amount is required')
+    .refine(
+      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+      'Amount must be a positive number'
+    )
+    .refine(
+      val => parseFloat(val) <= 1000000,
+      'Amount cannot exceed 1,000,000'
+    ),
+});
+
+type RedeemXRPFormData = z.infer<typeof RedeemXRPFormDataSchema>;
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -91,10 +111,8 @@ export default function Redeem() {
   );
   const [currentAttestationStep, setCurrentAttestationStep] =
     useState<string>('');
-  const [attestationData, setAttestationData] = useState<{
-    abiEncodedRequest: string;
-    roundId: number | null;
-  } | null>(null);
+  const [attestationData, setAttestationData] =
+    useState<AttestationData | null>(null);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [proofData, setProofData] =
     useState<ReferencedPaymentNonexistenceProofData | null>(null);

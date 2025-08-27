@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// This is a proxy for the DA Layer API
+// It is used to retrieve the proof for a given request
+// Avoids browser CORS issues when calling external APIs
 export async function POST(request: NextRequest) {
   try {
     console.log('API route called');

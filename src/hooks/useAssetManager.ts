@@ -1,3 +1,6 @@
+// Hook to get the AssetManager address
+// https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry
+
 import { useEffect, useState } from 'react';
 
 import { useReadContract } from 'wagmi';

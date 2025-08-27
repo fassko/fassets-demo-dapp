@@ -1,3 +1,6 @@
+// Collateral reservation fee calculations
+// More info: https://dev.flare.network/fassets/minting#collateral-reservation-fee
+
 import { iAssetManagerAbi } from '@/generated';
 import { publicClient } from '@/lib/publicClient';
 
@@ -21,6 +24,7 @@ export async function calculateReservationFee(
       // Use the IAssetManager generated ABI to read the collateralReservationFee function
       abi: iAssetManagerAbi,
       // Use the collateralReservationFee function to get the reservation fee
+      // https://dev.flare.network/fassets/minting#collateral-reservation-fee
       functionName: 'collateralReservationFee',
       // Use the lots number to get the reservation fee
       args: [BigInt(lots)],

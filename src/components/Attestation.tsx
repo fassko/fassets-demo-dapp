@@ -1,5 +1,9 @@
 'use client';
 
+// Flare Data Connector XRP Payment attestation
+// https://dev.flare.network/fdc/attestation-types/payment
+// https://dev.flare.network/fdc/guides/fdc-by-hand
+
 import { useEffect, useState } from 'react';
 
 import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
@@ -7,6 +11,7 @@ import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 
 import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
 
@@ -28,10 +33,19 @@ import {
   verifyPayment,
 } from '@/lib/fdcUtils';
 import { AttestationData } from '@/types/attestation';
-import {
-  AttestationFormData,
-  AttestationFormDataSchema,
-} from '@/types/attestationFormData';
+
+// Form data types
+const AttestationFormDataSchema = z.object({
+  transactionId: z
+    .string()
+    .min(1, 'Transaction ID is required')
+    .refine(
+      val => /^[A-F0-9]{64}$/i.test(val.trim()),
+      'Transaction ID must be a valid 64-character hexadecimal XRPL transaction ID'
+    ),
+});
+
+type AttestationFormData = z.infer<typeof AttestationFormDataSchema>;
 
 export default function Attestation() {
   // Form
