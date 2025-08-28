@@ -225,6 +225,8 @@ export default function Redeem() {
             decodedLog.args
           );
 
+          // RedemptionRequested event
+          // https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionrequested
           if (decodedLog.eventName === 'RedemptionRequested') {
             console.log('=== RedemptionRequested Event ===');
             console.log('Agent Vault:', decodedLog.args.agentVault);
