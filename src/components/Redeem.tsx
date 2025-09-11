@@ -494,8 +494,8 @@ export default function Redeem() {
 
   // Execute attestation after successful redemption
   const executeAttestation = async () => {
-    if (!redemptionEvent || !deadlineBlockNumber || !deadlineTimestamp) {
-      console.log('Missing required data for attestation');
+    if (!redemptionEvent) {
+      console.log('Missing required redemption event data for attestation');
       return;
     }
 
@@ -527,8 +527,8 @@ export default function Redeem() {
       // https://dev.flare.network/fdc/attestation-types/referenced-payment-nonexistence
       const attestationRequestData = {
         minimalBlockNumber: redemptionEvent.firstUnderlyingBlock,
-        deadlineBlockNumber: deadlineBlockNumber,
-        deadlineTimestamp: deadlineTimestamp,
+        deadlineBlockNumber: redemptionEvent.lastUnderlyingBlock,
+        deadlineTimestamp: redemptionEvent.lastUnderlyingTimestamp,
         destinationAddressHash: keccak256(
           redemptionEvent.paymentAddress as `0x${string}`
         ),
