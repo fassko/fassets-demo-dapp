@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NetworkBadge } from '@/components/ui/network-badge';
 import {
   iAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting,
@@ -548,10 +549,13 @@ export default function Execute() {
     <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className='flex items-center gap-2 text-orange-900'>
-            <Play className='h-5 w-5 text-orange-600' />
-            Execute Minting
-          </CardTitle>
+          <div className='flex items-center gap-3'>
+            <CardTitle className='flex items-center gap-2 text-orange-900'>
+              <Play className='h-5 w-5 text-orange-600' />
+              Execute Minting
+            </CardTitle>
+            <NetworkBadge className='border-orange-400 bg-orange-50 text-orange-700 font-semibold' />
+          </div>
         </CardHeader>
         <CardContent>
           <p className='text-orange-700 mb-6'>

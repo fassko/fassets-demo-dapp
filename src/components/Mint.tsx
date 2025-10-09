@@ -3,19 +3,17 @@
 import { useEffect, useState } from 'react';
 
 import { Coins, Loader2 } from 'lucide-react';
-import { flareTestnet } from 'wagmi/chains';
 
 import { Controller, useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
+import { createPublicClient, decodeEventLog, http } from 'viem';
 import {
   useAccount,
   useReadContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
-
-import { createPublicClient, decodeEventLog, http } from 'viem';
 
 import { z } from 'zod';
 
@@ -25,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NetworkBadge } from '@/components/ui/network-badge';
 import {
   Select,
   SelectContent,
@@ -34,6 +33,7 @@ import {
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
 
 import {
@@ -152,7 +152,7 @@ export default function Mint() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
-  const { isConnected } = useAccount();
+  const { isConnected, chain } = useAccount();
 
   // Form handling
   const {
@@ -265,8 +265,14 @@ export default function Mint() {
           availableAgentsWithCollateral.map(async agent => {
             try {
               // Create a contract instance for manual calls
+              // Use the current connected chain or fall back to Flare mainnet
+              const currentChain = chain || getChainById(14);
+              if (!currentChain) {
+                throw new Error('Unable to determine chain');
+              }
+
               const client = createPublicClient({
-                chain: flareTestnet,
+                chain: currentChain,
                 transport: http(),
               });
 
@@ -310,7 +316,7 @@ export default function Mint() {
     };
 
     fetchAgentsWithNames();
-  }, [availableAgentsData, settings]);
+  }, [availableAgentsData, settings, chain]);
 
   // Handle successful reservation
   useEffect(() => {
@@ -570,10 +576,13 @@ export default function Mint() {
     <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className='flex items-center gap-2 text-blue-900'>
-            <Coins className='h-5 w-5 text-blue-600' />
-            Mint XRP to FXRP
-          </CardTitle>
+          <div className='flex items-center gap-3'>
+            <CardTitle className='flex items-center gap-2 text-blue-900'>
+              <Coins className='h-5 w-5 text-blue-600' />
+              Mint XRP to FXRP
+            </CardTitle>
+            <NetworkBadge className='border-blue-400 bg-blue-50 text-blue-700 font-semibold' />
+          </div>
         </CardHeader>
         <CardContent>
           <p className='text-blue-700 mb-6'>Reserve collateral to mint FXRP</p>

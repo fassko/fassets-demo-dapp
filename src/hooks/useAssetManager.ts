@@ -48,6 +48,8 @@ export function useAssetManager() {
     functionName: 'getSettings',
     query: {
       enabled: !!assetManagerAddress,
+      gcTime: 0,
+      staleTime: 0,
     },
   });
 

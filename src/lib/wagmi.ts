@@ -1,16 +1,19 @@
-import { flareTestnet } from 'wagmi/chains';
+import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
 import { injected, metaMask, walletConnect } from 'wagmi/connectors';
 
 import { createConfig, http } from 'wagmi';
 
 export const config = createConfig({
-  chains: [flareTestnet],
+  chains: [flare, flareTestnet, songbird, songbirdTestnet],
   connectors: [
     injected(),
     metaMask(),
     walletConnect({ projectId: 'YOUR_WALLET_CONNECT_PROJECT_ID' }),
   ],
   transports: {
-    [flareTestnet.id]: http(),
+    [flare.id]: http(), // Flare Mainnet (Chain ID: 14)
+    [flareTestnet.id]: http(), // Coston2 Testnet (Chain ID: 114)
+    [songbird.id]: http(), // Songbird Canary Network (Chain ID: 19)
+    [songbirdTestnet.id]: http(), // Coston Testnet (Chain ID: 16)
   },
 });

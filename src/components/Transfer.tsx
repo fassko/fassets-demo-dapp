@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { NetworkBadge } from '@/components/ui/network-badge';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 
@@ -181,10 +182,13 @@ export default function Transfer() {
     <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className='flex items-center gap-2 text-cyan-900'>
-            <Send className='h-5 w-5 text-cyan-600' />
-            Transfer FXRP
-          </CardTitle>
+          <div className='flex items-center gap-3'>
+            <CardTitle className='flex items-center gap-2 text-cyan-900'>
+              <Send className='h-5 w-5 text-cyan-600' />
+              Transfer FXRP
+            </CardTitle>
+            <NetworkBadge className='border-cyan-400 bg-cyan-50 text-cyan-700 font-semibold' />
+          </div>
         </CardHeader>
         <CardContent>
           <p className='text-cyan-700 mb-6'>

@@ -2,12 +2,22 @@
 
 import { useState } from 'react';
 
-import { Check, Copy, RefreshCw, Settings as SettingsIcon } from 'lucide-react';
+import {
+  ArrowRight,
+  Check,
+  Copy,
+  RefreshCw,
+  Settings as SettingsIcon,
+} from 'lucide-react';
+
+import { useAccount } from 'wagmi';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { NetworkBadge } from '@/components/ui/network-badge';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { getExplorerName } from '@/lib/chainUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { truncateAddress } from '@/lib/utils';
 
@@ -15,7 +25,11 @@ import { truncateAddress } from '@/lib/utils';
 // https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
 // https://dev.flare.network/fassets/operational-parameters
 
-export default function Settings() {
+interface SettingsProps {
+  onNavigate?: (tab: string) => void;
+}
+
+export default function Settings({ onNavigate }: SettingsProps) {
   // Use FAssets asset manager hook to read settings
   const {
     settings,
@@ -24,11 +38,27 @@ export default function Settings() {
     refetchSettings,
   } = useAssetManager();
 
+  const { chain } = useAccount();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Refresh handler to refetch settings with loading state
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await refetchSettings();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  const isLoading = loading || isRefreshing;
 
   // Helper function to create explorer link with copy functionality
-  function createExplorerLink(address: string, explorer: string = 'coston2') {
+  function createExplorerLink(address: string) {
     const isCopied = copiedAddress === address;
+    // Get the explorer name based on the current chain, default to 'flare'
+    const explorer = chain ? getExplorerName(chain.id) : 'flare';
 
     return (
       <div className='flex items-center gap-2'>
@@ -84,10 +114,13 @@ export default function Settings() {
     <div className='w-full max-w-4xl mx-auto p-6'>
       <Card>
         <CardHeader>
-          <CardTitle className='flex items-center gap-2 text-slate-900'>
-            <SettingsIcon className='h-5 w-5 text-slate-600' />
-            Asset Manager FXRP Settings
-          </CardTitle>
+          <div className='flex items-center gap-3'>
+            <CardTitle className='flex items-center gap-2 text-slate-900'>
+              <SettingsIcon className='h-5 w-5 text-slate-600' />
+              Asset Manager FXRP Settings
+            </CardTitle>
+            <NetworkBadge className='border-slate-400 bg-slate-50 text-slate-700 font-semibold' />
+          </div>
         </CardHeader>
         <CardContent>
           <p className='text-slate-700 mb-6'>
@@ -97,16 +130,16 @@ export default function Settings() {
 
           <div className='flex justify-end mb-6'>
             <Button
-              onClick={() => refetchSettings()}
-              disabled={loading}
+              onClick={handleRefresh}
+              disabled={isLoading}
               variant='outline'
               size='sm'
               className='border-slate-300 hover:bg-slate-100 cursor-pointer'
             >
               <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`}
               />
-              {loading ? 'Loading...' : 'Refresh Settings'}
+              {isLoading ? 'Loading...' : 'Refresh Settings'}
             </Button>
           </div>
 
@@ -119,7 +152,7 @@ export default function Settings() {
               </Alert>
             )}
 
-            {loading && (
+            {isLoading && (
               <Alert className='bg-slate-50 border-slate-200 text-slate-700'>
                 <AlertDescription>
                   Loading AssetManager settings...
@@ -169,6 +202,77 @@ export default function Settings() {
                     value: settings.collateralReservationFeeBIPS.toString(),
                   },
                 ])}
+
+                <Card>
+                  <CardHeader>
+                    <div className='flex items-center justify-between'>
+                      <CardTitle className='text-slate-900'>
+                        Minting Cap 🧢
+                      </CardTitle>
+                      {onNavigate && (
+                        <Button
+                          onClick={() => onNavigate('minting-cap')}
+                          variant='outline'
+                          size='sm'
+                          className='border-blue-300 hover:bg-blue-50 text-blue-700 cursor-pointer'
+                        >
+                          View Details
+                          <ArrowRight className='h-4 w-4 ml-1' />
+                        </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className='space-y-2 text-sm text-slate-700'>
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
+                          Minting Cap AMG:
+                        </span>
+                        <span>{settings.mintingCapAMG.toString()}</span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
+                          Minting Cap (FXRP):
+                        </span>
+                        <span>
+                          {(() => {
+                            const mintingCap =
+                              BigInt(settings.mintingCapAMG) *
+                              BigInt(settings.assetMintingGranularityUBA);
+                            if (mintingCap === BigInt(0)) {
+                              return '♾️ Unlimited';
+                            }
+                            const assetDecimals = Number(
+                              settings.assetDecimals
+                            );
+                            const formattedCap =
+                              Number(mintingCap) / Math.pow(10, assetDecimals);
+                            return formattedCap.toLocaleString(undefined, {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            });
+                          })()}
+                        </span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
+                          Status:
+                        </span>
+                        <span>
+                          {BigInt(settings.mintingCapAMG) === BigInt(0) ? (
+                            <span className='text-green-600 font-semibold'>
+                              Unlimited
+                            </span>
+                          ) : (
+                            <span className='text-blue-600 font-semibold'>
+                              Cap Enabled
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {settingsBox('Redemption Settings', [
                   {

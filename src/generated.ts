@@ -1,8 +1,8 @@
 import {
   createUseReadContract,
-  createUseWriteContract,
   createUseSimulateContract,
   createUseWatchContractEvent,
+  createUseWriteContract,
 } from 'wagmi/codegen'
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +46,12 @@ export const collateralTypeAbi = [] as const
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 export const contractRegistryAbi = [] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// EmergencyPause
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const emergencyPauseAbi = [] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FtsoV2Interface
@@ -1116,31 +1122,6 @@ export const iAssetManagerAbi = [
     type: 'event',
     anonymous: false,
     inputs: [
-      {
-        name: 'collateralClass',
-        internalType: 'uint8',
-        type: 'uint8',
-        indexed: false,
-      },
-      {
-        name: 'collateralToken',
-        internalType: 'address',
-        type: 'address',
-        indexed: false,
-      },
-      {
-        name: 'validUntil',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'CollateralTypeDeprecated',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
       { name: 'name', internalType: 'string', type: 'string', indexed: false },
       {
         name: 'value',
@@ -1266,28 +1247,27 @@ export const iAssetManagerAbi = [
   {
     type: 'event',
     anonymous: false,
-    inputs: [],
-    name: 'EmergencyPauseTransfersCanceled',
-  },
-  {
-    type: 'event',
-    anonymous: false,
     inputs: [
       {
-        name: 'pausedUntil',
+        name: 'externalLevel',
+        internalType: 'enum EmergencyPause.Level',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'externalPausedUntil',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
       },
-    ],
-    name: 'EmergencyPauseTransfersTriggered',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
       {
-        name: 'pausedUntil',
+        name: 'governanceLevel',
+        internalType: 'enum EmergencyPause.Level',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'governancePausedUntil',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
@@ -1920,6 +1900,25 @@ export const iAssetManagerAbi = [
       },
     ],
     name: 'RedemptionTicketUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'firstTicketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'nextTicketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RedemptionTicketsConsolidated',
   },
   {
     type: 'event',
@@ -3051,6 +3050,15 @@ export const iAssetManagerAbi = [
   },
   {
     type: 'function',
+    inputs: [
+      { name: '_firstTicketId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'consolidateSmallTickets',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     inputs: [],
     name: 'controllerAttached',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
@@ -3373,6 +3381,15 @@ export const iAssetManagerAbi = [
     name: 'doublePaymentChallenge',
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'emergencyPauseLevel',
+    outputs: [
+      { name: '', internalType: 'enum EmergencyPause.Level', type: 'uint8' },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -4393,7 +4410,7 @@ export const iAssetManagerAbi = [
             type: 'uint64',
           },
           {
-            name: 'tokenInvalidationTimeMinSeconds',
+            name: '__tokenInvalidationTimeMinSeconds',
             internalType: 'uint64',
             type: 'uint64',
           },
@@ -5343,35 +5360,11 @@ export const iAssetManagerAbi = [
     type: 'function',
     inputs: [
       { name: '_agentVault', internalType: 'address', type: 'address' },
-      { name: '_token', internalType: 'contract IERC20', type: 'address' },
-    ],
-    name: 'switchVaultCollateral',
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [
-      { name: '_agentVault', internalType: 'address', type: 'address' },
       { name: '_amountUBA', internalType: 'uint256', type: 'uint256' },
     ],
     name: 'transferToCoreVault',
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'transfersEmergencyPaused',
-    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    inputs: [],
-    name: 'transfersEmergencyPausedUntil',
-    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -6025,31 +6018,6 @@ export const iAssetManagerEventsAbi = [
     type: 'event',
     anonymous: false,
     inputs: [
-      {
-        name: 'collateralClass',
-        internalType: 'uint8',
-        type: 'uint8',
-        indexed: false,
-      },
-      {
-        name: 'collateralToken',
-        internalType: 'address',
-        type: 'address',
-        indexed: false,
-      },
-      {
-        name: 'validUntil',
-        internalType: 'uint256',
-        type: 'uint256',
-        indexed: false,
-      },
-    ],
-    name: 'CollateralTypeDeprecated',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
       { name: 'name', internalType: 'string', type: 'string', indexed: false },
       {
         name: 'value',
@@ -6138,28 +6106,27 @@ export const iAssetManagerEventsAbi = [
   {
     type: 'event',
     anonymous: false,
-    inputs: [],
-    name: 'EmergencyPauseTransfersCanceled',
-  },
-  {
-    type: 'event',
-    anonymous: false,
     inputs: [
       {
-        name: 'pausedUntil',
+        name: 'externalLevel',
+        internalType: 'enum EmergencyPause.Level',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'externalPausedUntil',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
       },
-    ],
-    name: 'EmergencyPauseTransfersTriggered',
-  },
-  {
-    type: 'event',
-    anonymous: false,
-    inputs: [
       {
-        name: 'pausedUntil',
+        name: 'governanceLevel',
+        internalType: 'enum EmergencyPause.Level',
+        type: 'uint8',
+        indexed: false,
+      },
+      {
+        name: 'governancePausedUntil',
         internalType: 'uint256',
         type: 'uint256',
         indexed: false,
@@ -6792,6 +6759,25 @@ export const iAssetManagerEventsAbi = [
       },
     ],
     name: 'RedemptionTicketUpdated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'firstTicketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'nextTicketId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RedemptionTicketsConsolidated',
   },
   {
     type: 'event',
@@ -7940,6 +7926,108 @@ export const iClaimSetupManagerAbi = [
     inputs: [{ name: '_amount', internalType: 'uint256', type: 'uint256' }],
     name: 'withdraw',
     outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// ICollateralizable
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iCollateralizableAbi = [
+  {
+    type: 'function',
+    inputs: [{ name: 'epochID', internalType: 'uint256', type: 'uint256' }],
+    name: 'addRewardToAgentPosition',
+    outputs: [{ name: 'succeess', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'assetAddress', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'assetRedemptionRequest',
+    outputs: [
+      { name: 'redemptionId', internalType: 'uint256', type: 'uint256' },
+      { name: 'agents', internalType: 'address[]', type: 'address[]' },
+      { name: 'assetAmounts', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+      { name: 'freshMint', internalType: 'uint256', type: 'uint256' },
+      { name: 'agentPosition', internalType: 'uint256', type: 'uint256' },
+      { name: 'freshMintMinRatio', internalType: 'uint256', type: 'uint256' },
+      { name: 'natAddress', internalType: 'address', type: 'address' },
+      {
+        name: 'handling',
+        internalType: 'enum ICollateralizable.FeeHandling',
+        type: 'uint8',
+      },
+    ],
+    name: 'deposit',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'mintAmountTwei', internalType: 'uint256', type: 'uint256' },
+      { name: 'mintDestination', internalType: 'address', type: 'address' },
+      { name: 'underlyingAddress', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'mintRequest',
+    outputs: [
+      { name: 'mintRequestId', internalType: 'uint256', type: 'uint256' },
+      { name: 'agents', internalType: 'address[]', type: 'address[]' },
+      { name: 'assetAmounts', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'assetAddress', internalType: 'bytes32[]', type: 'bytes32[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'mintRequestId', internalType: 'uint256', type: 'uint256' },
+      { name: 'minterSourceAddress', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'agentAssetAddress', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'destinationTag', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'assetAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'merkleProof', internalType: 'bytes32[]', type: 'bytes32[]' },
+    ],
+    name: 'proveMintPayment',
+    outputs: [
+      { name: 'mintedAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'redemptionRequestId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'agentSourceAssetAddress',
+        internalType: 'bytes32',
+        type: 'bytes32',
+      },
+      {
+        name: 'redeemerAssetAddress',
+        internalType: 'bytes32',
+        type: 'bytes32',
+      },
+      { name: 'destinationTag', internalType: 'bytes32', type: 'bytes32' },
+      { name: 'assetAmount', internalType: 'uint256', type: 'uint256' },
+      { name: 'merkleProof', internalType: 'bytes32[]', type: 'bytes32[]' },
+    ],
+    name: 'proveRedemptionPayment',
+    outputs: [
+      { name: 'redeemedAmount', internalType: 'uint256', type: 'uint256' },
+    ],
     stateMutability: 'nonpayable',
   },
 ] as const
@@ -14757,6 +14845,46 @@ export const iiCleanupBlockNumberManagerAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IICombinedNatBalance
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiCombinedNatBalanceAbi = [
+  {
+    type: 'function',
+    inputs: [{ name: '_owner', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_owner', internalType: 'address', type: 'address' },
+      { name: '_blockNumber', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'balanceOfAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_blockNumber', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'totalSupplyAt',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IICustomFeed
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -14785,6 +14913,129 @@ export const iiCustomFeedAbi = [
       { name: '_timestamp', internalType: 'uint64', type: 'uint64' },
     ],
     stateMutability: 'payable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIERC20WithMetadata
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iierc20WithMetadataAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'owner',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'spender',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Approval',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address', indexed: true },
+      { name: 'to', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'Transfer',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'owner', internalType: 'address', type: 'address' },
+      { name: 'spender', internalType: 'address', type: 'address' },
+    ],
+    name: 'allowance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'spender', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'approve',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'account', internalType: 'address', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', internalType: 'uint8', type: 'uint8' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'name',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transfer',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'from', internalType: 'address', type: 'address' },
+      { name: 'to', internalType: 'address', type: 'address' },
+      { name: 'amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'transferFrom',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
@@ -15441,6 +15692,184 @@ export const iiFastUpdaterViewAbi = [
       { name: '_feeds', internalType: 'uint256[]', type: 'uint256[]' },
       { name: '_decimals', internalType: 'int8[]', type: 'int8[]' },
       { name: '_timestamp', internalType: 'uint64', type: 'uint64' },
+    ],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFlareAssetRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFlareAssetRegistryAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'allAssetTypes',
+    outputs: [{ name: '', internalType: 'bytes32[]', type: 'bytes32[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'allAssets',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_assetType', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'allAssetsOfType',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_assetType', internalType: 'bytes32', type: 'bytes32' }],
+    name: 'allAssetsOfTypeWithSymbols',
+    outputs: [
+      { name: '', internalType: 'address[]', type: 'address[]' },
+      { name: '', internalType: 'string[]', type: 'string[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'allAssetsWithSymbols',
+    outputs: [
+      { name: '', internalType: 'address[]', type: 'address[]' },
+      { name: '', internalType: 'string[]', type: 'string[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'symbol', internalType: 'string', type: 'string' }],
+    name: 'assetBySymbol',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_token', internalType: 'address', type: 'address' }],
+    name: 'assetType',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'token', internalType: 'address', type: 'address' },
+      { name: 'nameHash', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'getAttribute',
+    outputs: [
+      { name: 'defined', internalType: 'bool', type: 'bool' },
+      { name: 'value', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'incentivePoolFor',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'isFlareAsset',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'maxDelegatesByPercent',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_provider', internalType: 'address', type: 'address' }],
+    name: 'refreshProviderAssets',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_token', internalType: 'address', type: 'address' }],
+    name: 'registerAsset',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_provider', internalType: 'address', type: 'address' },
+      { name: '_registerAssets', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'registerProvider',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: 'token', internalType: 'address', type: 'address' }],
+    name: 'supportsFtsoDelegation',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_token', internalType: 'address', type: 'address' }],
+    name: 'unregisterAsset',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_provider', internalType: 'address', type: 'address' },
+      { name: '_unregisterAssets', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'unregisterProvider',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFlareAssetRegistryProvider
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFlareAssetRegistryProviderAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'allAssets',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'assetType',
+    outputs: [{ name: '', internalType: 'bytes32', type: 'bytes32' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_token', internalType: 'address', type: 'address' },
+      { name: '_nameHash', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'getAttribute',
+    outputs: [
+      { name: '_defined', internalType: 'bool', type: 'bool' },
+      { name: '_value', internalType: 'bytes32', type: 'bytes32' },
     ],
     stateMutability: 'view',
   },
@@ -17174,6 +17603,670 @@ export const iiFtsoFeedPublisherAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFtsoManager
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFtsoManagerAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'AccruingUnearnedRewardsFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [],
+    name: 'ChillingNonrevealingDataProvidersFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'blockNumber',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'CleanupBlockNumberManagerFailedForBlock',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'ClosingExpiredRewardEpochFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'DistributingRewardsFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'fallbackMode',
+        internalType: 'bool',
+        type: 'bool',
+        indexed: false,
+      },
+    ],
+    name: 'FallbackMode',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'contract IIFtso',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'failingType',
+        internalType: 'enum IFtso.PriceFinalizationType',
+        type: 'uint8',
+        indexed: false,
+      },
+    ],
+    name: 'FinalizingPriceEpochFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'contract IIFtso',
+        type: 'address',
+        indexed: false,
+      },
+      { name: 'add', internalType: 'bool', type: 'bool', indexed: false },
+    ],
+    name: 'FtsoAdded',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'contract IIFtso',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FtsoDeactivationFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'contract IIFtso',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'fallbackMode',
+        internalType: 'bool',
+        type: 'bool',
+        indexed: false,
+      },
+    ],
+    name: 'FtsoFallbackMode',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftso',
+        internalType: 'contract IIFtso',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'InitializingCurrentEpochStateForRevealFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'chosenFtso',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'rewardEpochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PriceEpochFinalized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'votepowerBlock',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'startBlock',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardEpochFinalized',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'UpdatingActiveValidatorsTriggerFailed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'useGoodRandom',
+        internalType: 'bool',
+        type: 'bool',
+        indexed: false,
+      },
+      {
+        name: 'maxWaitForGoodRandomSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'UseGoodRandomSet',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'activate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'active',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+    ],
+    name: 'addFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    name: 'addFtsosBulk',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'currentRewardEpochEnds',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'daemonize',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentPriceEpochData',
+    outputs: [
+      { name: '_priceEpochId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_priceEpochStartTimestamp',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_priceEpochEndTimestamp',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_priceEpochRevealEndTimestamp',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: '_currentTimestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentPriceEpochId',
+    outputs: [
+      { name: '_priceEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+    ],
+    name: 'getElasticBandWidthPPMFtso',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getFallbackMode',
+    outputs: [
+      { name: '_fallbackMode', internalType: 'bool', type: 'bool' },
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+      { name: '_ftsoInFallbackMode', internalType: 'bool[]', type: 'bool[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getFtsos',
+    outputs: [
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getLastUnprocessedPriceEpochData',
+    outputs: [
+      {
+        name: '_lastUnprocessedPriceEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_lastUnprocessedPriceEpochRevealEnds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_lastUnprocessedPriceEpochInitialized',
+        internalType: 'bool',
+        type: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getPriceEpochConfiguration',
+    outputs: [
+      {
+        name: '_firstPriceEpochStartTs',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_priceEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_revealEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getRewardEpochConfiguration',
+    outputs: [
+      {
+        name: '_firstRewardEpochStartTs',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_rewardEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getRewardEpochData',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IIFtsoManager.RewardEpochData',
+        type: 'tuple',
+        components: [
+          { name: 'votepowerBlock', internalType: 'uint256', type: 'uint256' },
+          { name: 'startBlock', internalType: 'uint256', type: 'uint256' },
+          { name: 'startTimestamp', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getRewardEpochToExpireNext',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getRewardEpochVotePowerBlock',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getRewardExpiryOffsetSeconds',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '', internalType: 'contract IIFtso', type: 'address' }],
+    name: 'notInitializedFtsos',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+    ],
+    name: 'removeFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftsoToAdd', internalType: 'contract IIFtso', type: 'address' },
+      { name: 'copyCurrentPrice', internalType: 'bool', type: 'bool' },
+      { name: 'copyAssetOrAssetFtsos', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'replaceFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_ftsosToAdd',
+        internalType: 'contract IIFtso[]',
+        type: 'address[]',
+      },
+      { name: 'copyCurrentPrice', internalType: 'bool', type: 'bool' },
+      { name: 'copyAssetOrAssetFtsos', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'replaceFtsosBulk',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'rewardEpochDurationSeconds',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rewardEpochs',
+    outputs: [
+      { name: '_votepowerBlock', internalType: 'uint256', type: 'uint256' },
+      { name: '_startBlock', internalType: 'uint256', type: 'uint256' },
+      { name: '_startTimestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'rewardEpochsStartTs',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_fallbackMode', internalType: 'bool', type: 'bool' }],
+    name: 'setFallbackMode',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+      { name: '_asset', internalType: 'contract IIVPToken', type: 'address' },
+    ],
+    name: 'setFtsoAsset',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+      {
+        name: '_assetFtsos',
+        internalType: 'contract IIFtso[]',
+        type: 'address[]',
+      },
+    ],
+    name: 'setFtsoAssetFtsos',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+      { name: '_fallbackMode', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'setFtsoFallbackMode',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_updateTs', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_maxVotePowerNatThresholdFraction',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_maxVotePowerAssetThresholdFraction',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_lowAssetUSDThreshold',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_highAssetUSDThreshold',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_highAssetTurnoutThresholdBIPS',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_lowNatTurnoutThresholdBIPS',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_elasticBandRewardBIPS',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_rewardExpiryOffsetSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_trustedAddresses',
+        internalType: 'address[]',
+        type: 'address[]',
+      },
+    ],
+    name: 'setGovernanceParameters',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_nextRewardEpochToExpire',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: '_rewardEpochsLength', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_currentRewardEpochEnds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'setInitialRewardData',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'switchToFallbackMode',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IIFtsoManagerProxy
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17219,6 +18312,1247 @@ export const iiFtsoManagerProxyAbi = [
     name: 'relay',
     outputs: [{ name: '', internalType: 'contract IRelay', type: 'address' }],
     stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFtsoManagerV1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFtsoManagerV1Abi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getPriceEpochConfiguration',
+    outputs: [
+      {
+        name: '_firstPriceEpochStartTs',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_priceEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_revealEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'rewardEpochDurationSeconds',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'rewardEpochs',
+    outputs: [
+      { name: '_votepowerBlock', internalType: 'uint256', type: 'uint256' },
+      { name: '_startBlock', internalType: 'uint256', type: 'uint256' },
+      { name: '_startTimestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'rewardEpochsStartTs',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFtsoRegistry
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFtsoRegistryAbi = [
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_ftsoContract',
+        internalType: 'contract IIFtso',
+        type: 'address',
+      },
+    ],
+    name: 'addFtso',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getAllCurrentPrices',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IFtsoRegistry.PriceInfo[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'ftsoIndex', internalType: 'uint256', type: 'uint256' },
+          { name: 'price', internalType: 'uint256', type: 'uint256' },
+          { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+          { name: 'timestamp', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    name: 'getCurrentPrice',
+    outputs: [
+      { name: '_price', internalType: 'uint256', type: 'uint256' },
+      { name: '_timestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'getCurrentPrice',
+    outputs: [
+      { name: '_price', internalType: 'uint256', type: 'uint256' },
+      { name: '_timestamp', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_assetIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'getCurrentPriceWithDecimals',
+    outputs: [
+      { name: '_price', internalType: 'uint256', type: 'uint256' },
+      { name: '_timestamp', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_assetPriceUsdDecimals',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    name: 'getCurrentPriceWithDecimals',
+    outputs: [
+      { name: '_price', internalType: 'uint256', type: 'uint256' },
+      { name: '_timestamp', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_assetPriceUsdDecimals',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_indices', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'getCurrentPricesByIndices',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IFtsoRegistry.PriceInfo[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'ftsoIndex', internalType: 'uint256', type: 'uint256' },
+          { name: 'price', internalType: 'uint256', type: 'uint256' },
+          { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+          { name: 'timestamp', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbols', internalType: 'string[]', type: 'string[]' }],
+    name: 'getCurrentPricesBySymbols',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IFtsoRegistry.PriceInfo[]',
+        type: 'tuple[]',
+        components: [
+          { name: 'ftsoIndex', internalType: 'uint256', type: 'uint256' },
+          { name: 'price', internalType: 'uint256', type: 'uint256' },
+          { name: 'decimals', internalType: 'uint256', type: 'uint256' },
+          { name: 'timestamp', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'getFtso',
+    outputs: [
+      {
+        name: '_activeFtsoAddress',
+        internalType: 'contract IIFtso',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    name: 'getFtsoBySymbol',
+    outputs: [
+      {
+        name: '_activeFtsoAddress',
+        internalType: 'contract IIFtso',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    name: 'getFtsoIndex',
+    outputs: [
+      { name: '_assetIndex', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'getFtsoSymbol',
+    outputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_indices', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'getFtsos',
+    outputs: [
+      {
+        name: '_ftsos',
+        internalType: 'contract IFtsoGenesis[]',
+        type: 'address[]',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedFtsos',
+    outputs: [
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedIndices',
+    outputs: [
+      {
+        name: '_supportedIndices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedIndicesAndFtsos',
+    outputs: [
+      {
+        name: '_supportedIndices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedIndicesAndSymbols',
+    outputs: [
+      {
+        name: '_supportedIndices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+      { name: '_supportedSymbols', internalType: 'string[]', type: 'string[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedIndicesSymbolsAndFtsos',
+    outputs: [
+      {
+        name: '_supportedIndices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+      { name: '_supportedSymbols', internalType: 'string[]', type: 'string[]' },
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedSymbols',
+    outputs: [
+      { name: '_supportedSymbols', internalType: 'string[]', type: 'string[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSupportedSymbolsAndFtsos',
+    outputs: [
+      { name: '_supportedSymbols', internalType: 'string[]', type: 'string[]' },
+      { name: '_ftsos', internalType: 'contract IIFtso[]', type: 'address[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftso', internalType: 'contract IIFtso', type: 'address' },
+    ],
+    name: 'removeFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIFtsoRewardManager
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiFtsoRewardManagerAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'authorizedAmountWei',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'DailyAuthorizedInflationSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'dataProvider',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'value',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'validFromEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'FeePercentageChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftsoRewardManager',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FtsoRewardManagerActivated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'ftsoRewardManager',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'FtsoRewardManagerDeactivated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amountReceivedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'InflationReceived',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'dataProvider',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'whoClaimed',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sentTo',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'rewardEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardEpochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardClaimsEnabled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardEpochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardClaimsExpired',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amountBurnedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardsBurned',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      { name: 'ftso', internalType: 'address', type: 'address', indexed: true },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'addresses',
+        internalType: 'address[]',
+        type: 'address[]',
+        indexed: false,
+      },
+      {
+        name: 'rewards',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+    ],
+    name: 'RewardsDistributed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'reward',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'UnearnedRewardsAccrued',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      {
+        name: 'priceEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'priceEpochEndTime', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'accrueUnearnedRewards',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'activate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'active',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwners', internalType: 'address[]', type: 'address[]' },
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'autoClaim',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+      { name: '_recipient', internalType: 'address payable', type: 'address' },
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: '_wrap', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'claim',
+    outputs: [
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+      { name: '_recipient', internalType: 'address payable', type: 'address' },
+      { name: '_rewardEpochs', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_dataProviders', internalType: 'address[]', type: 'address[]' },
+      { name: '_wrap', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'claimFromDataProviders',
+    outputs: [
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_recipient', internalType: 'address payable', type: 'address' },
+      { name: '_rewardEpochs', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'claimReward',
+    outputs: [
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_recipient', internalType: 'address payable', type: 'address' },
+      { name: '_rewardEpochs', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_dataProviders', internalType: 'address[]', type: 'address[]' },
+    ],
+    name: 'claimRewardFromDataProviders',
+    outputs: [
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'closeExpiredRewardEpoch',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'deactivate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: 'addresses', internalType: 'address[]', type: 'address[]' },
+      { name: 'weights', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: 'totalWeight', internalType: 'uint256', type: 'uint256' },
+      { name: 'epochId', internalType: 'uint256', type: 'uint256' },
+      { name: 'ftso', internalType: 'address', type: 'address' },
+      {
+        name: 'priceEpochDurationSeconds',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: 'currentRewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: 'priceEpochEndTime', internalType: 'uint256', type: 'uint256' },
+      { name: 'votePowerBlock', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'distributeRewards',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'enableClaims',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'firstClaimableRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+      { name: '_claimer', internalType: 'address', type: 'address' },
+    ],
+    name: 'getClaimedReward',
+    outputs: [
+      { name: '_claimed', internalType: 'bool', type: 'bool' },
+      { name: '_amount', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+    ],
+    name: 'getDataProviderCurrentFeePercentage',
+    outputs: [
+      { name: '_feePercentageBIPS', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getDataProviderFeePercentage',
+    outputs: [
+      { name: '_feePercentageBIPS', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+    ],
+    name: 'getDataProviderPerformanceInfo',
+    outputs: [
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_votePowerIgnoringRevocation',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+    ],
+    name: 'getDataProviderScheduledFeePercentageChanges',
+    outputs: [
+      {
+        name: '_feePercentageBIPS',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+      { name: '_validFromEpoch', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_fixed', internalType: 'bool[]', type: 'bool[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getEpochReward',
+    outputs: [
+      { name: '_totalReward', internalType: 'uint256', type: 'uint256' },
+      { name: '_claimedReward', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getEpochsWithClaimableRewards',
+    outputs: [
+      { name: '_startEpochId', internalType: 'uint256', type: 'uint256' },
+      { name: '_endEpochId', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'getEpochsWithUnclaimedRewards',
+    outputs: [
+      { name: '_epochIds', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInflationAddress',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInitialRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getRewardEpochToExpireNext',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getRewardEpochVotePowerBlock',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_beneficiary', internalType: 'address', type: 'address' },
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getStateOfRewards',
+    outputs: [
+      { name: '_dataProviders', internalType: 'address[]', type: 'address[]' },
+      { name: '_rewardAmounts', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_claimed', internalType: 'bool[]', type: 'bool[]' },
+      { name: '_claimable', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_beneficiary', internalType: 'address', type: 'address' },
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: '_dataProviders', internalType: 'address[]', type: 'address[]' },
+    ],
+    name: 'getStateOfRewardsFromDataProviders',
+    outputs: [
+      { name: '_rewardAmounts', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_claimed', internalType: 'bool[]', type: 'bool[]' },
+      { name: '_claimable', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTokenPoolSupplyData',
+    outputs: [
+      { name: '_lockedFundsWei', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_totalInflationAuthorizedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: '_totalClaimedWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardEpoch', internalType: 'uint256', type: 'uint256' },
+      { name: '_dataProvider', internalType: 'address', type: 'address' },
+    ],
+    name: 'getUnclaimedReward',
+    outputs: [
+      { name: '_amount', internalType: 'uint256', type: 'uint256' },
+      { name: '_weight', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+    ],
+    name: 'nextClaimableRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveInflation',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_toAuthorizeWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDailyAuthorizedInflation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_feePercentageBIPS', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDataProviderFeePercentage',
+    outputs: [
+      { name: '_validFromEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIGenericRewardManager
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiGenericRewardManagerAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'recipients',
+        internalType: 'address[]',
+        type: 'address[]',
+        indexed: false,
+      },
+    ],
+    name: 'AllowedClaimRecipientsChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardOwner',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'executors',
+        internalType: 'address[]',
+        type: 'address[]',
+        indexed: false,
+      },
+    ],
+    name: 'ClaimExecutorsChanged',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'authorizedAmountWei',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'DailyAuthorizedInflationSet',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'amountReceivedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'InflationReceived',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'beneficiary',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'sentTo',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'amount',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'RewardClaimed',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardManager',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RewardManagerActivated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'rewardManager',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+    ],
+    name: 'RewardManagerDeactivated',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'addresses',
+        internalType: 'address[]',
+        type: 'address[]',
+        indexed: false,
+      },
+      {
+        name: 'rewards',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+    ],
+    name: 'RewardsDistributed',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'activate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'active',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+    ],
+    name: 'allowedClaimRecipients',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+      { name: '_recipient', internalType: 'address payable', type: 'address' },
+      { name: '_rewardAmount', internalType: 'uint256', type: 'uint256' },
+      { name: '_wrap', internalType: 'bool', type: 'bool' },
+    ],
+    name: 'claim',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_rewardOwner', internalType: 'address', type: 'address' },
+    ],
+    name: 'claimExecutors',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'deactivate',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_addresses', internalType: 'address[]', type: 'address[]' },
+      { name: '_rewardAmounts', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'distributeRewards',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInflationAddress',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_beneficiary', internalType: 'address', type: 'address' },
+    ],
+    name: 'getStateOfRewards',
+    outputs: [
+      { name: '_totalReward', internalType: 'uint256', type: 'uint256' },
+      { name: '_claimedReward', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTokenPoolSupplyData',
+    outputs: [
+      { name: '_lockedFundsWei', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_totalInflationAuthorizedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: '_totalClaimedWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTotals',
+    outputs: [
+      { name: '_totalAwardedWei', internalType: 'uint256', type: 'uint256' },
+      { name: '_totalClaimedWei', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_totalInflationAuthorizedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_totalInflationReceivedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_lastInflationAuthorizationReceivedTs',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_dailyAuthorizedInflation',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveInflation',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_recipients', internalType: 'address[]', type: 'address[]' },
+    ],
+    name: 'setAllowedClaimRecipients',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_executors', internalType: 'address[]', type: 'address[]' },
+    ],
+    name: 'setClaimExecutors',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_toAuthorizeWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDailyAuthorizedInflation',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
@@ -17400,6 +19734,343 @@ export const iiGovernorProposerAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIIncentivePoolAllocation
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiIncentivePoolAllocationAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getAnnualPercentageBips',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSharingPercentages',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct SharingPercentage[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'incentivePoolReceiver',
+            internalType: 'contract IIIncentivePoolReceiver',
+            type: 'address',
+          },
+          { name: 'percentBips', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIIncentivePoolPercentageProvider
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiIncentivePoolPercentageProviderAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getAnnualPercentageBips',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIIncentivePoolReceiver
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiIncentivePoolReceiverAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getIncentivePoolAddress',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveIncentive',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_toAuthorizeWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDailyAuthorizedIncentive',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIIncentivePoolSharingPercentageProvider
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiIncentivePoolSharingPercentageProviderAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSharingPercentages',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct SharingPercentage[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'incentivePoolReceiver',
+            internalType: 'contract IIIncentivePoolReceiver',
+            type: 'address',
+          },
+          { name: 'percentBips', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIInflationAllocation
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiInflationAllocationAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getSharingPercentages',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct SharingPercentage[]',
+        type: 'tuple[]',
+        components: [
+          {
+            name: 'inflationReceiver',
+            internalType: 'contract IIInflationReceiver',
+            type: 'address',
+          },
+          { name: 'percentBips', internalType: 'uint256', type: 'uint256' },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTimeSlotPercentageBips',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIInflationReceiver
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiInflationReceiverAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getExpectedBalance',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInflationAddress',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveInflation',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_toAuthorizeWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDailyAuthorizedInflation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIInflationReceiverV1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiInflationReceiverV1Abi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getContractName',
+    outputs: [{ name: '', internalType: 'string', type: 'string' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInflationAddress',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveInflation',
+    outputs: [],
+    stateMutability: 'payable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_toAuthorizeWei', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setDailyAuthorizedInflation',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIInflationV1
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiInflationV1Abi = [
+  {
+    type: 'function',
+    inputs: [{ name: '_index', internalType: 'uint256', type: 'uint256' }],
+    name: 'getAnnum',
+    outputs: [
+      {
+        name: '',
+        internalType: 'struct IIInflationV1.InflationAnnumState',
+        type: 'tuple',
+        components: [
+          {
+            name: 'recognizedInflationWei',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
+          { name: 'startTimeStamp', internalType: 'uint256', type: 'uint256' },
+          { name: 'endTimeStamp', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'rewardServices',
+            internalType: 'struct IIInflationV1.RewardServicesState',
+            type: 'tuple',
+            components: [
+              {
+                name: 'rewardServices',
+                internalType: 'struct IIInflationV1.RewardServiceState[]',
+                type: 'tuple[]',
+                components: [
+                  {
+                    name: 'inflationReceiver',
+                    internalType: 'contract IIInflationReceiver',
+                    type: 'address',
+                  },
+                  {
+                    name: 'authorizedInflationWei',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                  {
+                    name: 'lastDailyAuthorizedInflationWei',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                  {
+                    name: 'inflationTopupRequestedWei',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                  {
+                    name: 'inflationTopupReceivedWei',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                  {
+                    name: 'inflationTopupWithdrawnWei',
+                    internalType: 'uint256',
+                    type: 'uint256',
+                  },
+                ],
+              },
+              {
+                name: 'totalAuthorizedInflationWei',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+              {
+                name: 'totalInflationTopupRequestedWei',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+              {
+                name: 'totalInflationTopupReceivedWei',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+              {
+                name: 'totalInflationTopupWithdrawnWei',
+                internalType: 'uint256',
+                type: 'uint256',
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'lastAuthorizationTs',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'rewardEpochStartedTs',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IINodePossessionVerifier
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -17414,6 +20085,36 @@ export const iiNodePossessionVerifierAbi = [
     ],
     name: 'verifyNodePossession',
     outputs: [],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIPChainStakeMirrorVerifier
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iipChainStakeMirrorVerifierAbi = [
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_stakeData',
+        internalType: 'struct IPChainStakeMirrorVerifier.PChainStake',
+        type: 'tuple',
+        components: [
+          { name: 'txId', internalType: 'bytes32', type: 'bytes32' },
+          { name: 'stakingType', internalType: 'uint8', type: 'uint8' },
+          { name: 'inputAddress', internalType: 'bytes20', type: 'bytes20' },
+          { name: 'nodeId', internalType: 'bytes20', type: 'bytes20' },
+          { name: 'startTime', internalType: 'uint64', type: 'uint64' },
+          { name: 'endTime', internalType: 'uint64', type: 'uint64' },
+          { name: 'weight', internalType: 'uint64', type: 'uint64' },
+        ],
+      },
+      { name: '_merkleProof', internalType: 'bytes32[]', type: 'bytes32[]' },
+    ],
+    name: 'verifyStake',
+    outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
     stateMutability: 'view',
   },
 ] as const
@@ -17762,7 +20463,11 @@ export const iiPollingFoundationAbi = [
         type: 'tuple',
         components: [
           { name: 'accept', internalType: 'bool', type: 'bool' },
-          { name: 'votingStartTs', internalType: 'uint256', type: 'uint256' },
+          {
+            name: 'votingDelaySeconds',
+            internalType: 'uint256',
+            type: 'uint256',
+          },
           {
             name: 'votingPeriodSeconds',
             internalType: 'uint256',
@@ -18284,6 +20989,217 @@ export const iiPollingManagementGroupAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIPreInflationCalculation
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiPreInflationCalculationAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'trigger',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIPriceSubmitter
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiPriceSubmitterAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'submitter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'hash',
+        internalType: 'bytes32',
+        type: 'bytes32',
+        indexed: false,
+      },
+      {
+        name: 'timestamp',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'HashSubmitted',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'voter',
+        internalType: 'address',
+        type: 'address',
+        indexed: true,
+      },
+      {
+        name: 'epochId',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: true,
+      },
+      {
+        name: 'ftsos',
+        internalType: 'contract IFtsoGenesis[]',
+        type: 'address[]',
+        indexed: false,
+      },
+      {
+        name: 'prices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+        indexed: false,
+      },
+      {
+        name: 'random',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+      {
+        name: 'timestamp',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'PricesRevealed',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRandom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getFtsoManager',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IFtsoManagerGenesis',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getFtsoRegistry',
+    outputs: [
+      {
+        name: '',
+        internalType: 'contract IFtsoRegistryGenesis',
+        type: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_epochId', internalType: 'uint256', type: 'uint256' }],
+    name: 'getRandom',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTrustedAddresses',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getVoterWhitelister',
+    outputs: [{ name: '', internalType: 'address', type: 'address' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_epochId', internalType: 'uint256', type: 'uint256' },
+      { name: '_ftsoIndices', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_prices', internalType: 'uint256[]', type: 'uint256[]' },
+      { name: '_random', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'revealPrices',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_trustedAddresses',
+        internalType: 'address[]',
+        type: 'address[]',
+      },
+    ],
+    name: 'setTrustedAddresses',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_epochId', internalType: 'uint256', type: 'uint256' },
+      { name: '_hash', internalType: 'bytes32', type: 'bytes32' },
+    ],
+    name: 'submitHash',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_voter', internalType: 'address', type: 'address' }],
+    name: 'voterWhitelistBitmap',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_voter', internalType: 'address', type: 'address' },
+      { name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'voterWhitelisted',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_voters', internalType: 'address[]', type: 'address[]' },
+      { name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'votersRemovedFromWhitelist',
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
 ] as const
 
@@ -19202,6 +22118,50 @@ export const iirNatAccountAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIRandomProvider
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiRandomProviderAbi = [
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_finalizingPriceEpochId',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      {
+        name: '_currentPriceEpochId',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'chillNonrevealingDataProviders',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRandom',
+    outputs: [
+      { name: '_currentRandom', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getCurrentRandomWithQuality',
+    outputs: [
+      { name: '_currentRandom', internalType: 'uint256', type: 'uint256' },
+      { name: '_goodRandom', internalType: 'bool', type: 'bool' },
+    ],
+    stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IIRelay
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -20060,6 +23020,98 @@ export const iiSubmissionAbi = [
     inputs: [],
     name: 'submitSignatures',
     outputs: [{ name: '', internalType: 'bool', type: 'bool' }],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IISupply
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiSupplyAbi = [
+  {
+    type: 'function',
+    inputs: [
+      { name: '_blockNumber', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getCirculatingSupplyAt',
+    outputs: [
+      {
+        name: '_circulatingSupplyWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_blockNumber', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'getCirculatingSupplyAtCached',
+    outputs: [
+      {
+        name: '_circulatingSupplyWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getInflatableBalance',
+    outputs: [
+      {
+        name: '_inflatableBalanceWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_inflationAuthorizedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'updateAuthorizedInflationAndCirculatingSupply',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'updateCirculatingSupply',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IITokenPool
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiTokenPoolAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'getTokenPoolSupplyData',
+    outputs: [
+      { name: '_lockedFundsWei', internalType: 'uint256', type: 'uint256' },
+      {
+        name: '_totalInflationAuthorizedWei',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+      { name: '_totalClaimedWei', internalType: 'uint256', type: 'uint256' },
+    ],
     stateMutability: 'nonpayable',
   },
 ] as const
@@ -21229,6 +24281,190 @@ export const iiVoterRegistryAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IIVoterWhitelister
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iiVoterWhitelisterAbi = [
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'voter',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'untilRewardEpoch',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'VoterChilled',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'voter',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'ftsoIndex',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'VoterRemovedFromWhitelist',
+  },
+  {
+    type: 'event',
+    anonymous: false,
+    inputs: [
+      {
+        name: 'voter',
+        internalType: 'address',
+        type: 'address',
+        indexed: false,
+      },
+      {
+        name: 'ftsoIndex',
+        internalType: 'uint256',
+        type: 'uint256',
+        indexed: false,
+      },
+    ],
+    name: 'VoterWhitelisted',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'addFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_voter', internalType: 'address', type: 'address' },
+      { name: '_noOfRewardEpochs', internalType: 'uint256', type: 'uint256' },
+      { name: '_ftsoIndices', internalType: 'uint256[]', type: 'uint256[]' },
+    ],
+    name: 'chillVoter',
+    outputs: [
+      { name: '_removed', internalType: 'bool[]', type: 'bool[]' },
+      { name: '_untilRewardEpoch', internalType: 'uint256', type: 'uint256' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_voter', internalType: 'address', type: 'address' }],
+    name: 'chilledUntilRewardEpoch',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [],
+    name: 'defaultMaxVotersForFtso',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'getFtsoWhitelistedPriceProviders',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_symbol', internalType: 'string', type: 'string' }],
+    name: 'getFtsoWhitelistedPriceProvidersBySymbol',
+    outputs: [{ name: '', internalType: 'address[]', type: 'address[]' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'maxVotersForFtso',
+    outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' }],
+    name: 'removeFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_trustedAddress', internalType: 'address', type: 'address' },
+      { name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'removeTrustedAddressFromWhitelist',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [{ name: '_voter', internalType: 'address', type: 'address' }],
+    name: 'requestFullVoterWhitelisting',
+    outputs: [
+      {
+        name: '_supportedIndices',
+        internalType: 'uint256[]',
+        type: 'uint256[]',
+      },
+      { name: '_success', internalType: 'bool[]', type: 'bool[]' },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_voter', internalType: 'address', type: 'address' },
+      { name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'requestWhitelistingVoter',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      {
+        name: '_defaultMaxVotersForFtso',
+        internalType: 'uint256',
+        type: 'uint256',
+      },
+    ],
+    name: 'setDefaultMaxVotersForFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    inputs: [
+      { name: '_ftsoIndex', internalType: 'uint256', type: 'uint256' },
+      { name: '_newMaxVoters', internalType: 'uint256', type: 'uint256' },
+    ],
+    name: 'setMaxVotersForFtso',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IIncreaseManager
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -21239,6 +24475,20 @@ export const iIncreaseManagerAbi = [
     name: 'getIncentiveDuration',
     outputs: [{ name: '', internalType: 'uint256', type: 'uint256' }],
     stateMutability: 'view',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IInflationGenesis
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iInflationGenesisAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'receiveMinting',
+    outputs: [],
+    stateMutability: 'payable',
   },
 ] as const
 
@@ -24924,6 +28174,20 @@ export const iTypeTemplateVerificationAbi = [
 ] as const
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// IUpdateValidators
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const iUpdateValidatorsAbi = [
+  {
+    type: 'function',
+    inputs: [],
+    name: 'updateActiveValidators',
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+] as const
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // IVPContractEvents
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -27032,6 +30296,15 @@ export const useReadIAssetManagerCurrentUnderlyingBlock =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"emergencyPauseLevel"`
+ */
+export const useReadIAssetManagerEmergencyPauseLevel =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iAssetManagerAbi,
+    functionName: 'emergencyPauseLevel',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"emergencyPaused"`
  */
 export const useReadIAssetManagerEmergencyPaused =
@@ -27371,24 +30644,6 @@ export const useReadIAssetManagerSupportsInterface =
   })
 
 /**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"transfersEmergencyPaused"`
- */
-export const useReadIAssetManagerTransfersEmergencyPaused =
-  /*#__PURE__*/ createUseReadContract({
-    abi: iAssetManagerAbi,
-    functionName: 'transfersEmergencyPaused',
-  })
-
-/**
- * Wraps __{@link useReadContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"transfersEmergencyPausedUntil"`
- */
-export const useReadIAssetManagerTransfersEmergencyPausedUntil =
-  /*#__PURE__*/ createUseReadContract({
-    abi: iAssetManagerAbi,
-    functionName: 'transfersEmergencyPausedUntil',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iAssetManagerAbi}__
  */
 export const useWriteIAssetManager = /*#__PURE__*/ createUseWriteContract({
@@ -27528,6 +30783,15 @@ export const useWriteIAssetManagerConfirmUnderlyingWithdrawal =
   /*#__PURE__*/ createUseWriteContract({
     abi: iAssetManagerAbi,
     functionName: 'confirmUnderlyingWithdrawal',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"consolidateSmallTickets"`
+ */
+export const useWriteIAssetManagerConsolidateSmallTickets =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iAssetManagerAbi,
+    functionName: 'consolidateSmallTickets',
   })
 
 /**
@@ -27817,15 +31081,6 @@ export const useWriteIAssetManagerStartLiquidation =
   })
 
 /**
- * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"switchVaultCollateral"`
- */
-export const useWriteIAssetManagerSwitchVaultCollateral =
-  /*#__PURE__*/ createUseWriteContract({
-    abi: iAssetManagerAbi,
-    functionName: 'switchVaultCollateral',
-  })
-
-/**
  * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"transferToCoreVault"`
  */
 export const useWriteIAssetManagerTransferToCoreVault =
@@ -28010,6 +31265,15 @@ export const useSimulateIAssetManagerConfirmUnderlyingWithdrawal =
   /*#__PURE__*/ createUseSimulateContract({
     abi: iAssetManagerAbi,
     functionName: 'confirmUnderlyingWithdrawal',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"consolidateSmallTickets"`
+ */
+export const useSimulateIAssetManagerConsolidateSmallTickets =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iAssetManagerAbi,
+    functionName: 'consolidateSmallTickets',
   })
 
 /**
@@ -28301,15 +31565,6 @@ export const useSimulateIAssetManagerStartLiquidation =
   })
 
 /**
- * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"switchVaultCollateral"`
- */
-export const useSimulateIAssetManagerSwitchVaultCollateral =
-  /*#__PURE__*/ createUseSimulateContract({
-    abi: iAssetManagerAbi,
-    functionName: 'switchVaultCollateral',
-  })
-
-/**
  * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iAssetManagerAbi}__ and `functionName` set to `"transferToCoreVault"`
  */
 export const useSimulateIAssetManagerTransferToCoreVault =
@@ -28496,15 +31751,6 @@ export const useWatchIAssetManagerCollateralTypeAddedEvent =
   })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerAbi}__ and `eventName` set to `"CollateralTypeDeprecated"`
- */
-export const useWatchIAssetManagerCollateralTypeDeprecatedEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerAbi,
-    eventName: 'CollateralTypeDeprecated',
-  })
-
-/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerAbi}__ and `eventName` set to `"ContractChanged"`
  */
 export const useWatchIAssetManagerContractChangedEvent =
@@ -28556,24 +31802,6 @@ export const useWatchIAssetManagerEmergencyPauseCanceledEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iAssetManagerAbi,
     eventName: 'EmergencyPauseCanceled',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerAbi}__ and `eventName` set to `"EmergencyPauseTransfersCanceled"`
- */
-export const useWatchIAssetManagerEmergencyPauseTransfersCanceledEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerAbi,
-    eventName: 'EmergencyPauseTransfersCanceled',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerAbi}__ and `eventName` set to `"EmergencyPauseTransfersTriggered"`
- */
-export const useWatchIAssetManagerEmergencyPauseTransfersTriggeredEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerAbi,
-    eventName: 'EmergencyPauseTransfersTriggered',
   })
 
 /**
@@ -28763,6 +31991,15 @@ export const useWatchIAssetManagerRedemptionTicketUpdatedEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iAssetManagerAbi,
     eventName: 'RedemptionTicketUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerAbi}__ and `eventName` set to `"RedemptionTicketsConsolidated"`
+ */
+export const useWatchIAssetManagerRedemptionTicketsConsolidatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iAssetManagerAbi,
+    eventName: 'RedemptionTicketsConsolidated',
   })
 
 /**
@@ -29066,15 +32303,6 @@ export const useWatchIAssetManagerEventsCollateralTypeAddedEvent =
   })
 
 /**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerEventsAbi}__ and `eventName` set to `"CollateralTypeDeprecated"`
- */
-export const useWatchIAssetManagerEventsCollateralTypeDeprecatedEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerEventsAbi,
-    eventName: 'CollateralTypeDeprecated',
-  })
-
-/**
  * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerEventsAbi}__ and `eventName` set to `"ContractChanged"`
  */
 export const useWatchIAssetManagerEventsContractChangedEvent =
@@ -29117,24 +32345,6 @@ export const useWatchIAssetManagerEventsEmergencyPauseCanceledEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iAssetManagerEventsAbi,
     eventName: 'EmergencyPauseCanceled',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerEventsAbi}__ and `eventName` set to `"EmergencyPauseTransfersCanceled"`
- */
-export const useWatchIAssetManagerEventsEmergencyPauseTransfersCanceledEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerEventsAbi,
-    eventName: 'EmergencyPauseTransfersCanceled',
-  })
-
-/**
- * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerEventsAbi}__ and `eventName` set to `"EmergencyPauseTransfersTriggered"`
- */
-export const useWatchIAssetManagerEventsEmergencyPauseTransfersTriggeredEvent =
-  /*#__PURE__*/ createUseWatchContractEvent({
-    abi: iAssetManagerEventsAbi,
-    eventName: 'EmergencyPauseTransfersTriggered',
   })
 
 /**
@@ -29324,6 +32534,15 @@ export const useWatchIAssetManagerEventsRedemptionTicketUpdatedEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iAssetManagerEventsAbi,
     eventName: 'RedemptionTicketUpdated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iAssetManagerEventsAbi}__ and `eventName` set to `"RedemptionTicketsConsolidated"`
+ */
+export const useWatchIAssetManagerEventsRedemptionTicketsConsolidatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iAssetManagerEventsAbi,
+    eventName: 'RedemptionTicketsConsolidated',
   })
 
 /**
@@ -30299,6 +33518,127 @@ export const useWatchIClaimSetupManagerSetExecutorsExcessAmountRefundedEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iClaimSetupManagerAbi,
     eventName: 'SetExecutorsExcessAmountRefunded',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__
+ */
+export const useWriteICollateralizable = /*#__PURE__*/ createUseWriteContract({
+  abi: iCollateralizableAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"addRewardToAgentPosition"`
+ */
+export const useWriteICollateralizableAddRewardToAgentPosition =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'addRewardToAgentPosition',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"assetRedemptionRequest"`
+ */
+export const useWriteICollateralizableAssetRedemptionRequest =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'assetRedemptionRequest',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"deposit"`
+ */
+export const useWriteICollateralizableDeposit =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'deposit',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"mintRequest"`
+ */
+export const useWriteICollateralizableMintRequest =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'mintRequest',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"proveMintPayment"`
+ */
+export const useWriteICollateralizableProveMintPayment =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'proveMintPayment',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"proveRedemptionPayment"`
+ */
+export const useWriteICollateralizableProveRedemptionPayment =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iCollateralizableAbi,
+    functionName: 'proveRedemptionPayment',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__
+ */
+export const useSimulateICollateralizable =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iCollateralizableAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"addRewardToAgentPosition"`
+ */
+export const useSimulateICollateralizableAddRewardToAgentPosition =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'addRewardToAgentPosition',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"assetRedemptionRequest"`
+ */
+export const useSimulateICollateralizableAssetRedemptionRequest =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'assetRedemptionRequest',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"deposit"`
+ */
+export const useSimulateICollateralizableDeposit =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'deposit',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"mintRequest"`
+ */
+export const useSimulateICollateralizableMintRequest =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'mintRequest',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"proveMintPayment"`
+ */
+export const useSimulateICollateralizableProveMintPayment =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'proveMintPayment',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iCollateralizableAbi}__ and `functionName` set to `"proveRedemptionPayment"`
+ */
+export const useSimulateICollateralizableProveRedemptionPayment =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iCollateralizableAbi,
+    functionName: 'proveRedemptionPayment',
   })
 
 /**
@@ -35322,6 +38662,49 @@ export const useSimulateIiCleanupBlockNumberManagerSetCleanUpBlockNumber =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCombinedNatBalanceAbi}__
+ */
+export const useReadIiCombinedNatBalance = /*#__PURE__*/ createUseReadContract({
+  abi: iiCombinedNatBalanceAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCombinedNatBalanceAbi}__ and `functionName` set to `"balanceOf"`
+ */
+export const useReadIiCombinedNatBalanceBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiCombinedNatBalanceAbi,
+    functionName: 'balanceOf',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCombinedNatBalanceAbi}__ and `functionName` set to `"balanceOfAt"`
+ */
+export const useReadIiCombinedNatBalanceBalanceOfAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiCombinedNatBalanceAbi,
+    functionName: 'balanceOfAt',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCombinedNatBalanceAbi}__ and `functionName` set to `"totalSupply"`
+ */
+export const useReadIiCombinedNatBalanceTotalSupply =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiCombinedNatBalanceAbi,
+    functionName: 'totalSupply',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCombinedNatBalanceAbi}__ and `functionName` set to `"totalSupplyAt"`
+ */
+export const useReadIiCombinedNatBalanceTotalSupplyAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiCombinedNatBalanceAbi,
+    functionName: 'totalSupplyAt',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiCustomFeedAbi}__
  */
 export const useReadIiCustomFeed = /*#__PURE__*/ createUseReadContract({
@@ -35375,6 +38758,158 @@ export const useSimulateIiCustomFeedGetCurrentFeed =
   /*#__PURE__*/ createUseSimulateContract({
     abi: iiCustomFeedAbi,
     functionName: 'getCurrentFeed',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__
+ */
+export const useReadIierc20WithMetadata = /*#__PURE__*/ createUseReadContract({
+  abi: iierc20WithMetadataAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"allowance"`
+ */
+export const useReadIierc20WithMetadataAllowance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'allowance',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"balanceOf"`
+ */
+export const useReadIierc20WithMetadataBalanceOf =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'balanceOf',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"decimals"`
+ */
+export const useReadIierc20WithMetadataDecimals =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'decimals',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"name"`
+ */
+export const useReadIierc20WithMetadataName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'name',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"symbol"`
+ */
+export const useReadIierc20WithMetadataSymbol =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'symbol',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"totalSupply"`
+ */
+export const useReadIierc20WithMetadataTotalSupply =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'totalSupply',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__
+ */
+export const useWriteIierc20WithMetadata = /*#__PURE__*/ createUseWriteContract(
+  { abi: iierc20WithMetadataAbi },
+)
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"approve"`
+ */
+export const useWriteIierc20WithMetadataApprove =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"transfer"`
+ */
+export const useWriteIierc20WithMetadataTransfer =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'transfer',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"transferFrom"`
+ */
+export const useWriteIierc20WithMetadataTransferFrom =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__
+ */
+export const useSimulateIierc20WithMetadata =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iierc20WithMetadataAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"approve"`
+ */
+export const useSimulateIierc20WithMetadataApprove =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'approve',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"transfer"`
+ */
+export const useSimulateIierc20WithMetadataTransfer =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'transfer',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `functionName` set to `"transferFrom"`
+ */
+export const useSimulateIierc20WithMetadataTransferFrom =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iierc20WithMetadataAbi,
+    functionName: 'transferFrom',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iierc20WithMetadataAbi}__
+ */
+export const useWatchIierc20WithMetadataEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iierc20WithMetadataAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `eventName` set to `"Approval"`
+ */
+export const useWatchIierc20WithMetadataApprovalEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iierc20WithMetadataAbi,
+    eventName: 'Approval',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iierc20WithMetadataAbi}__ and `eventName` set to `"Transfer"`
+ */
+export const useWatchIierc20WithMetadataTransferEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iierc20WithMetadataAbi,
+    eventName: 'Transfer',
   })
 
 /**
@@ -35930,6 +39465,256 @@ export const useReadIiFastUpdaterViewFetchCurrentFeeds =
   /*#__PURE__*/ createUseReadContract({
     abi: iiFastUpdaterViewAbi,
     functionName: 'fetchCurrentFeeds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__
+ */
+export const useReadIiFlareAssetRegistry = /*#__PURE__*/ createUseReadContract({
+  abi: iiFlareAssetRegistryAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"allAssetTypes"`
+ */
+export const useReadIiFlareAssetRegistryAllAssetTypes =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'allAssetTypes',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"allAssets"`
+ */
+export const useReadIiFlareAssetRegistryAllAssets =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'allAssets',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"allAssetsOfType"`
+ */
+export const useReadIiFlareAssetRegistryAllAssetsOfType =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'allAssetsOfType',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"allAssetsOfTypeWithSymbols"`
+ */
+export const useReadIiFlareAssetRegistryAllAssetsOfTypeWithSymbols =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'allAssetsOfTypeWithSymbols',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"allAssetsWithSymbols"`
+ */
+export const useReadIiFlareAssetRegistryAllAssetsWithSymbols =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'allAssetsWithSymbols',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"assetBySymbol"`
+ */
+export const useReadIiFlareAssetRegistryAssetBySymbol =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'assetBySymbol',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"assetType"`
+ */
+export const useReadIiFlareAssetRegistryAssetType =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'assetType',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"getAttribute"`
+ */
+export const useReadIiFlareAssetRegistryGetAttribute =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'getAttribute',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"incentivePoolFor"`
+ */
+export const useReadIiFlareAssetRegistryIncentivePoolFor =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'incentivePoolFor',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"isFlareAsset"`
+ */
+export const useReadIiFlareAssetRegistryIsFlareAsset =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'isFlareAsset',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"maxDelegatesByPercent"`
+ */
+export const useReadIiFlareAssetRegistryMaxDelegatesByPercent =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'maxDelegatesByPercent',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"supportsFtsoDelegation"`
+ */
+export const useReadIiFlareAssetRegistrySupportsFtsoDelegation =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'supportsFtsoDelegation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__
+ */
+export const useWriteIiFlareAssetRegistry =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiFlareAssetRegistryAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"refreshProviderAssets"`
+ */
+export const useWriteIiFlareAssetRegistryRefreshProviderAssets =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'refreshProviderAssets',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"registerAsset"`
+ */
+export const useWriteIiFlareAssetRegistryRegisterAsset =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'registerAsset',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"registerProvider"`
+ */
+export const useWriteIiFlareAssetRegistryRegisterProvider =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'registerProvider',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"unregisterAsset"`
+ */
+export const useWriteIiFlareAssetRegistryUnregisterAsset =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'unregisterAsset',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"unregisterProvider"`
+ */
+export const useWriteIiFlareAssetRegistryUnregisterProvider =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'unregisterProvider',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__
+ */
+export const useSimulateIiFlareAssetRegistry =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiFlareAssetRegistryAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"refreshProviderAssets"`
+ */
+export const useSimulateIiFlareAssetRegistryRefreshProviderAssets =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'refreshProviderAssets',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"registerAsset"`
+ */
+export const useSimulateIiFlareAssetRegistryRegisterAsset =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'registerAsset',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"registerProvider"`
+ */
+export const useSimulateIiFlareAssetRegistryRegisterProvider =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'registerProvider',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"unregisterAsset"`
+ */
+export const useSimulateIiFlareAssetRegistryUnregisterAsset =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'unregisterAsset',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFlareAssetRegistryAbi}__ and `functionName` set to `"unregisterProvider"`
+ */
+export const useSimulateIiFlareAssetRegistryUnregisterProvider =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFlareAssetRegistryAbi,
+    functionName: 'unregisterProvider',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryProviderAbi}__
+ */
+export const useReadIiFlareAssetRegistryProvider =
+  /*#__PURE__*/ createUseReadContract({ abi: iiFlareAssetRegistryProviderAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryProviderAbi}__ and `functionName` set to `"allAssets"`
+ */
+export const useReadIiFlareAssetRegistryProviderAllAssets =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryProviderAbi,
+    functionName: 'allAssets',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryProviderAbi}__ and `functionName` set to `"assetType"`
+ */
+export const useReadIiFlareAssetRegistryProviderAssetType =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryProviderAbi,
+    functionName: 'assetType',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFlareAssetRegistryProviderAbi}__ and `functionName` set to `"getAttribute"`
+ */
+export const useReadIiFlareAssetRegistryProviderGetAttribute =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFlareAssetRegistryProviderAbi,
+    functionName: 'getAttribute',
   })
 
 /**
@@ -37166,6 +40951,597 @@ export const useWatchIiFtsoFeedPublisherFtsoFeedPublishedEvent =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__
+ */
+export const useReadIiFtsoManager = /*#__PURE__*/ createUseReadContract({
+  abi: iiFtsoManagerAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"active"`
+ */
+export const useReadIiFtsoManagerActive = /*#__PURE__*/ createUseReadContract({
+  abi: iiFtsoManagerAbi,
+  functionName: 'active',
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"currentRewardEpochEnds"`
+ */
+export const useReadIiFtsoManagerCurrentRewardEpochEnds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'currentRewardEpochEnds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiFtsoManagerGetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getCurrentPriceEpochData"`
+ */
+export const useReadIiFtsoManagerGetCurrentPriceEpochData =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getCurrentPriceEpochData',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getCurrentPriceEpochId"`
+ */
+export const useReadIiFtsoManagerGetCurrentPriceEpochId =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getCurrentPriceEpochId',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getCurrentRewardEpoch"`
+ */
+export const useReadIiFtsoManagerGetCurrentRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getCurrentRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getElasticBandWidthPPMFtso"`
+ */
+export const useReadIiFtsoManagerGetElasticBandWidthPpmFtso =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getElasticBandWidthPPMFtso',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getFallbackMode"`
+ */
+export const useReadIiFtsoManagerGetFallbackMode =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getFtsos"`
+ */
+export const useReadIiFtsoManagerGetFtsos = /*#__PURE__*/ createUseReadContract(
+  { abi: iiFtsoManagerAbi, functionName: 'getFtsos' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getLastUnprocessedPriceEpochData"`
+ */
+export const useReadIiFtsoManagerGetLastUnprocessedPriceEpochData =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getLastUnprocessedPriceEpochData',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getPriceEpochConfiguration"`
+ */
+export const useReadIiFtsoManagerGetPriceEpochConfiguration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getPriceEpochConfiguration',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getRewardEpochConfiguration"`
+ */
+export const useReadIiFtsoManagerGetRewardEpochConfiguration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getRewardEpochConfiguration',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getRewardEpochData"`
+ */
+export const useReadIiFtsoManagerGetRewardEpochData =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getRewardEpochData',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getRewardEpochToExpireNext"`
+ */
+export const useReadIiFtsoManagerGetRewardEpochToExpireNext =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getRewardEpochToExpireNext',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getRewardEpochVotePowerBlock"`
+ */
+export const useReadIiFtsoManagerGetRewardEpochVotePowerBlock =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getRewardEpochVotePowerBlock',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"getRewardExpiryOffsetSeconds"`
+ */
+export const useReadIiFtsoManagerGetRewardExpiryOffsetSeconds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'getRewardExpiryOffsetSeconds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"notInitializedFtsos"`
+ */
+export const useReadIiFtsoManagerNotInitializedFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'notInitializedFtsos',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"rewardEpochDurationSeconds"`
+ */
+export const useReadIiFtsoManagerRewardEpochDurationSeconds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'rewardEpochDurationSeconds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"rewardEpochs"`
+ */
+export const useReadIiFtsoManagerRewardEpochs =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'rewardEpochs',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"rewardEpochsStartTs"`
+ */
+export const useReadIiFtsoManagerRewardEpochsStartTs =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'rewardEpochsStartTs',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__
+ */
+export const useWriteIiFtsoManager = /*#__PURE__*/ createUseWriteContract({
+  abi: iiFtsoManagerAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useWriteIiFtsoManagerActivate =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useWriteIiFtsoManagerAddFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"addFtsosBulk"`
+ */
+export const useWriteIiFtsoManagerAddFtsosBulk =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'addFtsosBulk',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"daemonize"`
+ */
+export const useWriteIiFtsoManagerDaemonize =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'daemonize',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useWriteIiFtsoManagerRemoveFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"replaceFtso"`
+ */
+export const useWriteIiFtsoManagerReplaceFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'replaceFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"replaceFtsosBulk"`
+ */
+export const useWriteIiFtsoManagerReplaceFtsosBulk =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'replaceFtsosBulk',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFallbackMode"`
+ */
+export const useWriteIiFtsoManagerSetFallbackMode =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoAsset"`
+ */
+export const useWriteIiFtsoManagerSetFtsoAsset =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoAsset',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoAssetFtsos"`
+ */
+export const useWriteIiFtsoManagerSetFtsoAssetFtsos =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoAssetFtsos',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoFallbackMode"`
+ */
+export const useWriteIiFtsoManagerSetFtsoFallbackMode =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setGovernanceParameters"`
+ */
+export const useWriteIiFtsoManagerSetGovernanceParameters =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setGovernanceParameters',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setInitialRewardData"`
+ */
+export const useWriteIiFtsoManagerSetInitialRewardData =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setInitialRewardData',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"switchToFallbackMode"`
+ */
+export const useWriteIiFtsoManagerSwitchToFallbackMode =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'switchToFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__
+ */
+export const useSimulateIiFtsoManager = /*#__PURE__*/ createUseSimulateContract(
+  { abi: iiFtsoManagerAbi },
+)
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useSimulateIiFtsoManagerActivate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useSimulateIiFtsoManagerAddFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"addFtsosBulk"`
+ */
+export const useSimulateIiFtsoManagerAddFtsosBulk =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'addFtsosBulk',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"daemonize"`
+ */
+export const useSimulateIiFtsoManagerDaemonize =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'daemonize',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useSimulateIiFtsoManagerRemoveFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"replaceFtso"`
+ */
+export const useSimulateIiFtsoManagerReplaceFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'replaceFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"replaceFtsosBulk"`
+ */
+export const useSimulateIiFtsoManagerReplaceFtsosBulk =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'replaceFtsosBulk',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFallbackMode"`
+ */
+export const useSimulateIiFtsoManagerSetFallbackMode =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoAsset"`
+ */
+export const useSimulateIiFtsoManagerSetFtsoAsset =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoAsset',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoAssetFtsos"`
+ */
+export const useSimulateIiFtsoManagerSetFtsoAssetFtsos =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoAssetFtsos',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setFtsoFallbackMode"`
+ */
+export const useSimulateIiFtsoManagerSetFtsoFallbackMode =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setFtsoFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setGovernanceParameters"`
+ */
+export const useSimulateIiFtsoManagerSetGovernanceParameters =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setGovernanceParameters',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"setInitialRewardData"`
+ */
+export const useSimulateIiFtsoManagerSetInitialRewardData =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'setInitialRewardData',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `functionName` set to `"switchToFallbackMode"`
+ */
+export const useSimulateIiFtsoManagerSwitchToFallbackMode =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoManagerAbi,
+    functionName: 'switchToFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__
+ */
+export const useWatchIiFtsoManagerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iiFtsoManagerAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"AccruingUnearnedRewardsFailed"`
+ */
+export const useWatchIiFtsoManagerAccruingUnearnedRewardsFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'AccruingUnearnedRewardsFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"ChillingNonrevealingDataProvidersFailed"`
+ */
+export const useWatchIiFtsoManagerChillingNonrevealingDataProvidersFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'ChillingNonrevealingDataProvidersFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"CleanupBlockNumberManagerFailedForBlock"`
+ */
+export const useWatchIiFtsoManagerCleanupBlockNumberManagerFailedForBlockEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'CleanupBlockNumberManagerFailedForBlock',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"ClosingExpiredRewardEpochFailed"`
+ */
+export const useWatchIiFtsoManagerClosingExpiredRewardEpochFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'ClosingExpiredRewardEpochFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"DistributingRewardsFailed"`
+ */
+export const useWatchIiFtsoManagerDistributingRewardsFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'DistributingRewardsFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"FallbackMode"`
+ */
+export const useWatchIiFtsoManagerFallbackModeEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'FallbackMode',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"FinalizingPriceEpochFailed"`
+ */
+export const useWatchIiFtsoManagerFinalizingPriceEpochFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'FinalizingPriceEpochFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"FtsoAdded"`
+ */
+export const useWatchIiFtsoManagerFtsoAddedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'FtsoAdded',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"FtsoDeactivationFailed"`
+ */
+export const useWatchIiFtsoManagerFtsoDeactivationFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'FtsoDeactivationFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"FtsoFallbackMode"`
+ */
+export const useWatchIiFtsoManagerFtsoFallbackModeEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'FtsoFallbackMode',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"InitializingCurrentEpochStateForRevealFailed"`
+ */
+export const useWatchIiFtsoManagerInitializingCurrentEpochStateForRevealFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'InitializingCurrentEpochStateForRevealFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"PriceEpochFinalized"`
+ */
+export const useWatchIiFtsoManagerPriceEpochFinalizedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'PriceEpochFinalized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"RewardEpochFinalized"`
+ */
+export const useWatchIiFtsoManagerRewardEpochFinalizedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'RewardEpochFinalized',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"UpdatingActiveValidatorsTriggerFailed"`
+ */
+export const useWatchIiFtsoManagerUpdatingActiveValidatorsTriggerFailedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'UpdatingActiveValidatorsTriggerFailed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoManagerAbi}__ and `eventName` set to `"UseGoodRandomSet"`
+ */
+export const useWatchIiFtsoManagerUseGoodRandomSetEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoManagerAbi,
+    eventName: 'UseGoodRandomSet',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerProxyAbi}__
  */
 export const useReadIiFtsoManagerProxy = /*#__PURE__*/ createUseReadContract({
@@ -37206,6 +41582,1179 @@ export const useReadIiFtsoManagerProxyRelay =
   /*#__PURE__*/ createUseReadContract({
     abi: iiFtsoManagerProxyAbi,
     functionName: 'relay',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__
+ */
+export const useReadIiFtsoManagerV1 = /*#__PURE__*/ createUseReadContract({
+  abi: iiFtsoManagerV1Abi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__ and `functionName` set to `"getCurrentRewardEpoch"`
+ */
+export const useReadIiFtsoManagerV1GetCurrentRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerV1Abi,
+    functionName: 'getCurrentRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__ and `functionName` set to `"getPriceEpochConfiguration"`
+ */
+export const useReadIiFtsoManagerV1GetPriceEpochConfiguration =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerV1Abi,
+    functionName: 'getPriceEpochConfiguration',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__ and `functionName` set to `"rewardEpochDurationSeconds"`
+ */
+export const useReadIiFtsoManagerV1RewardEpochDurationSeconds =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerV1Abi,
+    functionName: 'rewardEpochDurationSeconds',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__ and `functionName` set to `"rewardEpochs"`
+ */
+export const useReadIiFtsoManagerV1RewardEpochs =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerV1Abi,
+    functionName: 'rewardEpochs',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoManagerV1Abi}__ and `functionName` set to `"rewardEpochsStartTs"`
+ */
+export const useReadIiFtsoManagerV1RewardEpochsStartTs =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoManagerV1Abi,
+    functionName: 'rewardEpochsStartTs',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__
+ */
+export const useReadIiFtsoRegistry = /*#__PURE__*/ createUseReadContract({
+  abi: iiFtsoRegistryAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getAllCurrentPrices"`
+ */
+export const useReadIiFtsoRegistryGetAllCurrentPrices =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getAllCurrentPrices',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getCurrentPrice"`
+ */
+export const useReadIiFtsoRegistryGetCurrentPrice =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getCurrentPrice',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getCurrentPriceWithDecimals"`
+ */
+export const useReadIiFtsoRegistryGetCurrentPriceWithDecimals =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getCurrentPriceWithDecimals',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getCurrentPricesByIndices"`
+ */
+export const useReadIiFtsoRegistryGetCurrentPricesByIndices =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getCurrentPricesByIndices',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getCurrentPricesBySymbols"`
+ */
+export const useReadIiFtsoRegistryGetCurrentPricesBySymbols =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getCurrentPricesBySymbols',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getFtso"`
+ */
+export const useReadIiFtsoRegistryGetFtso = /*#__PURE__*/ createUseReadContract(
+  { abi: iiFtsoRegistryAbi, functionName: 'getFtso' },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getFtsoBySymbol"`
+ */
+export const useReadIiFtsoRegistryGetFtsoBySymbol =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getFtsoBySymbol',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getFtsoIndex"`
+ */
+export const useReadIiFtsoRegistryGetFtsoIndex =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getFtsoIndex',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getFtsoSymbol"`
+ */
+export const useReadIiFtsoRegistryGetFtsoSymbol =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getFtsoSymbol',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getFtsos"`
+ */
+export const useReadIiFtsoRegistryGetFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getFtsos',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedFtsos"`
+ */
+export const useReadIiFtsoRegistryGetSupportedFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedFtsos',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedIndices"`
+ */
+export const useReadIiFtsoRegistryGetSupportedIndices =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedIndices',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedIndicesAndFtsos"`
+ */
+export const useReadIiFtsoRegistryGetSupportedIndicesAndFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedIndicesAndFtsos',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedIndicesAndSymbols"`
+ */
+export const useReadIiFtsoRegistryGetSupportedIndicesAndSymbols =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedIndicesAndSymbols',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedIndicesSymbolsAndFtsos"`
+ */
+export const useReadIiFtsoRegistryGetSupportedIndicesSymbolsAndFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedIndicesSymbolsAndFtsos',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedSymbols"`
+ */
+export const useReadIiFtsoRegistryGetSupportedSymbols =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedSymbols',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"getSupportedSymbolsAndFtsos"`
+ */
+export const useReadIiFtsoRegistryGetSupportedSymbolsAndFtsos =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'getSupportedSymbolsAndFtsos',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__
+ */
+export const useWriteIiFtsoRegistry = /*#__PURE__*/ createUseWriteContract({
+  abi: iiFtsoRegistryAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useWriteIiFtsoRegistryAddFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useWriteIiFtsoRegistryRemoveFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__
+ */
+export const useSimulateIiFtsoRegistry =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiFtsoRegistryAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useSimulateIiFtsoRegistryAddFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRegistryAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useSimulateIiFtsoRegistryRemoveFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRegistryAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__
+ */
+export const useReadIiFtsoRewardManager = /*#__PURE__*/ createUseReadContract({
+  abi: iiFtsoRewardManagerAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"active"`
+ */
+export const useReadIiFtsoRewardManagerActive =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'active',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"firstClaimableRewardEpoch"`
+ */
+export const useReadIiFtsoRewardManagerFirstClaimableRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'firstClaimableRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getClaimedReward"`
+ */
+export const useReadIiFtsoRewardManagerGetClaimedReward =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getClaimedReward',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiFtsoRewardManagerGetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getCurrentRewardEpoch"`
+ */
+export const useReadIiFtsoRewardManagerGetCurrentRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getCurrentRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getDataProviderCurrentFeePercentage"`
+ */
+export const useReadIiFtsoRewardManagerGetDataProviderCurrentFeePercentage =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getDataProviderCurrentFeePercentage',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getDataProviderFeePercentage"`
+ */
+export const useReadIiFtsoRewardManagerGetDataProviderFeePercentage =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getDataProviderFeePercentage',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getDataProviderPerformanceInfo"`
+ */
+export const useReadIiFtsoRewardManagerGetDataProviderPerformanceInfo =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getDataProviderPerformanceInfo',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getDataProviderScheduledFeePercentageChanges"`
+ */
+export const useReadIiFtsoRewardManagerGetDataProviderScheduledFeePercentageChanges =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getDataProviderScheduledFeePercentageChanges',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getEpochReward"`
+ */
+export const useReadIiFtsoRewardManagerGetEpochReward =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getEpochReward',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getEpochsWithClaimableRewards"`
+ */
+export const useReadIiFtsoRewardManagerGetEpochsWithClaimableRewards =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getEpochsWithClaimableRewards',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getEpochsWithUnclaimedRewards"`
+ */
+export const useReadIiFtsoRewardManagerGetEpochsWithUnclaimedRewards =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getEpochsWithUnclaimedRewards',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getInitialRewardEpoch"`
+ */
+export const useReadIiFtsoRewardManagerGetInitialRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getInitialRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getRewardEpochToExpireNext"`
+ */
+export const useReadIiFtsoRewardManagerGetRewardEpochToExpireNext =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getRewardEpochToExpireNext',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getRewardEpochVotePowerBlock"`
+ */
+export const useReadIiFtsoRewardManagerGetRewardEpochVotePowerBlock =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getRewardEpochVotePowerBlock',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getStateOfRewards"`
+ */
+export const useReadIiFtsoRewardManagerGetStateOfRewards =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getStateOfRewards',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getStateOfRewardsFromDataProviders"`
+ */
+export const useReadIiFtsoRewardManagerGetStateOfRewardsFromDataProviders =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getStateOfRewardsFromDataProviders',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getUnclaimedReward"`
+ */
+export const useReadIiFtsoRewardManagerGetUnclaimedReward =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getUnclaimedReward',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"nextClaimableRewardEpoch"`
+ */
+export const useReadIiFtsoRewardManagerNextClaimableRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'nextClaimableRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__
+ */
+export const useWriteIiFtsoRewardManager = /*#__PURE__*/ createUseWriteContract(
+  { abi: iiFtsoRewardManagerAbi },
+)
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"accrueUnearnedRewards"`
+ */
+export const useWriteIiFtsoRewardManagerAccrueUnearnedRewards =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'accrueUnearnedRewards',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useWriteIiFtsoRewardManagerActivate =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"autoClaim"`
+ */
+export const useWriteIiFtsoRewardManagerAutoClaim =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'autoClaim',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claim"`
+ */
+export const useWriteIiFtsoRewardManagerClaim =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimFromDataProviders"`
+ */
+export const useWriteIiFtsoRewardManagerClaimFromDataProviders =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimFromDataProviders',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimReward"`
+ */
+export const useWriteIiFtsoRewardManagerClaimReward =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimReward',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimRewardFromDataProviders"`
+ */
+export const useWriteIiFtsoRewardManagerClaimRewardFromDataProviders =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimRewardFromDataProviders',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"closeExpiredRewardEpoch"`
+ */
+export const useWriteIiFtsoRewardManagerCloseExpiredRewardEpoch =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'closeExpiredRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"deactivate"`
+ */
+export const useWriteIiFtsoRewardManagerDeactivate =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'deactivate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"distributeRewards"`
+ */
+export const useWriteIiFtsoRewardManagerDistributeRewards =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'distributeRewards',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"enableClaims"`
+ */
+export const useWriteIiFtsoRewardManagerEnableClaims =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'enableClaims',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useWriteIiFtsoRewardManagerGetInflationAddress =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useWriteIiFtsoRewardManagerGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getTokenPoolSupplyData',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useWriteIiFtsoRewardManagerReceiveInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useWriteIiFtsoRewardManagerSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"setDataProviderFeePercentage"`
+ */
+export const useWriteIiFtsoRewardManagerSetDataProviderFeePercentage =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'setDataProviderFeePercentage',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__
+ */
+export const useSimulateIiFtsoRewardManager =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiFtsoRewardManagerAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"accrueUnearnedRewards"`
+ */
+export const useSimulateIiFtsoRewardManagerAccrueUnearnedRewards =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'accrueUnearnedRewards',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useSimulateIiFtsoRewardManagerActivate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"autoClaim"`
+ */
+export const useSimulateIiFtsoRewardManagerAutoClaim =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'autoClaim',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claim"`
+ */
+export const useSimulateIiFtsoRewardManagerClaim =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimFromDataProviders"`
+ */
+export const useSimulateIiFtsoRewardManagerClaimFromDataProviders =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimFromDataProviders',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimReward"`
+ */
+export const useSimulateIiFtsoRewardManagerClaimReward =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimReward',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"claimRewardFromDataProviders"`
+ */
+export const useSimulateIiFtsoRewardManagerClaimRewardFromDataProviders =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'claimRewardFromDataProviders',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"closeExpiredRewardEpoch"`
+ */
+export const useSimulateIiFtsoRewardManagerCloseExpiredRewardEpoch =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'closeExpiredRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"deactivate"`
+ */
+export const useSimulateIiFtsoRewardManagerDeactivate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'deactivate',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"distributeRewards"`
+ */
+export const useSimulateIiFtsoRewardManagerDistributeRewards =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'distributeRewards',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"enableClaims"`
+ */
+export const useSimulateIiFtsoRewardManagerEnableClaims =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'enableClaims',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useSimulateIiFtsoRewardManagerGetInflationAddress =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useSimulateIiFtsoRewardManagerGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'getTokenPoolSupplyData',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useSimulateIiFtsoRewardManagerReceiveInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useSimulateIiFtsoRewardManagerSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `functionName` set to `"setDataProviderFeePercentage"`
+ */
+export const useSimulateIiFtsoRewardManagerSetDataProviderFeePercentage =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiFtsoRewardManagerAbi,
+    functionName: 'setDataProviderFeePercentage',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__
+ */
+export const useWatchIiFtsoRewardManagerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iiFtsoRewardManagerAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"DailyAuthorizedInflationSet"`
+ */
+export const useWatchIiFtsoRewardManagerDailyAuthorizedInflationSetEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'DailyAuthorizedInflationSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"FeePercentageChanged"`
+ */
+export const useWatchIiFtsoRewardManagerFeePercentageChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'FeePercentageChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"FtsoRewardManagerActivated"`
+ */
+export const useWatchIiFtsoRewardManagerFtsoRewardManagerActivatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'FtsoRewardManagerActivated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"FtsoRewardManagerDeactivated"`
+ */
+export const useWatchIiFtsoRewardManagerFtsoRewardManagerDeactivatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'FtsoRewardManagerDeactivated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"InflationReceived"`
+ */
+export const useWatchIiFtsoRewardManagerInflationReceivedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'InflationReceived',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"RewardClaimed"`
+ */
+export const useWatchIiFtsoRewardManagerRewardClaimedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'RewardClaimed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"RewardClaimsEnabled"`
+ */
+export const useWatchIiFtsoRewardManagerRewardClaimsEnabledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'RewardClaimsEnabled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"RewardClaimsExpired"`
+ */
+export const useWatchIiFtsoRewardManagerRewardClaimsExpiredEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'RewardClaimsExpired',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"RewardsBurned"`
+ */
+export const useWatchIiFtsoRewardManagerRewardsBurnedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'RewardsBurned',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"RewardsDistributed"`
+ */
+export const useWatchIiFtsoRewardManagerRewardsDistributedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'RewardsDistributed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiFtsoRewardManagerAbi}__ and `eventName` set to `"UnearnedRewardsAccrued"`
+ */
+export const useWatchIiFtsoRewardManagerUnearnedRewardsAccruedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiFtsoRewardManagerAbi,
+    eventName: 'UnearnedRewardsAccrued',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__
+ */
+export const useReadIiGenericRewardManager =
+  /*#__PURE__*/ createUseReadContract({ abi: iiGenericRewardManagerAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"active"`
+ */
+export const useReadIiGenericRewardManagerActive =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'active',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"allowedClaimRecipients"`
+ */
+export const useReadIiGenericRewardManagerAllowedClaimRecipients =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'allowedClaimRecipients',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"claimExecutors"`
+ */
+export const useReadIiGenericRewardManagerClaimExecutors =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'claimExecutors',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiGenericRewardManagerGetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getStateOfRewards"`
+ */
+export const useReadIiGenericRewardManagerGetStateOfRewards =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getStateOfRewards',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getTotals"`
+ */
+export const useReadIiGenericRewardManagerGetTotals =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getTotals',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__
+ */
+export const useWriteIiGenericRewardManager =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiGenericRewardManagerAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useWriteIiGenericRewardManagerActivate =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"claim"`
+ */
+export const useWriteIiGenericRewardManagerClaim =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"deactivate"`
+ */
+export const useWriteIiGenericRewardManagerDeactivate =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'deactivate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"distributeRewards"`
+ */
+export const useWriteIiGenericRewardManagerDistributeRewards =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'distributeRewards',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useWriteIiGenericRewardManagerGetInflationAddress =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useWriteIiGenericRewardManagerGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getTokenPoolSupplyData',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useWriteIiGenericRewardManagerReceiveInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setAllowedClaimRecipients"`
+ */
+export const useWriteIiGenericRewardManagerSetAllowedClaimRecipients =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setAllowedClaimRecipients',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setClaimExecutors"`
+ */
+export const useWriteIiGenericRewardManagerSetClaimExecutors =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setClaimExecutors',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useWriteIiGenericRewardManagerSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__
+ */
+export const useSimulateIiGenericRewardManager =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiGenericRewardManagerAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"activate"`
+ */
+export const useSimulateIiGenericRewardManagerActivate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'activate',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"claim"`
+ */
+export const useSimulateIiGenericRewardManagerClaim =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'claim',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"deactivate"`
+ */
+export const useSimulateIiGenericRewardManagerDeactivate =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'deactivate',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"distributeRewards"`
+ */
+export const useSimulateIiGenericRewardManagerDistributeRewards =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'distributeRewards',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useSimulateIiGenericRewardManagerGetInflationAddress =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useSimulateIiGenericRewardManagerGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'getTokenPoolSupplyData',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useSimulateIiGenericRewardManagerReceiveInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setAllowedClaimRecipients"`
+ */
+export const useSimulateIiGenericRewardManagerSetAllowedClaimRecipients =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setAllowedClaimRecipients',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setClaimExecutors"`
+ */
+export const useSimulateIiGenericRewardManagerSetClaimExecutors =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setClaimExecutors',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useSimulateIiGenericRewardManagerSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiGenericRewardManagerAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__
+ */
+export const useWatchIiGenericRewardManagerEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iiGenericRewardManagerAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"AllowedClaimRecipientsChanged"`
+ */
+export const useWatchIiGenericRewardManagerAllowedClaimRecipientsChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'AllowedClaimRecipientsChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"ClaimExecutorsChanged"`
+ */
+export const useWatchIiGenericRewardManagerClaimExecutorsChangedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'ClaimExecutorsChanged',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"DailyAuthorizedInflationSet"`
+ */
+export const useWatchIiGenericRewardManagerDailyAuthorizedInflationSetEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'DailyAuthorizedInflationSet',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"InflationReceived"`
+ */
+export const useWatchIiGenericRewardManagerInflationReceivedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'InflationReceived',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"RewardClaimed"`
+ */
+export const useWatchIiGenericRewardManagerRewardClaimedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'RewardClaimed',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"RewardManagerActivated"`
+ */
+export const useWatchIiGenericRewardManagerRewardManagerActivatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'RewardManagerActivated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"RewardManagerDeactivated"`
+ */
+export const useWatchIiGenericRewardManagerRewardManagerDeactivatedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'RewardManagerDeactivated',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiGenericRewardManagerAbi}__ and `eventName` set to `"RewardsDistributed"`
+ */
+export const useWatchIiGenericRewardManagerRewardsDistributedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiGenericRewardManagerAbi,
+    eventName: 'RewardsDistributed',
   })
 
 /**
@@ -37421,6 +42970,489 @@ export const useReadIiGovernorProposerIsProposer =
   })
 
 /**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__
+ */
+export const useWriteIiIncentivePoolAllocation =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiIncentivePoolAllocationAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__ and `functionName` set to `"getAnnualPercentageBips"`
+ */
+export const useWriteIiIncentivePoolAllocationGetAnnualPercentageBips =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolAllocationAbi,
+    functionName: 'getAnnualPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useWriteIiIncentivePoolAllocationGetSharingPercentages =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolAllocationAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__
+ */
+export const useSimulateIiIncentivePoolAllocation =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiIncentivePoolAllocationAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__ and `functionName` set to `"getAnnualPercentageBips"`
+ */
+export const useSimulateIiIncentivePoolAllocationGetAnnualPercentageBips =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolAllocationAbi,
+    functionName: 'getAnnualPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolAllocationAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useSimulateIiIncentivePoolAllocationGetSharingPercentages =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolAllocationAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolPercentageProviderAbi}__
+ */
+export const useWriteIiIncentivePoolPercentageProvider =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolPercentageProviderAbi,
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolPercentageProviderAbi}__ and `functionName` set to `"getAnnualPercentageBips"`
+ */
+export const useWriteIiIncentivePoolPercentageProviderGetAnnualPercentageBips =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolPercentageProviderAbi,
+    functionName: 'getAnnualPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolPercentageProviderAbi}__
+ */
+export const useSimulateIiIncentivePoolPercentageProvider =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolPercentageProviderAbi,
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolPercentageProviderAbi}__ and `functionName` set to `"getAnnualPercentageBips"`
+ */
+export const useSimulateIiIncentivePoolPercentageProviderGetAnnualPercentageBips =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolPercentageProviderAbi,
+    functionName: 'getAnnualPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__
+ */
+export const useReadIiIncentivePoolReceiver =
+  /*#__PURE__*/ createUseReadContract({ abi: iiIncentivePoolReceiverAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiIncentivePoolReceiverGetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__
+ */
+export const useWriteIiIncentivePoolReceiver =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiIncentivePoolReceiverAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"getIncentivePoolAddress"`
+ */
+export const useWriteIiIncentivePoolReceiverGetIncentivePoolAddress =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'getIncentivePoolAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"receiveIncentive"`
+ */
+export const useWriteIiIncentivePoolReceiverReceiveIncentive =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'receiveIncentive',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"setDailyAuthorizedIncentive"`
+ */
+export const useWriteIiIncentivePoolReceiverSetDailyAuthorizedIncentive =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'setDailyAuthorizedIncentive',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__
+ */
+export const useSimulateIiIncentivePoolReceiver =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiIncentivePoolReceiverAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"getIncentivePoolAddress"`
+ */
+export const useSimulateIiIncentivePoolReceiverGetIncentivePoolAddress =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'getIncentivePoolAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"receiveIncentive"`
+ */
+export const useSimulateIiIncentivePoolReceiverReceiveIncentive =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'receiveIncentive',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolReceiverAbi}__ and `functionName` set to `"setDailyAuthorizedIncentive"`
+ */
+export const useSimulateIiIncentivePoolReceiverSetDailyAuthorizedIncentive =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolReceiverAbi,
+    functionName: 'setDailyAuthorizedIncentive',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolSharingPercentageProviderAbi}__
+ */
+export const useWriteIiIncentivePoolSharingPercentageProvider =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolSharingPercentageProviderAbi,
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiIncentivePoolSharingPercentageProviderAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useWriteIiIncentivePoolSharingPercentageProviderGetSharingPercentages =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiIncentivePoolSharingPercentageProviderAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolSharingPercentageProviderAbi}__
+ */
+export const useSimulateIiIncentivePoolSharingPercentageProvider =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolSharingPercentageProviderAbi,
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiIncentivePoolSharingPercentageProviderAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useSimulateIiIncentivePoolSharingPercentageProviderGetSharingPercentages =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiIncentivePoolSharingPercentageProviderAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__
+ */
+export const useWriteIiInflationAllocation =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiInflationAllocationAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useWriteIiInflationAllocationGetSharingPercentages =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationAllocationAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__ and `functionName` set to `"getTimeSlotPercentageBips"`
+ */
+export const useWriteIiInflationAllocationGetTimeSlotPercentageBips =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationAllocationAbi,
+    functionName: 'getTimeSlotPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__
+ */
+export const useSimulateIiInflationAllocation =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiInflationAllocationAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__ and `functionName` set to `"getSharingPercentages"`
+ */
+export const useSimulateIiInflationAllocationGetSharingPercentages =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationAllocationAbi,
+    functionName: 'getSharingPercentages',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationAllocationAbi}__ and `functionName` set to `"getTimeSlotPercentageBips"`
+ */
+export const useSimulateIiInflationAllocationGetTimeSlotPercentageBips =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationAllocationAbi,
+    functionName: 'getTimeSlotPercentageBips',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__
+ */
+export const useReadIiInflationReceiver = /*#__PURE__*/ createUseReadContract({
+  abi: iiInflationReceiverAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiInflationReceiverGetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"getExpectedBalance"`
+ */
+export const useReadIiInflationReceiverGetExpectedBalance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'getExpectedBalance',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__
+ */
+export const useWriteIiInflationReceiver = /*#__PURE__*/ createUseWriteContract(
+  { abi: iiInflationReceiverAbi },
+)
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useWriteIiInflationReceiverGetInflationAddress =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useWriteIiInflationReceiverReceiveInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useWriteIiInflationReceiverSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__
+ */
+export const useSimulateIiInflationReceiver =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiInflationReceiverAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useSimulateIiInflationReceiverGetInflationAddress =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useSimulateIiInflationReceiverReceiveInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverAbi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useSimulateIiInflationReceiverSetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverAbi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__
+ */
+export const useReadIiInflationReceiverV1 = /*#__PURE__*/ createUseReadContract(
+  { abi: iiInflationReceiverV1Abi },
+)
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"getContractName"`
+ */
+export const useReadIiInflationReceiverV1GetContractName =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'getContractName',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__
+ */
+export const useWriteIiInflationReceiverV1 =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiInflationReceiverV1Abi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useWriteIiInflationReceiverV1GetInflationAddress =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useWriteIiInflationReceiverV1ReceiveInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useWriteIiInflationReceiverV1SetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__
+ */
+export const useSimulateIiInflationReceiverV1 =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiInflationReceiverV1Abi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"getInflationAddress"`
+ */
+export const useSimulateIiInflationReceiverV1GetInflationAddress =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'getInflationAddress',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"receiveInflation"`
+ */
+export const useSimulateIiInflationReceiverV1ReceiveInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'receiveInflation',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationReceiverV1Abi}__ and `functionName` set to `"setDailyAuthorizedInflation"`
+ */
+export const useSimulateIiInflationReceiverV1SetDailyAuthorizedInflation =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationReceiverV1Abi,
+    functionName: 'setDailyAuthorizedInflation',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationV1Abi}__
+ */
+export const useReadIiInflationV1 = /*#__PURE__*/ createUseReadContract({
+  abi: iiInflationV1Abi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiInflationV1Abi}__ and `functionName` set to `"getAnnum"`
+ */
+export const useReadIiInflationV1GetAnnum = /*#__PURE__*/ createUseReadContract(
+  { abi: iiInflationV1Abi, functionName: 'getAnnum' },
+)
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationV1Abi}__
+ */
+export const useWriteIiInflationV1 = /*#__PURE__*/ createUseWriteContract({
+  abi: iiInflationV1Abi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationV1Abi}__ and `functionName` set to `"lastAuthorizationTs"`
+ */
+export const useWriteIiInflationV1LastAuthorizationTs =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationV1Abi,
+    functionName: 'lastAuthorizationTs',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiInflationV1Abi}__ and `functionName` set to `"rewardEpochStartedTs"`
+ */
+export const useWriteIiInflationV1RewardEpochStartedTs =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiInflationV1Abi,
+    functionName: 'rewardEpochStartedTs',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationV1Abi}__
+ */
+export const useSimulateIiInflationV1 = /*#__PURE__*/ createUseSimulateContract(
+  { abi: iiInflationV1Abi },
+)
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationV1Abi}__ and `functionName` set to `"lastAuthorizationTs"`
+ */
+export const useSimulateIiInflationV1LastAuthorizationTs =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationV1Abi,
+    functionName: 'lastAuthorizationTs',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiInflationV1Abi}__ and `functionName` set to `"rewardEpochStartedTs"`
+ */
+export const useSimulateIiInflationV1RewardEpochStartedTs =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiInflationV1Abi,
+    functionName: 'rewardEpochStartedTs',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiNodePossessionVerifierAbi}__
  */
 export const useReadIiNodePossessionVerifier =
@@ -37433,6 +43465,21 @@ export const useReadIiNodePossessionVerifierVerifyNodePossession =
   /*#__PURE__*/ createUseReadContract({
     abi: iiNodePossessionVerifierAbi,
     functionName: 'verifyNodePossession',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iipChainStakeMirrorVerifierAbi}__
+ */
+export const useReadIipChainStakeMirrorVerifier =
+  /*#__PURE__*/ createUseReadContract({ abi: iipChainStakeMirrorVerifierAbi })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iipChainStakeMirrorVerifierAbi}__ and `functionName` set to `"verifyStake"`
+ */
+export const useReadIipChainStakeMirrorVerifierVerifyStake =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iipChainStakeMirrorVerifierAbi,
+    functionName: 'verifyStake',
   })
 
 /**
@@ -37998,6 +44045,233 @@ export const useWatchIiPollingManagementGroupVoteCastEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iiPollingManagementGroupAbi,
     eventName: 'VoteCast',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPreInflationCalculationAbi}__
+ */
+export const useWriteIiPreInflationCalculation =
+  /*#__PURE__*/ createUseWriteContract({ abi: iiPreInflationCalculationAbi })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPreInflationCalculationAbi}__ and `functionName` set to `"trigger"`
+ */
+export const useWriteIiPreInflationCalculationTrigger =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPreInflationCalculationAbi,
+    functionName: 'trigger',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPreInflationCalculationAbi}__
+ */
+export const useSimulateIiPreInflationCalculation =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiPreInflationCalculationAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPreInflationCalculationAbi}__ and `functionName` set to `"trigger"`
+ */
+export const useSimulateIiPreInflationCalculationTrigger =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPreInflationCalculationAbi,
+    functionName: 'trigger',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__
+ */
+export const useReadIiPriceSubmitter = /*#__PURE__*/ createUseReadContract({
+  abi: iiPriceSubmitterAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getCurrentRandom"`
+ */
+export const useReadIiPriceSubmitterGetCurrentRandom =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getCurrentRandom',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getFtsoManager"`
+ */
+export const useReadIiPriceSubmitterGetFtsoManager =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getFtsoManager',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getFtsoRegistry"`
+ */
+export const useReadIiPriceSubmitterGetFtsoRegistry =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getFtsoRegistry',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getRandom"`
+ */
+export const useReadIiPriceSubmitterGetRandom =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getRandom',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getTrustedAddresses"`
+ */
+export const useReadIiPriceSubmitterGetTrustedAddresses =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getTrustedAddresses',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"getVoterWhitelister"`
+ */
+export const useReadIiPriceSubmitterGetVoterWhitelister =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'getVoterWhitelister',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"voterWhitelistBitmap"`
+ */
+export const useReadIiPriceSubmitterVoterWhitelistBitmap =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'voterWhitelistBitmap',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__
+ */
+export const useWriteIiPriceSubmitter = /*#__PURE__*/ createUseWriteContract({
+  abi: iiPriceSubmitterAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"revealPrices"`
+ */
+export const useWriteIiPriceSubmitterRevealPrices =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'revealPrices',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"setTrustedAddresses"`
+ */
+export const useWriteIiPriceSubmitterSetTrustedAddresses =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'setTrustedAddresses',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"submitHash"`
+ */
+export const useWriteIiPriceSubmitterSubmitHash =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'submitHash',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"voterWhitelisted"`
+ */
+export const useWriteIiPriceSubmitterVoterWhitelisted =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'voterWhitelisted',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"votersRemovedFromWhitelist"`
+ */
+export const useWriteIiPriceSubmitterVotersRemovedFromWhitelist =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'votersRemovedFromWhitelist',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__
+ */
+export const useSimulateIiPriceSubmitter =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiPriceSubmitterAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"revealPrices"`
+ */
+export const useSimulateIiPriceSubmitterRevealPrices =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'revealPrices',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"setTrustedAddresses"`
+ */
+export const useSimulateIiPriceSubmitterSetTrustedAddresses =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'setTrustedAddresses',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"submitHash"`
+ */
+export const useSimulateIiPriceSubmitterSubmitHash =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'submitHash',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"voterWhitelisted"`
+ */
+export const useSimulateIiPriceSubmitterVoterWhitelisted =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'voterWhitelisted',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `functionName` set to `"votersRemovedFromWhitelist"`
+ */
+export const useSimulateIiPriceSubmitterVotersRemovedFromWhitelist =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiPriceSubmitterAbi,
+    functionName: 'votersRemovedFromWhitelist',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiPriceSubmitterAbi}__
+ */
+export const useWatchIiPriceSubmitterEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iiPriceSubmitterAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `eventName` set to `"HashSubmitted"`
+ */
+export const useWatchIiPriceSubmitterHashSubmittedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiPriceSubmitterAbi,
+    eventName: 'HashSubmitted',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiPriceSubmitterAbi}__ and `eventName` set to `"PricesRevealed"`
+ */
+export const useWatchIiPriceSubmitterPricesRevealedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiPriceSubmitterAbi,
+    eventName: 'PricesRevealed',
   })
 
 /**
@@ -38818,6 +45092,62 @@ export const useWatchIirNatAccountLockedAmountBurnedEvent =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiRandomProviderAbi}__
+ */
+export const useReadIiRandomProvider = /*#__PURE__*/ createUseReadContract({
+  abi: iiRandomProviderAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiRandomProviderAbi}__ and `functionName` set to `"getCurrentRandom"`
+ */
+export const useReadIiRandomProviderGetCurrentRandom =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiRandomProviderAbi,
+    functionName: 'getCurrentRandom',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiRandomProviderAbi}__ and `functionName` set to `"getCurrentRandomWithQuality"`
+ */
+export const useReadIiRandomProviderGetCurrentRandomWithQuality =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiRandomProviderAbi,
+    functionName: 'getCurrentRandomWithQuality',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiRandomProviderAbi}__
+ */
+export const useWriteIiRandomProvider = /*#__PURE__*/ createUseWriteContract({
+  abi: iiRandomProviderAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiRandomProviderAbi}__ and `functionName` set to `"chillNonrevealingDataProviders"`
+ */
+export const useWriteIiRandomProviderChillNonrevealingDataProviders =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiRandomProviderAbi,
+    functionName: 'chillNonrevealingDataProviders',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiRandomProviderAbi}__
+ */
+export const useSimulateIiRandomProvider =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiRandomProviderAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiRandomProviderAbi}__ and `functionName` set to `"chillNonrevealingDataProviders"`
+ */
+export const useSimulateIiRandomProviderChillNonrevealingDataProviders =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiRandomProviderAbi,
+    functionName: 'chillNonrevealingDataProviders',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiRelayAbi}__
  */
 export const useReadIiRelay = /*#__PURE__*/ createUseReadContract({
@@ -39536,6 +45866,131 @@ export const useWatchIiSubmissionNewVotingRoundInitiatedEvent =
   /*#__PURE__*/ createUseWatchContractEvent({
     abi: iiSubmissionAbi,
     eventName: 'NewVotingRoundInitiated',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiSupplyAbi}__
+ */
+export const useReadIiSupply = /*#__PURE__*/ createUseReadContract({
+  abi: iiSupplyAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"getCirculatingSupplyAt"`
+ */
+export const useReadIiSupplyGetCirculatingSupplyAt =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiSupplyAbi,
+    functionName: 'getCirculatingSupplyAt',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"getInflatableBalance"`
+ */
+export const useReadIiSupplyGetInflatableBalance =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiSupplyAbi,
+    functionName: 'getInflatableBalance',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiSupplyAbi}__
+ */
+export const useWriteIiSupply = /*#__PURE__*/ createUseWriteContract({
+  abi: iiSupplyAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"getCirculatingSupplyAtCached"`
+ */
+export const useWriteIiSupplyGetCirculatingSupplyAtCached =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiSupplyAbi,
+    functionName: 'getCirculatingSupplyAtCached',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"updateAuthorizedInflationAndCirculatingSupply"`
+ */
+export const useWriteIiSupplyUpdateAuthorizedInflationAndCirculatingSupply =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiSupplyAbi,
+    functionName: 'updateAuthorizedInflationAndCirculatingSupply',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"updateCirculatingSupply"`
+ */
+export const useWriteIiSupplyUpdateCirculatingSupply =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiSupplyAbi,
+    functionName: 'updateCirculatingSupply',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiSupplyAbi}__
+ */
+export const useSimulateIiSupply = /*#__PURE__*/ createUseSimulateContract({
+  abi: iiSupplyAbi,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"getCirculatingSupplyAtCached"`
+ */
+export const useSimulateIiSupplyGetCirculatingSupplyAtCached =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiSupplyAbi,
+    functionName: 'getCirculatingSupplyAtCached',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"updateAuthorizedInflationAndCirculatingSupply"`
+ */
+export const useSimulateIiSupplyUpdateAuthorizedInflationAndCirculatingSupply =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiSupplyAbi,
+    functionName: 'updateAuthorizedInflationAndCirculatingSupply',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiSupplyAbi}__ and `functionName` set to `"updateCirculatingSupply"`
+ */
+export const useSimulateIiSupplyUpdateCirculatingSupply =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiSupplyAbi,
+    functionName: 'updateCirculatingSupply',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiTokenPoolAbi}__
+ */
+export const useWriteIiTokenPool = /*#__PURE__*/ createUseWriteContract({
+  abi: iiTokenPoolAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiTokenPoolAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useWriteIiTokenPoolGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiTokenPoolAbi,
+    functionName: 'getTokenPoolSupplyData',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiTokenPoolAbi}__
+ */
+export const useSimulateIiTokenPool = /*#__PURE__*/ createUseSimulateContract({
+  abi: iiTokenPoolAbi,
+})
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiTokenPoolAbi}__ and `functionName` set to `"getTokenPoolSupplyData"`
+ */
+export const useSimulateIiTokenPoolGetTokenPoolSupplyData =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiTokenPoolAbi,
+    functionName: 'getTokenPoolSupplyData',
   })
 
 /**
@@ -40738,6 +47193,248 @@ export const useWatchIiVoterRegistryVoterRemovedEvent =
   })
 
 /**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__
+ */
+export const useReadIiVoterWhitelister = /*#__PURE__*/ createUseReadContract({
+  abi: iiVoterWhitelisterAbi,
+})
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"chilledUntilRewardEpoch"`
+ */
+export const useReadIiVoterWhitelisterChilledUntilRewardEpoch =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'chilledUntilRewardEpoch',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"defaultMaxVotersForFtso"`
+ */
+export const useReadIiVoterWhitelisterDefaultMaxVotersForFtso =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'defaultMaxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"getFtsoWhitelistedPriceProviders"`
+ */
+export const useReadIiVoterWhitelisterGetFtsoWhitelistedPriceProviders =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'getFtsoWhitelistedPriceProviders',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"getFtsoWhitelistedPriceProvidersBySymbol"`
+ */
+export const useReadIiVoterWhitelisterGetFtsoWhitelistedPriceProvidersBySymbol =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'getFtsoWhitelistedPriceProvidersBySymbol',
+  })
+
+/**
+ * Wraps __{@link useReadContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"maxVotersForFtso"`
+ */
+export const useReadIiVoterWhitelisterMaxVotersForFtso =
+  /*#__PURE__*/ createUseReadContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'maxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__
+ */
+export const useWriteIiVoterWhitelister = /*#__PURE__*/ createUseWriteContract({
+  abi: iiVoterWhitelisterAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useWriteIiVoterWhitelisterAddFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"chillVoter"`
+ */
+export const useWriteIiVoterWhitelisterChillVoter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'chillVoter',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useWriteIiVoterWhitelisterRemoveFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"removeTrustedAddressFromWhitelist"`
+ */
+export const useWriteIiVoterWhitelisterRemoveTrustedAddressFromWhitelist =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'removeTrustedAddressFromWhitelist',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"requestFullVoterWhitelisting"`
+ */
+export const useWriteIiVoterWhitelisterRequestFullVoterWhitelisting =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'requestFullVoterWhitelisting',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"requestWhitelistingVoter"`
+ */
+export const useWriteIiVoterWhitelisterRequestWhitelistingVoter =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'requestWhitelistingVoter',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"setDefaultMaxVotersForFtso"`
+ */
+export const useWriteIiVoterWhitelisterSetDefaultMaxVotersForFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'setDefaultMaxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"setMaxVotersForFtso"`
+ */
+export const useWriteIiVoterWhitelisterSetMaxVotersForFtso =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'setMaxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__
+ */
+export const useSimulateIiVoterWhitelister =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iiVoterWhitelisterAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"addFtso"`
+ */
+export const useSimulateIiVoterWhitelisterAddFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'addFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"chillVoter"`
+ */
+export const useSimulateIiVoterWhitelisterChillVoter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'chillVoter',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"removeFtso"`
+ */
+export const useSimulateIiVoterWhitelisterRemoveFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'removeFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"removeTrustedAddressFromWhitelist"`
+ */
+export const useSimulateIiVoterWhitelisterRemoveTrustedAddressFromWhitelist =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'removeTrustedAddressFromWhitelist',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"requestFullVoterWhitelisting"`
+ */
+export const useSimulateIiVoterWhitelisterRequestFullVoterWhitelisting =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'requestFullVoterWhitelisting',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"requestWhitelistingVoter"`
+ */
+export const useSimulateIiVoterWhitelisterRequestWhitelistingVoter =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'requestWhitelistingVoter',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"setDefaultMaxVotersForFtso"`
+ */
+export const useSimulateIiVoterWhitelisterSetDefaultMaxVotersForFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'setDefaultMaxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `functionName` set to `"setMaxVotersForFtso"`
+ */
+export const useSimulateIiVoterWhitelisterSetMaxVotersForFtso =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iiVoterWhitelisterAbi,
+    functionName: 'setMaxVotersForFtso',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__
+ */
+export const useWatchIiVoterWhitelisterEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({ abi: iiVoterWhitelisterAbi })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `eventName` set to `"VoterChilled"`
+ */
+export const useWatchIiVoterWhitelisterVoterChilledEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiVoterWhitelisterAbi,
+    eventName: 'VoterChilled',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `eventName` set to `"VoterRemovedFromWhitelist"`
+ */
+export const useWatchIiVoterWhitelisterVoterRemovedFromWhitelistEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiVoterWhitelisterAbi,
+    eventName: 'VoterRemovedFromWhitelist',
+  })
+
+/**
+ * Wraps __{@link useWatchContractEvent}__ with `abi` set to __{@link iiVoterWhitelisterAbi}__ and `eventName` set to `"VoterWhitelisted"`
+ */
+export const useWatchIiVoterWhitelisterVoterWhitelistedEvent =
+  /*#__PURE__*/ createUseWatchContractEvent({
+    abi: iiVoterWhitelisterAbi,
+    eventName: 'VoterWhitelisted',
+  })
+
+/**
  * Wraps __{@link useReadContract}__ with `abi` set to __{@link iIncreaseManagerAbi}__
  */
 export const useReadIIncreaseManager = /*#__PURE__*/ createUseReadContract({
@@ -40751,6 +47448,37 @@ export const useReadIIncreaseManagerGetIncentiveDuration =
   /*#__PURE__*/ createUseReadContract({
     abi: iIncreaseManagerAbi,
     functionName: 'getIncentiveDuration',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iInflationGenesisAbi}__
+ */
+export const useWriteIInflationGenesis = /*#__PURE__*/ createUseWriteContract({
+  abi: iInflationGenesisAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iInflationGenesisAbi}__ and `functionName` set to `"receiveMinting"`
+ */
+export const useWriteIInflationGenesisReceiveMinting =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iInflationGenesisAbi,
+    functionName: 'receiveMinting',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iInflationGenesisAbi}__
+ */
+export const useSimulateIInflationGenesis =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iInflationGenesisAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iInflationGenesisAbi}__ and `functionName` set to `"receiveMinting"`
+ */
+export const useSimulateIInflationGenesisReceiveMinting =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iInflationGenesisAbi,
+    functionName: 'receiveMinting',
   })
 
 /**
@@ -43388,6 +50116,37 @@ export const useReadITypeTemplateVerificationVerifyTypeTemplate =
   /*#__PURE__*/ createUseReadContract({
     abi: iTypeTemplateVerificationAbi,
     functionName: 'verifyTypeTemplate',
+  })
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iUpdateValidatorsAbi}__
+ */
+export const useWriteIUpdateValidators = /*#__PURE__*/ createUseWriteContract({
+  abi: iUpdateValidatorsAbi,
+})
+
+/**
+ * Wraps __{@link useWriteContract}__ with `abi` set to __{@link iUpdateValidatorsAbi}__ and `functionName` set to `"updateActiveValidators"`
+ */
+export const useWriteIUpdateValidatorsUpdateActiveValidators =
+  /*#__PURE__*/ createUseWriteContract({
+    abi: iUpdateValidatorsAbi,
+    functionName: 'updateActiveValidators',
+  })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iUpdateValidatorsAbi}__
+ */
+export const useSimulateIUpdateValidators =
+  /*#__PURE__*/ createUseSimulateContract({ abi: iUpdateValidatorsAbi })
+
+/**
+ * Wraps __{@link useSimulateContract}__ with `abi` set to __{@link iUpdateValidatorsAbi}__ and `functionName` set to `"updateActiveValidators"`
+ */
+export const useSimulateIUpdateValidatorsUpdateActiveValidators =
+  /*#__PURE__*/ createUseSimulateContract({
+    abi: iUpdateValidatorsAbi,
+    functionName: 'updateActiveValidators',
   })
 
 /**

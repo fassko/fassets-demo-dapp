@@ -18,7 +18,7 @@
     "generate": "wagmi generate"
   },
   "dependencies": {
-    "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.35",
+    "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.37",
     "@hookform/resolvers": "^5.2.1",
     "@openzeppelin/contracts": "^5.4.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",

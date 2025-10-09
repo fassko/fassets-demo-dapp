@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Attestation from '@/components/Attestation';
 import Execute from '@/components/Execute';
 import Mint from '@/components/Mint';
+import MintingCap from '@/components/MintingCap';
 import Navigation from '@/components/Navigation';
 import Redeem from '@/components/Redeem';
 import Settings from '@/components/Settings';
@@ -17,7 +18,10 @@ export default function Home() {
     <div className='font-sans p-8'>
       <main className='flex flex-col gap-2'>
         <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
-        {activeTab === 'asset-manager' && <Settings />}
+        {activeTab === 'asset-manager' && (
+          <Settings onNavigate={setActiveTab} />
+        )}
+        {activeTab === 'minting-cap' && <MintingCap />}
         {activeTab === 'mint-xrp' && <Mint />}
         {activeTab === 'xrp-attestation' && <Attestation />}
         {activeTab === 'execute' && <Execute />}

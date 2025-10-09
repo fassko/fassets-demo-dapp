@@ -21,6 +21,7 @@ const getTabColorClasses = (color: string): string => {
   const colorMap = {
     slate:
       'data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900 data-[state=active]:border-slate-300',
+    red: 'data-[state=active]:bg-red-100 data-[state=active]:text-red-900 data-[state=active]:border-red-300',
     blue: 'data-[state=active]:bg-blue-100 data-[state=active]:text-blue-900 data-[state=active]:border-blue-300',
     purple:
       'data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 data-[state=active]:border-purple-300',
@@ -40,6 +41,7 @@ export default function Navigation({
 }: NavigationProps) {
   const tabs = [
     { id: 'asset-manager', label: 'Settings', color: 'slate', icon: Settings },
+    { id: 'minting-cap', label: '🧢 Cap', color: 'red', icon: null },
     { id: 'mint-xrp', label: 'Mint', color: 'blue', icon: Coins },
     {
       id: 'xrp-attestation',
@@ -55,7 +57,7 @@ export default function Navigation({
   return (
     <nav className='px-4'>
       <Tabs value={activeTab} onValueChange={onTabChange} className='w-full'>
-        <TabsList className='grid w-full grid-cols-6'>
+        <TabsList className='grid w-full grid-cols-7'>
           {tabs.map(tab => {
             const IconComponent = tab.icon;
             return (
@@ -64,7 +66,7 @@ export default function Navigation({
                 value={tab.id}
                 className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${getTabColorClasses(tab.color)}`}
               >
-                <IconComponent className='h-4 w-4' />
+                {IconComponent && <IconComponent className='h-4 w-4' />}
                 {tab.label}
               </TabsTrigger>
             );
