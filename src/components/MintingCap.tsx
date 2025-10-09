@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 
 import { Loader2, RefreshCw } from 'lucide-react';
-import { createPublicClient, erc20Abi, http } from 'viem';
+
 import { useAccount, useReadContract } from 'wagmi';
+
+import { createPublicClient, erc20Abi, http } from 'viem';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';

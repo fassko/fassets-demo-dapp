@@ -1,10 +1,11 @@
 // Utility functions for chain selection
 // Maps wagmi chain IDs to Flare periphery contract artifact network names
 
+import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
+
 import * as artifacts from '@flarenetwork/flare-periphery-contract-artifacts';
 
 import type { Chain } from 'viem';
-import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
 
 // Map chain IDs to artifact network names
 export function getArtifactNetwork(chainId: number) {

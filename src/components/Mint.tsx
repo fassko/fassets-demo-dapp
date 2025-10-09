@@ -8,12 +8,13 @@ import { Controller, useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { createPublicClient, decodeEventLog, http } from 'viem';
 import {
   useAccount,
   useReadContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
+
+import { createPublicClient, decodeEventLog, http } from 'viem';
 
 import { z } from 'zod';
 
