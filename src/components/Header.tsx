@@ -20,7 +20,6 @@ export default function Header() {
     <header className='w-full border-b border-gray-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60 shadow-sm rounded-none'>
       <div className='container mx-auto px-4 py-3 md:py-4'>
         <div className='flex items-center justify-between gap-4'>
-          {/* Logo/Title */}
           <div className='flex items-center gap-2 md:gap-3 min-w-0 flex-1'>
             <div className='text-2xl md:text-3xl flex-shrink-0'>🔥</div>
             <div className='min-w-0 flex-1'>
@@ -43,7 +42,6 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Wallet Connection */}
           <div className='flex-shrink-0'>
             <ConnectWallet />
           </div>

@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from 'react';
 
-import { Check, CheckCircle, Copy, Loader2, XCircle } from 'lucide-react';
+import {
+  Check,
+  CheckCircle,
+  Copy,
+  ExternalLink,
+  Loader2,
+  XCircle,
+} from 'lucide-react';
 
 import { useForm } from 'react-hook-form';
 
@@ -269,7 +276,16 @@ export default function Attestation() {
         <CardContent>
           <p className='text-purple-700 mb-6'>
             Execute Flare Data Connector XRP Payment attestation to verify XRP
-            transactions.
+            transactions.{' '}
+            <a
+              href='https://dev.flare.network/fdc/overview'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='inline-flex items-center gap-1 text-purple-600 hover:text-purple-800 hover:underline'
+            >
+              Learn more
+              <ExternalLink className='h-3 w-3' />
+            </a>
           </p>
 
           <form

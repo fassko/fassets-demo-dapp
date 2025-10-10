@@ -6,6 +6,7 @@ import {
   ArrowRight,
   Check,
   Copy,
+  ExternalLink,
   RefreshCw,
   Settings as SettingsIcon,
 } from 'lucide-react';
@@ -75,7 +76,7 @@ export default function Settings({ onNavigate }: SettingsProps) {
           variant='ghost'
           size='sm'
           onClick={() => copyToClipboardWithTimeout(address, setCopiedAddress)}
-          className='h-6 w-6 p-0 hover:bg-slate-100'
+          className='h-6 w-6 p-0 hover:bg-slate-100 cursor-pointer'
         >
           {isCopied ? (
             <Check className='h-3 w-3 text-green-600' />
@@ -124,10 +125,21 @@ export default function Settings({ onNavigate }: SettingsProps) {
           </div>
         </CardHeader>
         <CardContent>
-          <p className='text-slate-700 mb-6'>
-            View and manage Asset Manager configuration settings for FXRP
-            operations.
-          </p>
+          <div className='flex items-start justify-between mb-6'>
+            <p className='text-slate-700'>
+              View and manage Asset Manager configuration settings for FXRP
+              operations.{' '}
+              <a
+                href='https://dev.flare.network/fassets/overview'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline'
+              >
+                Learn more
+                <ExternalLink className='h-3 w-3' />
+              </a>
+            </p>
+          </div>
 
           <div className='flex justify-end mb-6'>
             <Button
@@ -171,6 +183,10 @@ export default function Settings({ onNavigate }: SettingsProps) {
                   {
                     title: 'FXRP Token',
                     value: createExplorerLink(settings.fAsset),
+                  },
+                  {
+                    title: 'Agent Owner Registry',
+                    value: createExplorerLink(settings.agentOwnerRegistry),
                   },
                 ])}
 
@@ -304,13 +320,6 @@ export default function Settings({ onNavigate }: SettingsProps) {
                   {
                     title: 'Redemption Fee (BIPS)',
                     value: settings.redemptionFeeBIPS.toString(),
-                  },
-                ])}
-
-                {settingsBox('Registry Addresses', [
-                  {
-                    title: 'Agent Owner Registry',
-                    value: createExplorerLink(settings.agentOwnerRegistry),
                   },
                 ])}
               </div>

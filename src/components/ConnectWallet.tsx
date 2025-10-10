@@ -148,7 +148,7 @@ export default function ConnectWallet() {
     <div className='relative' ref={menuRef}>
       <Button
         onClick={() => setShowMenu(!showMenu)}
-        className='bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg'
+        className='bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg cursor-pointer'
         size='lg'
       >
         <div className='flex items-center gap-2'>
@@ -181,7 +181,7 @@ export default function ConnectWallet() {
                 <div className='flex gap-2'>
                   <button
                     onClick={handleCopyAddress}
-                    className='p-2 hover:bg-gray-200 rounded-md transition-colors'
+                    className='p-2 hover:bg-gray-200 rounded-md transition-colors cursor-pointer'
                     title='Copy address'
                   >
                     <Copy className='h-4 w-4 text-gray-600' />
@@ -210,7 +210,7 @@ export default function ConnectWallet() {
             <Button
               onClick={handleDisconnect}
               variant='destructive'
-              className='w-full'
+              className='w-full cursor-pointer'
             >
               <LogOut className='h-4 w-4 mr-2' />
               Disconnect Wallet

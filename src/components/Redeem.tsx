@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { ArrowRight, Loader2 } from 'lucide-react';
+import { ArrowRight, ExternalLink, Loader2 } from 'lucide-react';
 
 import { useForm } from 'react-hook-form';
 
@@ -714,7 +714,16 @@ export default function Redeem() {
         </CardHeader>
         <CardContent>
           <p className='text-green-700 mb-6'>
-            Convert your FXRP tokens back to native XRP on the XRP Ledger.
+            Convert your FXRP tokens back to native XRP on the XRP Ledger.{' '}
+            <a
+              href='https://dev.flare.network/fassets/redemption'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='inline-flex items-center gap-1 text-green-600 hover:text-green-800 hover:underline'
+            >
+              Learn more
+              <ExternalLink className='h-3 w-3' />
+            </a>
           </p>
 
           {/* Balance Overview Cards */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { Coins, Loader2 } from 'lucide-react';
+import { Coins, ExternalLink, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 
 import { Controller, useForm } from 'react-hook-form';
@@ -608,7 +608,18 @@ export default function Mint() {
           </div>
         </CardHeader>
         <CardContent>
-          <p className='text-blue-700 mb-6'>Reserve collateral to mint FXRP</p>
+          <p className='text-blue-700 mb-6'>
+            Reserve collateral to mint FXRP.{' '}
+            <a
+              href='https://dev.flare.network/fassets/minting'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline'
+            >
+              Learn more
+              <ExternalLink className='h-3 w-3' />
+            </a>
+          </p>
 
           <form onSubmit={handleSubmit(mint)} className='space-y-6'>
             <div className='space-y-4'>

@@ -2,7 +2,15 @@
 
 import { useEffect, useState } from 'react';
 
-import { Check, CheckCircle, Copy, Loader2, Play, XCircle } from 'lucide-react';
+import {
+  Check,
+  CheckCircle,
+  Copy,
+  ExternalLink,
+  Loader2,
+  Play,
+  XCircle,
+} from 'lucide-react';
 
 import { useForm } from 'react-hook-form';
 
@@ -558,7 +566,16 @@ export default function Execute() {
         <CardContent>
           <p className='text-orange-700 mb-6'>
             Execute AssetManager.executeMinting with proof verification for XRP
-            transactions.
+            transactions.{' '}
+            <a
+              href='https://dev.flare.network/fassets/minting'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='inline-flex items-center gap-1 text-orange-600 hover:text-orange-800 hover:underline'
+            >
+              Learn more
+              <ExternalLink className='h-3 w-3' />
+            </a>
           </p>
 
           <form
