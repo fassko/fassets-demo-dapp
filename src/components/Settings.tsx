@@ -228,7 +228,7 @@ export default function Settings({ onNavigate }: SettingsProps) {
                       </CardTitle>
                       {onNavigate && (
                         <Button
-                          onClick={() => onNavigate('minting-cap')}
+                          onClick={() => onNavigate('/minting-cap')}
                           variant='outline'
                           size='sm'
                           className='border-blue-300 hover:bg-blue-50 text-blue-700 cursor-pointer'
