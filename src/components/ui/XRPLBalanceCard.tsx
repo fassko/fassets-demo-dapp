@@ -3,6 +3,8 @@ import { RefreshCw, Wallet } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useFXRPPrice } from '@/hooks/useFXRPPrice';
+import { formatPrice } from '@/lib/ftsoUtils';
 
 interface XRPLBalanceCardProps {
   balance: string;
@@ -15,6 +17,8 @@ export default function XRPLBalanceCard({
   onRefresh,
   isLoading = false,
 }: XRPLBalanceCardProps) {
+  const { priceData } = useFXRPPrice();
+
   return (
     <Card>
       <CardHeader>
@@ -27,12 +31,19 @@ export default function XRPLBalanceCard({
         <div className='flex items-center justify-between'>
           <div className='flex items-center gap-2'>
             <Wallet className='h-5 w-5 text-green-600' />
-            <Badge
-              variant='secondary'
-              className='text-lg bg-green-100 text-green-800'
-            >
-              {balance} XRP
-            </Badge>
+            <div className='flex flex-col gap-1'>
+              <Badge
+                variant='secondary'
+                className='text-lg bg-green-100 text-green-800'
+              >
+                {balance} XRP
+              </Badge>
+              {priceData && (
+                <span className='text-xs text-gray-600 font-semibold'>
+                  ≈ {formatPrice(parseFloat(balance) * priceData.price)}
+                </span>
+              )}
+            </div>
           </div>
           <Button
             onClick={onRefresh}

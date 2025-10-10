@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { Coins, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 
 import { Controller, useForm } from 'react-hook-form';
 
@@ -24,7 +25,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import {
   Select,
   SelectContent,
@@ -143,6 +143,8 @@ export default function Mint() {
       freeCollateralLots: bigint;
       status: bigint;
       agentName?: string;
+      agentDescription?: string;
+      agentIconUrl?: string;
     }>
   >([]);
 
@@ -277,28 +279,47 @@ export default function Mint() {
                 transport: http(),
               });
 
-              // Get agent name from AgentOwnerRegistry contract
-              const agentName = await client.readContract({
-                address: settings.agentOwnerRegistry as `0x${string}`,
-                // Use the AgentOwnerRegistry generated ABI to read the getAgentName function
-                abi: iAgentOwnerRegistryAbi,
-                // Use the getAgentName function to get the agent name
-                // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentname
-                functionName: 'getAgentName',
-                // Use the ownerManagementAddress to get the agent name
-                args: [agent.ownerManagementAddress],
-              });
+              // Get agent details from AgentOwnerRegistry contract
+              const [agentName, agentDescription, agentIconUrl] =
+                await Promise.all([
+                  // Get agent name
+                  // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentname
+                  client.readContract({
+                    address: settings.agentOwnerRegistry as `0x${string}`,
+                    abi: iAgentOwnerRegistryAbi,
+                    functionName: 'getAgentName',
+                    args: [agent.ownerManagementAddress],
+                  }),
+                  // Get agent description
+                  // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentdescription
+                  client.readContract({
+                    address: settings.agentOwnerRegistry as `0x${string}`,
+                    abi: iAgentOwnerRegistryAbi,
+                    functionName: 'getAgentDescription',
+                    args: [agent.ownerManagementAddress],
+                  }),
+                  // Get agent icon URL
+                  // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagenticonurl
+                  client.readContract({
+                    address: settings.agentOwnerRegistry as `0x${string}`,
+                    abi: iAgentOwnerRegistryAbi,
+                    functionName: 'getAgentIconUrl',
+                    args: [agent.ownerManagementAddress],
+                  }),
+                ]);
 
               return {
                 ...agent,
                 agentVault: agent.agentVault as string,
                 ownerManagementAddress: agent.ownerManagementAddress as string,
                 status: BigInt(agent.status),
-                agentName: agentName || 'Unknown Agent',
+                agentName: (agentName as string) || 'Unknown Agent',
+                agentDescription: (agentDescription as string) || '',
+                agentIconUrl: (agentIconUrl as string) || '',
               };
             } catch (error) {
               console.error(
-                `Error fetching name for agent ${agent.agentVault}:`,
+                `Error fetching details for agent ${agent.agentVault}:`,
                 error
               );
               return {
@@ -307,6 +328,8 @@ export default function Mint() {
                 ownerManagementAddress: agent.ownerManagementAddress as string,
                 status: BigInt(agent.status),
                 agentName: 'Unknown Agent',
+                agentDescription: '',
+                agentIconUrl: '',
               };
             }
           })
@@ -582,7 +605,6 @@ export default function Mint() {
               <Coins className='h-5 w-5 text-blue-600' />
               Mint XRP to FXRP
             </CardTitle>
-            <NetworkBadge className='border-blue-400 bg-blue-50 text-blue-700 font-semibold' />
           </div>
         </CardHeader>
         <CardContent>
@@ -620,57 +642,67 @@ export default function Mint() {
                           <SelectValue placeholder='Select an agent vault'>
                             {field.value && (
                               <div className='flex flex-col items-start space-y-5 w-full'>
-                                {availableAgents.find(
-                                  agent => agent.agentVault === field.value
-                                ) && (
-                                  <>
-                                    <div className='w-full space-y-4'>
-                                      <div className='flex items-center justify-between'>
-                                        <span className='font-bold text-blue-900 text-lg'>
-                                          {availableAgents.find(
-                                            agent =>
-                                              agent.agentVault === field.value
-                                          )?.agentName || 'Unknown Agent'}
-                                        </span>
-                                        <div className='flex gap-2'>
-                                          <Badge
-                                            variant='secondary'
-                                            className='bg-blue-100 text-blue-800 text-sm px-3 py-1.5'
-                                          >
-                                            Fee:{' '}
-                                            {Number(
-                                              availableAgents.find(
-                                                agent =>
-                                                  agent.agentVault ===
-                                                  field.value
-                                              )?.feeBIPS
-                                            ) / 100}
-                                            %
-                                          </Badge>
-                                          <Badge
-                                            variant='outline'
-                                            className='border-blue-300 text-blue-700 text-sm px-3 py-1.5'
-                                          >
-                                            Free:{' '}
-                                            {availableAgents
-                                              .find(
-                                                agent =>
-                                                  agent.agentVault ===
-                                                  field.value
-                                              )
-                                              ?.freeCollateralLots.toString()}{' '}
-                                            lots
-                                          </Badge>
+                                {(() => {
+                                  const selectedAgent = availableAgents.find(
+                                    agent => agent.agentVault === field.value
+                                  );
+                                  return (
+                                    selectedAgent && (
+                                      <>
+                                        <div className='w-full space-y-4'>
+                                          <div className='flex items-center justify-between gap-6'>
+                                            <div className='flex items-center gap-3'>
+                                              {selectedAgent.agentIconUrl && (
+                                                <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden flex-shrink-0'>
+                                                  <Image
+                                                    src={
+                                                      selectedAgent.agentIconUrl
+                                                    }
+                                                    alt={
+                                                      selectedAgent.agentName ||
+                                                      'Agent'
+                                                    }
+                                                    fill
+                                                    className='object-cover'
+                                                    unoptimized
+                                                  />
+                                                </div>
+                                              )}
+                                              <span className='font-bold text-blue-900 text-lg'>
+                                                {selectedAgent.agentName ||
+                                                  'Unknown Agent'}
+                                              </span>
+                                            </div>
+                                            <div className='flex gap-2 flex-shrink-0'>
+                                              <Badge
+                                                variant='secondary'
+                                                className='bg-blue-100 text-blue-800 text-sm px-3 py-1.5'
+                                              >
+                                                Fee:{' '}
+                                                {Number(selectedAgent.feeBIPS) /
+                                                  100}
+                                                %
+                                              </Badge>
+                                              <Badge
+                                                variant='outline'
+                                                className='border-blue-300 text-blue-700 text-sm px-3 py-1.5'
+                                              >
+                                                Free:{' '}
+                                                {selectedAgent.freeCollateralLots.toString()}{' '}
+                                                lots
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                          <div className='bg-blue-50 p-3 rounded-md'>
+                                            <span className='font-mono text-sm text-blue-700 break-all leading-relaxed'>
+                                              {field.value}
+                                            </span>
+                                          </div>
                                         </div>
-                                      </div>
-                                      <div className='bg-blue-50 p-3 rounded-md'>
-                                        <span className='font-mono text-sm text-blue-700 break-all leading-relaxed'>
-                                          {field.value}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </>
-                                )}
+                                      </>
+                                    )
+                                  );
+                                })()}
                               </div>
                             )}
                           </SelectValue>
@@ -683,11 +715,24 @@ export default function Mint() {
                               className='py-6 cursor-pointer'
                             >
                               <div className='flex flex-col space-y-4 w-full'>
-                                <div className='flex items-center justify-between'>
-                                  <span className='font-bold text-blue-900 text-lg'>
-                                    {agent.agentName || 'Unknown Agent'}
-                                  </span>
-                                  <div className='flex gap-2'>
+                                <div className='flex items-center justify-between gap-6'>
+                                  <div className='flex items-center gap-3'>
+                                    {agent.agentIconUrl && (
+                                      <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden flex-shrink-0'>
+                                        <Image
+                                          src={agent.agentIconUrl}
+                                          alt={agent.agentName || 'Agent'}
+                                          fill
+                                          className='object-cover'
+                                          unoptimized
+                                        />
+                                      </div>
+                                    )}
+                                    <span className='font-bold text-blue-900 text-lg'>
+                                      {agent.agentName || 'Unknown Agent'}
+                                    </span>
+                                  </div>
+                                  <div className='flex gap-2 flex-shrink-0'>
                                     <Badge
                                       variant='secondary'
                                       className='bg-blue-100 text-blue-800 text-sm px-3 py-1.5'

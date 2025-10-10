@@ -15,10 +15,11 @@ import { useAccount } from 'wagmi';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFXRPPrice } from '@/hooks/useFXRPPrice';
 import { getExplorerName } from '@/lib/chainUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
+import { formatPrice } from '@/lib/ftsoUtils';
 import { truncateAddress } from '@/lib/utils';
 
 // FAssets AssetManagerFXRP settings
@@ -39,6 +40,7 @@ export default function Settings({ onNavigate }: SettingsProps) {
   } = useAssetManager();
 
   const { chain } = useAccount();
+  const { priceData } = useFXRPPrice();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -119,7 +121,6 @@ export default function Settings({ onNavigate }: SettingsProps) {
               <SettingsIcon className='h-5 w-5 text-slate-600' />
               Asset Manager FXRP Settings
             </CardTitle>
-            <NetworkBadge className='border-slate-400 bg-slate-50 text-slate-700 font-semibold' />
           </div>
         </CardHeader>
         <CardContent>
@@ -254,6 +255,31 @@ export default function Settings({ onNavigate }: SettingsProps) {
                           })()}
                         </span>
                       </div>
+                      {priceData && (
+                        <div className='flex justify-between'>
+                          <span className='font-medium text-slate-900'>
+                            Minting Cap (USD):
+                          </span>
+                          <span>
+                            {(() => {
+                              const mintingCap =
+                                BigInt(settings.mintingCapAMG) *
+                                BigInt(settings.assetMintingGranularityUBA);
+                              if (mintingCap === BigInt(0)) {
+                                return '♾️ Unlimited';
+                              }
+                              const assetDecimals = Number(
+                                settings.assetDecimals
+                              );
+                              const fxrpAmount =
+                                Number(mintingCap) /
+                                Math.pow(10, assetDecimals);
+                              const usdValue = fxrpAmount * priceData.price;
+                              return formatPrice(usdValue);
+                            })()}
+                          </span>
+                        </div>
+                      )}
                       <div className='flex justify-between'>
                         <span className='font-medium text-slate-900'>
                           Status:

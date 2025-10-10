@@ -1,10 +1,7 @@
 // FDC contract addresses
 // More info: https://dev.flare.network/fdc/overview
 
-import { ethers } from 'ethers';
-
-import { getArtifactNetwork, getChainName } from './chainUtils';
-import { extractContractAddress } from './contractAddress';
+import { getFlareContractAddress } from './flareContracts';
 
 export interface FdcContractAddresses {
   fdcHub: `0x${string}`;
@@ -13,67 +10,80 @@ export interface FdcContractAddresses {
   fdcVerification: `0x${string}`;
 }
 
+/**
+ * Get all FDC contract addresses for a given chain
+ * @param chainId - Optional chain ID (will use current network if not provided)
+ * @returns Object containing all FDC contract addresses
+ */
 export async function getFdcContractAddresses(
   chainId?: number
 ): Promise<FdcContractAddresses> {
   try {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
+    // Fetch all FDC contract addresses in parallel
+    const [
+      fdcHub,
+      fdcRequestFeeConfigurations,
+      flareSystemsManager,
+      fdcVerification,
+    ] = await Promise.all([
+      getFlareContractAddress('FdcHub', chainId),
+      getFlareContractAddress('FdcRequestFeeConfigurations', chainId),
+      getFlareContractAddress('FlareSystemsManager', chainId),
+      getFlareContractAddress('FdcVerification', chainId),
+    ]);
 
-      // If no chainId provided, get it from the provider
-      if (!chainId) {
-        const network = await provider.getNetwork();
-        chainId = Number(network.chainId);
-      }
-
-      console.log(
-        `Getting FDC contract addresses for ${getChainName(chainId)}`
-      );
-
-      // Get the correct network artifacts based on chain ID
-      const networkArtifacts = getArtifactNetwork(chainId);
-
-      // Get FDC Hub address from Flare Contracts Registry
-      // https://dev.flare.network/network/guides/flare-contracts-registry
-      const fdcHub = networkArtifacts.products.FdcHub;
-      const fdcHubAddressResult = await fdcHub.getAddress(provider);
-
-      // Get FDC Request Fee Configurations address from Flare Contracts Registry
-      // https://dev.flare.network/network/guides/flare-contracts-registry
-      const fdcRequestFeeConfigurations =
-        networkArtifacts.products.FdcRequestFeeConfigurations;
-      const fdcRequestFeeConfigurationsAddressResult =
-        await fdcRequestFeeConfigurations.getAddress(provider);
-
-      // Get Flare Systems Manager address from Flare Contracts Registry
-      // https://dev.flare.network/network/guides/flare-contracts-registry
-      const flareSystemsManager = networkArtifacts.products.FlareSystemsManager;
-      const flareSystemsManagerAddressResult =
-        await flareSystemsManager.getAddress(provider);
-
-      // Get FDC Verification address from Flare Contracts Registry
-      // https://dev.flare.network/network/guides/flare-contracts-registry
-      const fdcVerification = networkArtifacts.products.FdcVerification;
-      const fdcVerificationAddressResult =
-        await fdcVerification.getAddress(provider);
-
-      return {
-        fdcHub: extractContractAddress(fdcHubAddressResult),
-        fdcRequestFeeConfigurations: extractContractAddress(
-          fdcRequestFeeConfigurationsAddressResult
-        ),
-        flareSystemsManager: extractContractAddress(
-          flareSystemsManagerAddressResult
-        ),
-        fdcVerification: extractContractAddress(fdcVerificationAddressResult),
-      };
-    } else {
-      throw new Error(
-        'MetaMask is not installed. Please install MetaMask to use this feature.'
-      );
-    }
+    return {
+      fdcHub,
+      fdcRequestFeeConfigurations,
+      flareSystemsManager,
+      fdcVerification,
+    };
   } catch (error) {
     console.error('Error getting FDC contract addresses:', error);
     throw error;
   }
+}
+
+/**
+ * Get the FdcHub contract address
+ * @param chainId - Optional chain ID
+ * @returns The FdcHub contract address
+ */
+export async function getFdcHubAddress(
+  chainId?: number
+): Promise<`0x${string}`> {
+  return getFlareContractAddress('FdcHub', chainId);
+}
+
+/**
+ * Get the FdcRequestFeeConfigurations contract address
+ * @param chainId - Optional chain ID
+ * @returns The FdcRequestFeeConfigurations contract address
+ */
+export async function getFdcRequestFeeConfigurationsAddress(
+  chainId?: number
+): Promise<`0x${string}`> {
+  return getFlareContractAddress('FdcRequestFeeConfigurations', chainId);
+}
+
+/**
+ * Get the FlareSystemsManager contract address
+ * @param chainId - Optional chain ID
+ * @returns The FlareSystemsManager contract address
+ */
+export async function getFlareSystemsManagerAddress(
+  chainId?: number
+): Promise<`0x${string}`> {
+  return getFlareContractAddress('FlareSystemsManager', chainId);
+}
+
+/**
+ * Get the FdcVerification contract address
+ * @param chainId - Optional chain ID
+ * @returns The FdcVerification contract address
+ */
+export async function getFdcVerificationAddress(
+  chainId?: number
+): Promise<`0x${string}`> {
+  return getFlareContractAddress('FdcVerification', chainId);
 }

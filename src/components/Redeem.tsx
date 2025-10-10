@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
 import XRPLBalanceCard from '@/components/ui/XRPLBalanceCard';
 import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
@@ -711,7 +710,6 @@ export default function Redeem() {
               <ArrowRight className='h-5 w-5 text-green-600' />
               Redeem FXRP to XRP
             </CardTitle>
-            <NetworkBadge className='border-green-400 bg-green-50 text-green-700 font-semibold' />
           </div>
         </CardHeader>
         <CardContent>

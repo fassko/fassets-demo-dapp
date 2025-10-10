@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { ChevronDown, Copy, ExternalLink, LogOut, Wallet } from 'lucide-react';
 
@@ -27,11 +27,33 @@ export default function ConnectWallet() {
   const [showConnectDialog, setShowConnectDialog] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   // Only render on client side to avoid hydration mismatch
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Handle click outside to close menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target as Node) &&
+        showMenu
+      ) {
+        setShowMenu(false);
+      }
+    };
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   const handleCopyAddress = async () => {
     if (address) {
@@ -123,7 +145,7 @@ export default function ConnectWallet() {
   }
 
   return (
-    <div className='relative'>
+    <div className='relative' ref={menuRef}>
       <Button
         onClick={() => setShowMenu(!showMenu)}
         className='bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-semibold shadow-lg'
@@ -137,70 +159,64 @@ export default function ConnectWallet() {
       </Button>
 
       {showMenu && (
-        <>
-          <div
-            className='fixed inset-0 z-40'
-            onClick={() => setShowMenu(false)}
-          />
-          <div className='absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50'>
-            <div className='p-4 space-y-3'>
-              {/* Network Info */}
-              {chain && (
-                <div className='bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200'>
-                  <p className='text-xs text-gray-600 mb-1'>Network</p>
-                  <p className='font-semibold text-blue-900'>
-                    {getChainName(chain.id)}
-                  </p>
-                </div>
-              )}
-
-              {/* Address Info */}
-              <div className='bg-gray-50 rounded-lg p-3 border border-gray-200'>
-                <p className='text-xs text-gray-600 mb-2'>Your Address</p>
-                <div className='flex items-center justify-between'>
-                  <code className='text-sm font-mono text-gray-900'>
-                    {formatAddress(address!)}
-                  </code>
-                  <div className='flex gap-2'>
-                    <button
-                      onClick={handleCopyAddress}
-                      className='p-2 hover:bg-gray-200 rounded-md transition-colors'
-                      title='Copy address'
-                    >
-                      <Copy className='h-4 w-4 text-gray-600' />
-                    </button>
-                    {chain && (
-                      <a
-                        href={getExplorerUrl(chain.id, address!)}
-                        target='_blank'
-                        rel='noopener noreferrer'
-                        className='p-2 hover:bg-gray-200 rounded-md transition-colors'
-                        title='View on explorer'
-                      >
-                        <ExternalLink className='h-4 w-4 text-gray-600' />
-                      </a>
-                    )}
-                  </div>
-                </div>
-                {copySuccess && (
-                  <p className='text-xs text-green-600 mt-2'>
-                    ✓ Address copied to clipboard
-                  </p>
-                )}
+        <div className='absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50'>
+          <div className='p-4 space-y-3'>
+            {/* Network Info */}
+            {chain && (
+              <div className='bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200'>
+                <p className='text-xs text-gray-600 mb-1'>Network</p>
+                <p className='font-semibold text-blue-900'>
+                  {getChainName(chain.id)}
+                </p>
               </div>
+            )}
 
-              {/* Disconnect Button */}
-              <Button
-                onClick={handleDisconnect}
-                variant='destructive'
-                className='w-full'
-              >
-                <LogOut className='h-4 w-4 mr-2' />
-                Disconnect Wallet
-              </Button>
+            {/* Address Info */}
+            <div className='bg-gray-50 rounded-lg p-3 border border-gray-200'>
+              <p className='text-xs text-gray-600 mb-2'>Your Address</p>
+              <div className='flex items-center justify-between'>
+                <code className='text-sm font-mono text-gray-900'>
+                  {formatAddress(address!)}
+                </code>
+                <div className='flex gap-2'>
+                  <button
+                    onClick={handleCopyAddress}
+                    className='p-2 hover:bg-gray-200 rounded-md transition-colors'
+                    title='Copy address'
+                  >
+                    <Copy className='h-4 w-4 text-gray-600' />
+                  </button>
+                  {chain && (
+                    <a
+                      href={getExplorerUrl(chain.id, address!)}
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='p-2 hover:bg-gray-200 rounded-md transition-colors'
+                      title='View on explorer'
+                    >
+                      <ExternalLink className='h-4 w-4 text-gray-600' />
+                    </a>
+                  )}
+                </div>
+              </div>
+              {copySuccess && (
+                <p className='text-xs text-green-600 mt-2'>
+                  ✓ Address copied to clipboard
+                </p>
+              )}
             </div>
+
+            {/* Disconnect Button */}
+            <Button
+              onClick={handleDisconnect}
+              variant='destructive'
+              className='w-full'
+            >
+              <LogOut className='h-4 w-4 mr-2' />
+              Disconnect Wallet
+            </Button>
           </div>
-        </>
+        </div>
       )}
     </div>
   );

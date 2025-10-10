@@ -17,7 +17,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import { useWriteIFdcHubRequestAttestation } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
@@ -265,7 +264,6 @@ export default function Attestation() {
               <CheckCircle className='h-5 w-5 text-purple-600' />
               XRP Payment Attestation
             </CardTitle>
-            <NetworkBadge className='border-purple-400 bg-purple-50 text-purple-700 font-semibold' />
           </div>
         </CardHeader>
         <CardContent>

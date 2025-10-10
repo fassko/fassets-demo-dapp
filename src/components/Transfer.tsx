@@ -20,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 
@@ -187,7 +186,6 @@ export default function Transfer() {
               <Send className='h-5 w-5 text-cyan-600' />
               Transfer FXRP
             </CardTitle>
-            <NetworkBadge className='border-cyan-400 bg-cyan-50 text-cyan-700 font-semibold' />
           </div>
         </CardHeader>
         <CardContent>

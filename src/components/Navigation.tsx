@@ -55,19 +55,38 @@ export default function Navigation({
   ];
 
   return (
-    <nav className='px-4'>
+    <nav className='px-2 md:px-4'>
       <Tabs value={activeTab} onValueChange={onTabChange} className='w-full'>
-        <TabsList className='grid w-full grid-cols-7'>
+        <TabsList className='flex w-full overflow-x-auto overflow-y-hidden scrollbar-hide rounded-none'>
           {tabs.map(tab => {
             const IconComponent = tab.icon;
             return (
               <TabsTrigger
                 key={tab.id}
                 value={tab.id}
-                className={`text-sm transition-colors cursor-pointer flex items-center gap-2 ${getTabColorClasses(tab.color)}`}
+                className={`text-xs md:text-sm transition-colors cursor-pointer flex items-center justify-center gap-1 md:gap-2 whitespace-nowrap flex-1 min-w-0 px-1 md:px-3 py-2 ${getTabColorClasses(tab.color)}`}
               >
-                {IconComponent && <IconComponent className='h-4 w-4' />}
-                {tab.label}
+                {IconComponent && (
+                  <IconComponent className='h-3 w-3 md:h-4 md:w-4 flex-shrink-0' />
+                )}
+                <span className='hidden sm:inline'>{tab.label}</span>
+                <span className='sm:hidden'>
+                  {tab.label === '🧢 Cap'
+                    ? '🧢'
+                    : tab.label === 'Settings'
+                      ? '⚙️'
+                      : tab.label === 'Mint'
+                        ? '🪙'
+                        : tab.label === 'Attestation'
+                          ? '✓'
+                          : tab.label === 'Execute'
+                            ? '▶️'
+                            : tab.label === 'Transfer'
+                              ? '↗️'
+                              : tab.label === 'Redeem'
+                                ? '↪️'
+                                : tab.label}
+                </span>
               </TabsTrigger>
             );
           })}

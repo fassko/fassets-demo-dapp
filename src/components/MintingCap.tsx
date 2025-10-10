@@ -11,9 +11,10 @@ import { createPublicClient, erc20Abi, http } from 'viem';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { NetworkBadge } from '@/components/ui/network-badge';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFXRPPrice } from '@/hooks/useFXRPPrice';
 import { getChainById } from '@/lib/chainUtils';
+import { formatPrice } from '@/lib/ftsoUtils';
 
 import { iAssetManagerAbi } from '../generated';
 
@@ -43,6 +44,7 @@ export default function MintingCap() {
   const [error, setError] = useState<string | null>(null);
 
   const { chain } = useAccount();
+  const { priceData } = useFXRPPrice();
   const {
     assetManagerAddress,
     settings,
@@ -238,10 +240,6 @@ export default function MintingCap() {
                 <span className='text-3xl'>🧢</span>
                 Minting Cap
               </CardTitle>
-              <NetworkBadge
-                className='bg-red-50 text-red-700 font-semibold'
-                style={{ borderColor: '#E62058' }}
-              />
             </div>
             <Button
               onClick={handleRefresh}
@@ -378,6 +376,17 @@ export default function MintingCap() {
                       ? `Minting Cap (${mintingData.mintingCapLots.toString()} lots)`
                       : 'No minting cap set'}
                   </p>
+                  {priceData && mintingData.hasMintingCap && (
+                    <p
+                      className='text-sm mt-1 font-semibold'
+                      style={{ color: '#B91C1C' }}
+                    >
+                      ≈{' '}
+                      {formatPrice(
+                        mintingData.mintingCapFXRP * priceData.price
+                      )}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -403,6 +412,17 @@ export default function MintingCap() {
                     })}{' '}
                     FXRP
                   </p>
+                  {priceData && (
+                    <p
+                      className='text-sm mt-1 font-semibold'
+                      style={{ color: '#DC2626' }}
+                    >
+                      ≈{' '}
+                      {formatPrice(
+                        mintingData.totalSupplyFXRP * priceData.price
+                      )}
+                    </p>
+                  )}
                   <p className='text-sm mt-1' style={{ color: '#E62058' }}>
                     {mintingData.mintedLots.toString()} lots minted
                   </p>
@@ -520,6 +540,17 @@ export default function MintingCap() {
                         })}{' '}
                         FXRP
                       </p>
+                      {priceData && (
+                        <p
+                          className='text-xs font-semibold'
+                          style={{ color: '#B91C1C' }}
+                        >
+                          ≈{' '}
+                          {formatPrice(
+                            mintingData.totalSupplyFXRP * priceData.price
+                          )}
+                        </p>
+                      )}
                       <p className='text-xs' style={{ color: '#DC2626' }}>
                         {mintingData.usagePercentage.toFixed(2)}%
                       </p>
@@ -538,6 +569,14 @@ export default function MintingCap() {
                         )}{' '}
                         FXRP
                       </p>
+                      {priceData && (
+                        <p className='text-xs font-semibold text-green-900'>
+                          ≈{' '}
+                          {formatPrice(
+                            mintingData.remainingAmountFXRP * priceData.price
+                          )}
+                        </p>
+                      )}
                       <p className='text-xs text-green-500'>
                         {mintingData.remainingPercentage.toFixed(2)}%
                       </p>

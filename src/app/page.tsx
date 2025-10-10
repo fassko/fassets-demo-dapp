@@ -17,10 +17,14 @@ export default function Home() {
 
   return (
     <div className='font-sans min-h-screen bg-gray-50'>
-      <Header />
-      <div className='p-8'>
-        <main className='flex flex-col gap-2'>
+      <div className='sticky top-0 z-50'>
+        <Header />
+        <div className='z-40 bg-gray-50'>
           <Navigation activeTab={activeTab} onTabChange={setActiveTab} />
+        </div>
+      </div>
+      <div className='p-4 md:p-8'>
+        <main className='flex flex-col gap-2'>
           {activeTab === 'asset-manager' && (
             <Settings onNavigate={setActiveTab} />
           )}
