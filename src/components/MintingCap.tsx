@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Loader2, RefreshCw } from 'lucide-react';
 
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useChainId, useReadContract } from 'wagmi';
 
 import { createPublicClient, erc20Abi, http } from 'viem';
 
@@ -13,10 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
+import { getAssetManagerAbi } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { formatPrice } from '@/lib/ftsoUtils';
-
-import { iAssetManagerAbi } from '../generated';
 
 // Agent status constants
 const AGENT_STATUS_NORMAL = 0;
@@ -43,8 +42,10 @@ export default function MintingCap() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const chainId = useChainId();
   const { chain } = useAccount();
   const { priceData } = useFXRPPrice();
+
   const {
     assetManagerAddress,
     settings,
@@ -75,7 +76,7 @@ export default function MintingCap() {
     refetch: refetchAgents,
   } = useReadContract({
     address: assetManagerAddress!,
-    abi: iAssetManagerAbi,
+    abi: getAssetManagerAbi(chainId),
     functionName: 'getAllAgents',
     query: {
       enabled: !!assetManagerAddress,
@@ -136,7 +137,7 @@ export default function MintingCap() {
           try {
             const agentInfo = await client.readContract({
               address: assetManagerAddress as `0x${string}`,
-              abi: iAssetManagerAbi,
+              abi: getAssetManagerAbi(chainId),
               functionName: 'getAgentInfo',
               args: [agent],
             });
@@ -207,7 +208,14 @@ export default function MintingCap() {
     };
 
     calculateMintingCap();
-  }, [settings, totalSupply, allAgentsData, assetManagerAddress, chain]);
+  }, [
+    settings,
+    totalSupply,
+    allAgentsData,
+    assetManagerAddress,
+    chain,
+    chainId,
+  ]);
 
   const loading =
     isLoadingSettings ||

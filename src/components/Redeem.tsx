@@ -8,7 +8,11 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import {
+  useChainId,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi';
 
 import { decodeEventLog, keccak256 } from 'viem';
 
@@ -26,6 +30,7 @@ import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { getAssetManagerAbi, getRequestAttestationHook } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -42,11 +47,6 @@ import {
   isValidXRPAddress,
 } from '@/lib/xrpUtils';
 import { AttestationData } from '@/types/attestation';
-
-import {
-  iAssetManagerAbi,
-  useWriteIFdcHubRequestAttestation,
-} from '../generated';
 
 // Form data types
 const RedeemXRPFormDataSchema = z.object({
@@ -151,12 +151,14 @@ export default function Redeem() {
     error: addressError,
   } = useFdcContracts();
 
+  const chainId = useChainId();
+
   // FDC Attestation contract functions hook
   const {
     writeContract: requestAttestation,
     data: attestationHash,
     error: writeAttestationError,
-  } = useWriteIFdcHubRequestAttestation();
+  } = getRequestAttestationHook(chainId);
 
   // Wait for the FDC attestation transaction receipt
   const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
@@ -215,7 +217,7 @@ export default function Redeem() {
         try {
           // Try to decode the log as various events
           const decodedLog = decodeEventLog({
-            abi: iAssetManagerAbi,
+            abi: getAssetManagerAbi(chainId),
             data: log.data,
             topics: log.topics,
           });
@@ -440,7 +442,7 @@ export default function Redeem() {
         address: assetManagerAddress!,
         // Use the AssetManager ABI from the Flare Contracts Registry
         // https://dev.flare.network/network/guides/flare-contracts-registry
-        abi: iAssetManagerAbi,
+        abi: getAssetManagerAbi(chainId),
         // Use the redeem function from the AssetManager ABI
         // https://dev.flare.network/fassets/reference/IAssetManager#redeem
         functionName: 'redeem',
@@ -571,6 +573,7 @@ export default function Redeem() {
       await submitAttestationRequest(
         data.abiEncodedRequest,
         fdcAddresses,
+        chainId,
         requestAttestation
       );
 
@@ -609,7 +612,8 @@ export default function Redeem() {
           }
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: attestationReceipt.blockNumber } },
-            fdcAddresses
+            fdcAddresses,
+            chainId
           );
           console.log('Calculated round ID:', roundId);
 
@@ -643,7 +647,8 @@ export default function Redeem() {
           }
           const verificationResult = await verifyReferencedPaymentNonexistence(
             proof,
-            fdcAddresses
+            fdcAddresses,
+            chainId
           );
           setVerificationResult(verificationResult);
 
@@ -664,7 +669,13 @@ export default function Redeem() {
 
       processAttestationTransaction();
     }
-  }, [isAttestationSuccess, attestationReceipt, attestationData, fdcAddresses]);
+  }, [
+    isAttestationSuccess,
+    attestationReceipt,
+    attestationData,
+    fdcAddresses,
+    chainId,
+  ]);
 
   // Handle attestation write contract errors
   useEffect(() => {

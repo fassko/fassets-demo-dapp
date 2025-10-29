@@ -15,7 +15,7 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { z } from 'zod';
 
@@ -24,8 +24,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useWriteIFdcHubRequestAttestation } from '@/generated';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { getRequestAttestationHook } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -73,6 +73,7 @@ export default function Attestation() {
     null
   );
 
+  const chainId = useChainId();
   const { isConnected } = useAccount();
 
   // FDC contracts hook
@@ -90,7 +91,7 @@ export default function Attestation() {
     writeContract: requestAttestation,
     data: attestationHash,
     error: writeError,
-  } = useWriteIFdcHubRequestAttestation();
+  } = getRequestAttestationHook(chainId);
 
   // Wait for transaction receipt
   const { data: receipt, isSuccess: isAttestationSuccess } =
@@ -114,7 +115,8 @@ export default function Attestation() {
           // https://dev.flare.network/fdc/guides/fdc-by-hand#waiting-for-the-voting-round-to-finalize
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: receipt.blockNumber } },
-            fdcAddresses
+            fdcAddresses,
+            chainId
           );
           console.log('Calculated round ID:', roundId);
 
@@ -141,7 +143,11 @@ export default function Attestation() {
           if (!fdcAddresses) {
             throw new Error('FDC contract addresses not loaded');
           }
-          const verificationResult = await verifyPayment(proof, fdcAddresses);
+          const verificationResult = await verifyPayment(
+            proof,
+            fdcAddresses,
+            chainId
+          );
           setVerificationResult(verificationResult);
 
           setCurrentStep('');
@@ -161,7 +167,7 @@ export default function Attestation() {
 
       processTransaction();
     }
-  }, [isAttestationSuccess, receipt, attestationData, fdcAddresses]);
+  }, [isAttestationSuccess, receipt, attestationData, fdcAddresses, chainId]);
 
   // Handle write contract errors
   useEffect(() => {
@@ -243,6 +249,7 @@ export default function Attestation() {
       await submitAttestationRequest(
         data.abiEncodedRequest,
         fdcAddresses,
+        chainId,
         requestAttestation
       );
 

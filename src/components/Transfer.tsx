@@ -8,7 +8,11 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import {
+  useAccount,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi';
 
 import { erc20Abi } from 'viem';
 
@@ -22,6 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
 const SendFXRPFormDataSchema = z.object({
@@ -47,6 +52,9 @@ type SendFXRPFormData = z.infer<typeof SendFXRPFormDataSchema>;
 export default function Transfer() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Get current chain for explorer URL
+  const { chain } = useAccount();
 
   // Use FAssets asset manager hook to read settings
   const {
@@ -121,12 +129,18 @@ export default function Transfer() {
 
   // Handle successful transfer
   useEffect(() => {
-    if (isTransferSuccess) {
+    if (isTransferSuccess && transferHash) {
       setSuccess(`Successfully sent ${watchedAmount} FXRP`);
       reset();
       refetchFxrpBalance();
     }
-  }, [isTransferSuccess, watchedAmount, reset, refetchFxrpBalance]);
+  }, [
+    isTransferSuccess,
+    transferHash,
+    watchedAmount,
+    reset,
+    refetchFxrpBalance,
+  ]);
 
   const refreshBalances = async () => {
     try {
@@ -284,7 +298,22 @@ export default function Transfer() {
 
             {success && (
               <Alert className='bg-cyan-50 border-cyan-200 text-cyan-800'>
-                <AlertDescription>{success}</AlertDescription>
+                <AlertDescription>
+                  {success}
+                  {transferHash && chain && (
+                    <div className='mt-2'>
+                      <span className='text-sm'>Transaction hash: </span>
+                      <a
+                        href={getExplorerUrl(chain.id, transferHash, 'tx')}
+                        target='_blank'
+                        rel='noopener noreferrer'
+                        className='text-cyan-600 hover:text-cyan-800 underline font-mono text-sm'
+                      >
+                        {transferHash}
+                      </a>
+                    </div>
+                  )}
+                </AlertDescription>
               </Alert>
             )}
           </form>

@@ -3,14 +3,13 @@
 
 import { useEffect, useState } from 'react';
 
-import { useReadContract } from 'wagmi';
+import { useChainId, useReadContract } from 'wagmi';
 
+import { getAssetManagerAbi } from '@/lib/abiUtils';
 import { getAssetManagerAddress } from '@/lib/assetManager';
 
-// Import the generated type for the IAssetManager
-import { iAssetManagerAbi } from '../generated';
-
 export function useAssetManager() {
+  const chainId = useChainId();
   const [assetManagerAddress, setAssetManagerAddress] = useState<
     `0x${string}` | null
   >(null);
@@ -40,9 +39,8 @@ export function useAssetManager() {
     refetch: refetchSettings,
   } = useReadContract({
     address: assetManagerAddress!,
-    // Use the iAssetManager ABI to read the settings
-    // from the generated types
-    abi: iAssetManagerAbi,
+    // Use the network-specific ABI based on the connected chain
+    abi: getAssetManagerAbi(chainId),
     // Use the getSettings function to read the settings
     // Guide: https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
     functionName: 'getSettings',

@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { songbirdTestnet, flareTestnet, flare, songbird } from 'wagmi/chains';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -44,4 +45,26 @@ export function truncateString(
 ): string {
   if (text.length <= minLength) return text;
   return `${text.slice(0, startLength)}...${text.slice(-endLength)}`;
+}
+
+/**
+ * Gets the blockchain explorer URL for a given chain ID and transaction hash or address
+ * @param chainId - The chain ID
+ * @param hash - The transaction hash or address
+ * @param type - The type of hash ('tx' for transaction, 'address' for address)
+ * @returns The full explorer URL
+ */
+export function getExplorerUrl(
+  chainId: number,
+  hash: string,
+  type: 'tx' | 'address' = 'tx'
+): string {
+  const explorers: Record<number, string> = {
+    [flare.id]: 'https://flare-explorer.flare.network',
+    [flareTestnet.id]: 'https://coston2-explorer.flare.network',
+    [songbird.id]: 'https://songbird-explorer.flare.network',
+    [songbirdTestnet.id]: 'https://coston-explorer.flare.network',
+  };
+  const baseUrl = explorers[chainId] || explorers[flare.id];
+  return `${baseUrl}/${type}/${hash}`;
 }

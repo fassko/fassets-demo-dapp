@@ -16,7 +16,7 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useAccount, useWaitForTransactionReceipt } from 'wagmi';
+import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { decodeEventLog } from 'viem';
 
@@ -27,12 +27,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  iAssetManagerAbi,
-  useWriteIAssetManagerExecuteMinting,
-} from '@/generated';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { getAssetManagerAbi, getExecuteMintingHook } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -83,6 +80,7 @@ export default function Execute() {
     resolver: zodResolver(ExecuteFormDataSchema),
   });
 
+  const chainId = useChainId();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -131,7 +129,7 @@ export default function Execute() {
     data: executeHash,
     isPending: isExecutePending,
     error: writeError,
-  } = useWriteIAssetManagerExecuteMinting();
+  } = getExecuteMintingHook(chainId);
 
   // Wait for execute minting transaction receipt
   const {
@@ -202,7 +200,11 @@ export default function Execute() {
       if (!fdcAddresses) {
         throw new Error('FDC contract addresses not loaded');
       }
-      const verificationResult = await verifyPayment(proof, fdcAddresses);
+      const verificationResult = await verifyPayment(
+        proof,
+        fdcAddresses,
+        chainId
+      );
       setVerificationResult(verificationResult);
 
       if (!verificationResult) {
@@ -395,7 +397,7 @@ export default function Execute() {
           try {
             // Try to decode as various error events
             const decodedLog = decodeEventLog({
-              abi: iAssetManagerAbi,
+              abi: getAssetManagerAbi(chainId),
               data: log.data,
               topics: log.topics,
             });
@@ -480,7 +482,7 @@ export default function Execute() {
         try {
           // Try to decode the log as various events
           const decodedLog = decodeEventLog({
-            abi: iAssetManagerAbi,
+            abi: getAssetManagerAbi(chainId),
             data: log.data,
             topics: log.topics,
           });
@@ -550,7 +552,7 @@ export default function Execute() {
         `Minting executed successfully! Transaction hash: ${receipt.transactionHash}`
       );
     }
-  }, [isExecuteSuccess, receipt]);
+  }, [isExecuteSuccess, receipt, chainId]);
 
   return (
     <div className='w-full max-w-4xl mx-auto p-6'>

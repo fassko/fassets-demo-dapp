@@ -90,7 +90,3 @@ temp/
 .Trashes
 ehthumbs.db
 Thumbs.db
-
-# Generated files
-*.generated.*
-generated.ts

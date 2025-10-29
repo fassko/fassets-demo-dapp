@@ -3,8 +3,7 @@
 
 import { createPublicClient, http } from 'viem';
 
-import { ftsoV2InterfaceAbi } from '@/generated';
-
+import { getFtsoV2InterfaceAbi } from './abiUtils';
 import { getChainById } from './chainUtils';
 import { getFtsoV2Address } from './flareContracts';
 
@@ -44,7 +43,7 @@ export async function getXRPUSDPrice(
     // Get XRP/USD price feed (FXRP tracks XRP price on all networks)
     const { result: simulateResult } = await client.simulateContract({
       address: ftsoV2Address as `0x${string}`,
-      abi: ftsoV2InterfaceAbi,
+      abi: getFtsoV2InterfaceAbi(chainId),
       functionName: 'getFeedsById',
       args: [[XRP_USD_FEED_ID]],
     });

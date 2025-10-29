@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import {
   useAccount,
+  useChainId,
   useReadContract,
   useWaitForTransactionReceipt,
 } from 'wagmi';
@@ -34,14 +35,13 @@ import {
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import {
+  getAgentOwnerRegistryAbi,
+  getAssetManagerAbi,
+  getReserveCollateralHook,
+} from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
-
-import {
-  iAgentOwnerRegistryAbi,
-  iAssetManagerAbi,
-  useWriteIAssetManagerReserveCollateral,
-} from '../generated';
 
 // Form data types
 const MintXRPFormDataSchema = z.object({
@@ -65,7 +65,8 @@ type MintXRPFormData = z.infer<typeof MintXRPFormDataSchema>;
 function useReservationFee(
   assetManagerAddress: string | undefined,
   lots: string,
-  agentVault: string
+  agentVault: string,
+  chainId: number
 ) {
   const [reservationFee, setReservationFee] = useState<string>('0');
   const [isLoading, setIsLoading] = useState(false);
@@ -81,7 +82,8 @@ function useReservationFee(
         try {
           const feeWei = await calculateReservationFee(
             assetManagerAddress,
-            lots
+            lots,
+            chainId
           );
           const feeInFLR = weiToFLR(feeWei).toString();
           setReservationFee(feeInFLR);
@@ -107,7 +109,11 @@ function useReservationFee(
     if (!assetManagerAddress) {
       throw new Error('AssetManager address not loaded');
     }
-    return calculateReservationFee(assetManagerAddress, lotsNumber.toString());
+    return calculateReservationFee(
+      assetManagerAddress,
+      lotsNumber.toString(),
+      chainId
+    );
   };
 
   // Function to get current fee as number for display purposes
@@ -149,6 +155,7 @@ export default function Mint() {
   >([]);
 
   const [lotSizeAMG, setLotSizeAMG] = useState<string>('0');
+  const chainId = useChainId();
   const {
     assetManagerAddress,
     settings,
@@ -185,15 +192,16 @@ export default function Mint() {
   } = useReservationFee(
     assetManagerAddress || undefined,
     watchedLots,
-    watchedAgentVault
+    watchedAgentVault,
+    chainId
   );
 
   // Read available agents hook
   const { data: availableAgentsData, isLoading: isLoadingAgentsData } =
     useReadContract({
       address: assetManagerAddress!,
-      // Use the IAssetManager generated ABI to read the available agents
-      abi: iAssetManagerAbi,
+      // Use the IAssetManager ABI to read the available agents
+      abi: getAssetManagerAbi(chainId),
       // Use the getAvailableAgentsDetailedList function to get the available agents
       // https://dev.flare.network/fassets/reference/IAssetManager/#getAvailableAgentsDetailedList
       functionName: 'getAvailableAgentsDetailedList',
@@ -205,7 +213,6 @@ export default function Mint() {
     });
 
   // Write contract for reserveCollateral function
-  // Use the generated wagmi hook
   // useWriteIAssetManagerReserveCollateral to write with the reserveCollateral function
   // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
   const {
@@ -213,7 +220,7 @@ export default function Mint() {
     writeContract: reserveCollateral,
     isPending: isReservePending,
     error: writeError,
-  } = useWriteIAssetManagerReserveCollateral();
+  } = getReserveCollateralHook(chainId);
 
   // Wait for collateral reservation transaction receipt
   const {
@@ -286,7 +293,7 @@ export default function Mint() {
                   // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentname
                   client.readContract({
                     address: settings.agentOwnerRegistry as `0x${string}`,
-                    abi: iAgentOwnerRegistryAbi,
+                    abi: getAgentOwnerRegistryAbi(chainId),
                     functionName: 'getAgentName',
                     args: [agent.ownerManagementAddress],
                   }),
@@ -294,7 +301,7 @@ export default function Mint() {
                   // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagentdescription
                   client.readContract({
                     address: settings.agentOwnerRegistry as `0x${string}`,
-                    abi: iAgentOwnerRegistryAbi,
+                    abi: getAgentOwnerRegistryAbi(chainId),
                     functionName: 'getAgentDescription',
                     args: [agent.ownerManagementAddress],
                   }),
@@ -302,7 +309,7 @@ export default function Mint() {
                   // https://dev.flare.network/fassets/reference/IAgentOwnerRegistry#getagenticonurl
                   client.readContract({
                     address: settings.agentOwnerRegistry as `0x${string}`,
-                    abi: iAgentOwnerRegistryAbi,
+                    abi: getAgentOwnerRegistryAbi(chainId),
                     functionName: 'getAgentIconUrl',
                     args: [agent.ownerManagementAddress],
                   }),
@@ -340,7 +347,7 @@ export default function Mint() {
     };
 
     fetchAgentsWithNames();
-  }, [availableAgentsData, settings, chain]);
+  }, [availableAgentsData, settings, chain, chainId]);
 
   // Handle successful reservation
   useEffect(() => {
@@ -358,7 +365,7 @@ export default function Mint() {
             try {
               // Try to decode the log as a CollateralReserved event
               const decodedLog = decodeEventLog({
-                abi: iAssetManagerAbi,
+                abi: getAssetManagerAbi(chainId),
                 data: log.data,
                 topics: log.topics,
               });
@@ -415,7 +422,7 @@ export default function Mint() {
       }
       reset();
     }
-  }, [isReserveSuccess, receipt, reset]);
+  }, [isReserveSuccess, receipt, reset, chainId]);
 
   async function mint(data: MintXRPFormData) {
     setError(null);
@@ -498,7 +505,7 @@ export default function Mint() {
 
       console.log('>> assetManagerAddress:', assetManagerAddress);
 
-      // Call the reserveCollateral function using the generated hook
+      // Call the reserveCollateral function using the hook
       // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
       const result = reserveCollateral({
         // Use the asset manager address
@@ -553,14 +560,11 @@ export default function Mint() {
   const isProcessing = isReservePending || isConfirming;
   const isLoading = isLoadingSettings || isLoadingAgentsData || isLoadingFee;
 
-  // Handle write contract errors (generated hook)
+  // Handle write contract errors (hook)
   useEffect(() => {
     console.log('WriteError changed:', writeError);
     if (writeError) {
-      console.error(
-        'Write contract error detected (generated hook):',
-        writeError
-      );
+      console.error('Write contract error detected (hook):', writeError);
       console.error('Error details:', {
         name: writeError.name,
         message: writeError.message,

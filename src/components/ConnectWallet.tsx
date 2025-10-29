@@ -18,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { getChainName } from '@/lib/chainUtils';
 import { copyToClipboard } from '@/lib/clipboard';
+import { getExplorerUrl } from '@/lib/utils';
 
 export default function ConnectWallet() {
   const { address, isConnected, chain } = useAccount();
@@ -75,17 +76,6 @@ export default function ConnectWallet() {
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
-  const getExplorerUrl = (chainId: number, address: string) => {
-    const explorers: Record<number, string> = {
-      14: 'https://flare-explorer.flare.network',
-      114: 'https://coston2-explorer.flare.network',
-      19: 'https://songbird-explorer.flare.network',
-      16: 'https://coston-explorer.flare.network',
-    };
-    const baseUrl = explorers[chainId] || explorers[14];
-    return `${baseUrl}/address/${address}`;
   };
 
   if (!mounted) {
@@ -188,7 +178,7 @@ export default function ConnectWallet() {
                   </button>
                   {chain && (
                     <a
-                      href={getExplorerUrl(chain.id, address!)}
+                      href={getExplorerUrl(chain.id, address!, 'address')}
                       target='_blank'
                       rel='noopener noreferrer'
                       className='p-2 hover:bg-gray-200 rounded-md transition-colors'
