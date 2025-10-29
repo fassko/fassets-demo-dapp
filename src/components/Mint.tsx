@@ -101,7 +101,7 @@ function useReservationFee(
     };
 
     calculateFee();
-  }, [assetManagerAddress, lots, agentVault]);
+  }, [assetManagerAddress, lots, agentVault, chainId]);
 
   // Function to get current fee at transaction time (returns BigInt for precision)
   // Fee can change at transaction time
