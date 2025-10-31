@@ -1,54 +1,54 @@
 // Utility functions for selecting network-specific ABIs and hooks
-// Maps chain IDs to the appropriate ABIs and hooks from test-periphery-artifacts-viem-types
+// Maps chain IDs to the appropriate ABIs and hooks from test-periphery-artifacts-wagmi-types
 
-import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/IAgentOwnerRegistry';
+import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as costonIAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting as costonUseWriteIAssetManagerExecuteMinting,
   useWriteIAssetManagerReserveCollateral as costonUseWriteIAssetManagerReserveCollateral,
-} from 'test-periphery-artifacts-viem-types/contracts/coston/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as costonUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-viem-types/contracts/coston/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/IFlareSystemsManager';
-import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as costonIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/coston/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/IAgentOwnerRegistry';
+} from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAssetManager';
+import { useWriteIFdcHubRequestAttestation as costonUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFlareSystemsManager';
+import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as costonIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting as coston2UseWriteIAssetManagerExecuteMinting,
   useWriteIAssetManagerReserveCollateral as coston2UseWriteIAssetManagerReserveCollateral,
-} from 'test-periphery-artifacts-viem-types/contracts/coston2/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as coston2UseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-viem-types/contracts/coston2/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/IFlareSystemsManager';
-import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as coston2IReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/coston2/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/IAgentOwnerRegistry';
+} from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAssetManager';
+import { useWriteIFdcHubRequestAttestation as coston2UseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFlareSystemsManager';
+import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as coston2IReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as flareIAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting as flareUseWriteIAssetManagerExecuteMinting,
   useWriteIAssetManagerReserveCollateral as flareUseWriteIAssetManagerReserveCollateral,
-} from 'test-periphery-artifacts-viem-types/contracts/flare/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as flareUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-viem-types/contracts/flare/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/IFlareSystemsManager';
-import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as flareIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/flare/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/IAgentOwnerRegistry';
+} from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAssetManager';
+import { useWriteIFdcHubRequestAttestation as flareUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFlareSystemsManager';
+import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as flareIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
   useWriteIAssetManagerExecuteMinting as songbirdUseWriteIAssetManagerExecuteMinting,
   useWriteIAssetManagerReserveCollateral as songbirdUseWriteIAssetManagerReserveCollateral,
-} from 'test-periphery-artifacts-viem-types/contracts/songbird/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as songbirdUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-viem-types/contracts/songbird/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/IFlareSystemsManager';
-import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-viem-types/contracts/songbird/IReferencedPaymentNonexistenceVerification';
+} from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAssetManager';
+import { useWriteIFdcHubRequestAttestation as songbirdUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFlareSystemsManager';
+import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IReferencedPaymentNonexistenceVerification';
 import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
 
 export function getAssetManagerAbi(chainId: number) {
