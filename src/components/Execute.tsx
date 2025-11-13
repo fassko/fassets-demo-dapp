@@ -16,7 +16,12 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
+import {
+  useAccount,
+  useChainId,
+  useWaitForTransactionReceipt,
+  useWriteContract,
+} from 'wagmi';
 
 import { decodeEventLog } from 'viem';
 
@@ -29,7 +34,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
-import { getAssetManagerAbi, getExecuteMintingHook } from '@/lib/abiUtils';
+import { getAssetManagerAbi } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -125,11 +130,11 @@ export default function Execute() {
   // Write contract with executeMinting function
   // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
   const {
-    writeContract: executeMinting,
     data: executeHash,
+    writeContract: executeMinting,
     isPending: isExecutePending,
     error: writeError,
-  } = getExecuteMintingHook(chainId);
+  } = useWriteContract();
 
   // Wait for execute minting transaction receipt
   const {
@@ -225,6 +230,8 @@ export default function Execute() {
       // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
       executeMinting({
         address: assetManagerAddress,
+        abi: getAssetManagerAbi(chainId),
+        functionName: 'executeMinting',
         args: [
           {
             merkleProof: proof.proof,

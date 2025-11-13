@@ -5,10 +5,9 @@ import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from 'test-periphery-a
 import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as costonIAssetManagerAbi,
-  useWriteIAssetManagerExecuteMinting as costonUseWriteIAssetManagerExecuteMinting,
-  useWriteIAssetManagerReserveCollateral as costonUseWriteIAssetManagerReserveCollateral,
+  useWriteIAssetManager as costonUseWriteIAssetManager,
 } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as costonUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcHub';
+import { useWriteIFdcHub as costonUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFlareSystemsManager';
 import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IPaymentVerification';
@@ -17,10 +16,9 @@ import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from 'test-periphery-
 import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
-  useWriteIAssetManagerExecuteMinting as coston2UseWriteIAssetManagerExecuteMinting,
-  useWriteIAssetManagerReserveCollateral as coston2UseWriteIAssetManagerReserveCollateral,
+  useWriteIAssetManager as coston2UseWriteIAssetManager,
 } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as coston2UseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcHub';
+import { useWriteIFdcHub as coston2UseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFlareSystemsManager';
 import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IPaymentVerification';
@@ -29,10 +27,9 @@ import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from 'test-periphery-ar
 import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as flareIAssetManagerAbi,
-  useWriteIAssetManagerExecuteMinting as flareUseWriteIAssetManagerExecuteMinting,
-  useWriteIAssetManagerReserveCollateral as flareUseWriteIAssetManagerReserveCollateral,
+  useWriteIAssetManager as flareUseWriteIAssetManager,
 } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as flareUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcHub';
+import { useWriteIFdcHub as flareUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFlareSystemsManager';
 import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IPaymentVerification';
@@ -41,10 +38,9 @@ import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from 'test-periphery
 import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
-  useWriteIAssetManagerExecuteMinting as songbirdUseWriteIAssetManagerExecuteMinting,
-  useWriteIAssetManagerReserveCollateral as songbirdUseWriteIAssetManagerReserveCollateral,
+  useWriteIAssetManager as songbirdUseWriteIAssetManager,
 } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAssetManager';
-import { useWriteIFdcHubRequestAttestation as songbirdUseWriteIFdcHubRequestAttestation } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcHub';
+import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFlareSystemsManager';
 import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IPaymentVerification';
@@ -96,16 +92,16 @@ export function getAgentOwnerRegistryAbi(chainId: number) {
 export function getRequestAttestationHook(chainId: number) {
   switch (chainId) {
     case flare.id: // Flare Mainnet
-      return flareUseWriteIFdcHubRequestAttestation();
+      return flareUseWriteIFdcHub();
     case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIFdcHubRequestAttestation();
+      return coston2UseWriteIFdcHub();
     case songbird.id: // Songbird
-      return songbirdUseWriteIFdcHubRequestAttestation();
+      return songbirdUseWriteIFdcHub();
     case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIFdcHubRequestAttestation();
+      return costonUseWriteIFdcHub();
     default:
       // Default to Flare for backwards compatibility
-      return flareUseWriteIFdcHubRequestAttestation();
+      return flareUseWriteIFdcHub();
   }
 }
 
@@ -221,22 +217,6 @@ export function getFtsoV2InterfaceAbi(chainId: number) {
  * @param chainId - The chain ID to get the hook for
  * @returns The network-specific AssetManager Execute Minting hook
  */
-export function getExecuteMintingHook(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseWriteIAssetManagerExecuteMinting();
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIAssetManagerExecuteMinting();
-    case songbird.id: // Songbird
-      return songbirdUseWriteIAssetManagerExecuteMinting();
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIAssetManagerExecuteMinting();
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseWriteIAssetManagerExecuteMinting();
-  }
-}
-
 /**
  * Select the appropriate AssetManager Reserve Collateral hook based on the chain ID
  * @param chainId - The chain ID to get the hook for
@@ -245,15 +225,15 @@ export function getExecuteMintingHook(chainId: number) {
 export function getReserveCollateralHook(chainId: number) {
   switch (chainId) {
     case flare.id: // Flare Mainnet
-      return flareUseWriteIAssetManagerReserveCollateral();
+      return flareUseWriteIAssetManager();
     case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIAssetManagerReserveCollateral();
+      return coston2UseWriteIAssetManager();
     case songbird.id: // Songbird
-      return songbirdUseWriteIAssetManagerReserveCollateral();
+      return songbirdUseWriteIAssetManager();
     case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIAssetManagerReserveCollateral();
+      return costonUseWriteIAssetManager();
     default:
       // Default to Flare for backwards compatibility
-      return flareUseWriteIAssetManagerReserveCollateral();
+      return flareUseWriteIAssetManager();
   }
 }

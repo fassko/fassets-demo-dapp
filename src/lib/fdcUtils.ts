@@ -578,6 +578,7 @@ export const submitAttestationRequest = async (
   // Submit the attestation request
   requestAttestation({
     address: fdcAddresses.fdcHub as `0x${string}`,
+    functionName: 'requestAttestation',
     args: [abiEncodedRequest as `0x${string}`],
     value: requestFee,
   });

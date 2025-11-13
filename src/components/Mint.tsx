@@ -510,6 +510,7 @@ export default function Mint() {
       const result = reserveCollateral({
         // Use the asset manager address
         address: assetManagerAddress,
+        functionName: 'reserveCollateral',
         // Pass the parameters to the reserveCollateral function
         args: [
           // Agent vault address
