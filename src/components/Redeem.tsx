@@ -12,6 +12,7 @@ import {
   useChainId,
   useWaitForTransactionReceipt,
   useWriteContract,
+  useConnections,
 } from 'wagmi';
 
 import { decodeEventLog, keccak256 } from 'viem';

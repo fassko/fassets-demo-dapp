@@ -10,8 +10,9 @@ import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import {
-  useAccount,
   useChainId,
+  useChains,
+  useConnections,
   useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -36,10 +37,7 @@ import {
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
-import {
-  getAgentOwnerRegistryAbi,
-  getAssetManagerAbi,
-} from '@/lib/abiUtils';
+import { getAgentOwnerRegistryAbi, getAssetManagerAbi } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
 
@@ -162,7 +160,10 @@ export default function Mint() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
-  const { isConnected, chain } = useAccount();
+  const connections = useConnections();
+  const chains = useChains();
+  const isConnected = connections.length > 0;
+  const chain = chains.find(c => c.id === connections[0]?.chainId);
 
   // Form handling
   const {
@@ -670,7 +671,7 @@ export default function Mint() {
                                           <div className='flex items-center justify-between gap-6'>
                                             <div className='flex items-center gap-3'>
                                               {selectedAgent.agentIconUrl && (
-                                                <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden flex-shrink-0'>
+                                                <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden shrink-0'>
                                                   <Image
                                                     src={
                                                       selectedAgent.agentIconUrl
@@ -690,7 +691,7 @@ export default function Mint() {
                                                   'Unknown Agent'}
                                               </span>
                                             </div>
-                                            <div className='flex gap-2 flex-shrink-0'>
+                                            <div className='flex gap-2 shrink-0'>
                                               <Badge
                                                 variant='secondary'
                                                 className='bg-blue-100 text-blue-800 text-sm px-3 py-1.5'
@@ -735,7 +736,7 @@ export default function Mint() {
                                 <div className='flex items-center justify-between gap-6'>
                                   <div className='flex items-center gap-3'>
                                     {agent.agentIconUrl && (
-                                      <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden flex-shrink-0'>
+                                      <div className='relative w-10 h-10 rounded-full border-2 border-blue-200 overflow-hidden shrink-0'>
                                         <Image
                                           src={agent.agentIconUrl}
                                           alt={agent.agentName || 'Agent'}
@@ -749,7 +750,7 @@ export default function Mint() {
                                       {agent.agentName || 'Unknown Agent'}
                                     </span>
                                   </div>
-                                  <div className='flex gap-2 flex-shrink-0'>
+                                  <div className='flex gap-2 shrink-0'>
                                     <Badge
                                       variant='secondary'
                                       className='bg-blue-100 text-blue-800 text-sm px-3 py-1.5'

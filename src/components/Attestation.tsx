@@ -15,7 +15,7 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useAccount, useChainId, useWaitForTransactionReceipt, useWriteContract } from 'wagmi';
+import { useChainId, useWaitForTransactionReceipt, useWriteContract, useConnections } from 'wagmi';
 
 import { z } from 'zod';
 
@@ -73,7 +73,8 @@ export default function Attestation() {
   );
 
   const chainId = useChainId();
-  const { isConnected } = useAccount();
+  const connections = useConnections();
+  const isConnected = connections.length > 0;
 
   // FDC contracts hook
   // It gets the FDC contracts from the Flare Contracts Registry
