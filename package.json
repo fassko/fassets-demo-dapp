@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.37",
+    "@flarenetwork/flare-wagmi-periphery-package": "^1.0.0",
     "@hookform/resolvers": "^5.2.1",
     "@openzeppelin/contracts": "^5.4.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
@@ -39,8 +40,7 @@
     "react-hook-form": "^7.62.0",
     "shadcn-ui": "^0.9.5",
     "tailwind-merge": "^3.3.1",
-    "test-periphery-artifacts-wagmi-types": "^1.0.12",
-    "viem": "^2.33.2",
+    "viem": "^2.43.0",
     "xrpl": "^4.4.0",
     "zod": "^3.25.76"
   },
@@ -61,6 +61,6 @@
     "tsx": "^4.20.3",
     "tw-animate-css": "^1.3.6",
     "typescript": "^5",
-    "wagmi": "^2.16.3"
+    "wagmi": "^3.1.0"
   }
 }

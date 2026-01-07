@@ -1,51 +1,51 @@
 // Utility functions for selecting network-specific ABIs and hooks
-// Maps chain IDs to the appropriate ABIs and hooks from test-periphery-artifacts-wagmi-types
+// Maps chain IDs to the appropriate ABIs and hooks from @flarenetwork/flare-wagmi-periphery-package
+import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
 
-import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAgentOwnerRegistry';
+import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as costonIAssetManagerAbi,
   useWriteIAssetManager as costonUseWriteIAssetManager,
-} from 'test-periphery-artifacts-wagmi-types/contracts/coston/IAssetManager';
-import { useWriteIFdcHub as costonUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IFlareSystemsManager';
-import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as costonIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAgentOwnerRegistry';
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAssetManager';
+import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
+import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as costonIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
   useWriteIAssetManager as coston2UseWriteIAssetManager,
-} from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IAssetManager';
-import { useWriteIFdcHub as coston2UseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IFlareSystemsManager';
-import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as coston2IReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/coston2/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAgentOwnerRegistry';
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAssetManager';
+import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
+import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as coston2IReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as flareIAssetManagerAbi,
   useWriteIAssetManager as flareUseWriteIAssetManager,
-} from 'test-periphery-artifacts-wagmi-types/contracts/flare/IAssetManager';
-import { useWriteIFdcHub as flareUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IFlareSystemsManager';
-import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as flareIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/flare/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAgentOwnerRegistry';
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAssetManager';
+import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
+import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as flareIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IReferencedPaymentNonexistenceVerification';
+import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/FtsoV2Interface';
+import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
   useWriteIAssetManager as songbirdUseWriteIAssetManager,
-} from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IAssetManager';
-import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcHub';
-import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IFlareSystemsManager';
-import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from 'test-periphery-artifacts-wagmi-types/contracts/songbird/IReferencedPaymentNonexistenceVerification';
-import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAssetManager';
+import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
+import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
+import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
+import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IPaymentVerification';
+import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IReferencedPaymentNonexistenceVerification';
 
 export function getAssetManagerAbi(chainId: number) {
   switch (chainId) {
