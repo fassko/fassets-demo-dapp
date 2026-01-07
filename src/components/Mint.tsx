@@ -14,6 +14,7 @@ import {
   useChainId,
   useReadContract,
   useWaitForTransactionReceipt,
+  useWriteContract,
 } from 'wagmi';
 
 import { createPublicClient, decodeEventLog, http } from 'viem';
@@ -38,7 +39,6 @@ import { useAssetManager } from '@/hooks/useAssetManager';
 import {
   getAgentOwnerRegistryAbi,
   getAssetManagerAbi,
-  getReserveCollateralHook,
 } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
@@ -212,15 +212,14 @@ export default function Mint() {
       args: [BigInt(0), BigInt(100)],
     });
 
-  // Write contract for reserveCollateral function
-  // useWriteIAssetManagerReserveCollateral to write with the reserveCollateral function
+  // Write contract for reserveCollateral function using default wagmi hook
   // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
   const {
     data: reserveHash,
     writeContract: reserveCollateral,
     isPending: isReservePending,
     error: writeError,
-  } = getReserveCollateralHook(chainId);
+  } = useWriteContract();
 
   // Wait for collateral reservation transaction receipt
   const {
@@ -509,7 +508,9 @@ export default function Mint() {
       // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
       const result = reserveCollateral({
         // Use the asset manager address
-        address: assetManagerAddress,
+        address: assetManagerAddress as `0x${string}`,
+        // Use the appropriate ABI for the chain
+        abi: getAssetManagerAbi(chainId),
         functionName: 'reserveCollateral',
         // Pass the parameters to the reserveCollateral function
         args: [

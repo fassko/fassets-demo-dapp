@@ -222,7 +222,7 @@ export function getFtsoV2InterfaceAbi(chainId: number) {
  * @param chainId - The chain ID to get the hook for
  * @returns The network-specific AssetManager Reserve Collateral hook
  */
-export function getReserveCollateralHook(chainId: number) {
+export function getWriteIAssetManager(chainId: number) {
   switch (chainId) {
     case flare.id: // Flare Mainnet
       return flareUseWriteIAssetManager();

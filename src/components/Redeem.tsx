@@ -30,7 +30,7 @@ import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { getAssetManagerAbi, getRequestAttestationHook } from '@/lib/abiUtils';
+import { getAssetManagerAbi } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -153,12 +153,12 @@ export default function Redeem() {
 
   const chainId = useChainId();
 
-  // FDC Attestation contract functions hook
+  // FDC Attestation contract functions using default wagmi hook
   const {
     writeContract: requestAttestation,
     data: attestationHash,
     error: writeAttestationError,
-  } = getRequestAttestationHook(chainId);
+  } = useWriteContract();
 
   // Wait for the FDC attestation transaction receipt
   const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
