@@ -1,9 +1,9 @@
 // Hook to get FXRP token details from the IFAsset contract
 // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
 
-import { useChainId, useReadContract } from 'wagmi';
+import { useChainId } from 'wagmi';
 
-import { getIFAssetAbi } from '@/lib/abiUtils';
+import { getReadIFAsset } from '@/lib/abiUtils';
 
 import { useAssetManager } from './useAssetManager';
 
@@ -12,15 +12,16 @@ export function useFXRPTokenDetails() {
   const { settings } = useAssetManager();
 
   const fAssetAddress = settings?.fAsset as `0x${string}` | undefined;
-  const fAssetAbi = getIFAssetAbi(chainId);
+
+  // Use typed hook from flare-wagmi-periphery-package
+  const useReadIFAsset = getReadIFAsset(chainId);
 
   const {
     data: tokenName,
     isLoading: isLoadingName,
     refetch: refetchName,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: fAssetAddress,
-    abi: fAssetAbi,
     functionName: 'name',
     query: { enabled: !!fAssetAddress },
   });
@@ -29,9 +30,8 @@ export function useFXRPTokenDetails() {
     data: tokenSymbol,
     isLoading: isLoadingSymbol,
     refetch: refetchSymbol,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: fAssetAddress,
-    abi: fAssetAbi,
     functionName: 'symbol',
     query: { enabled: !!fAssetAddress },
   });
@@ -40,9 +40,8 @@ export function useFXRPTokenDetails() {
     data: tokenDecimals,
     isLoading: isLoadingDecimals,
     refetch: refetchDecimals,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: fAssetAddress,
-    abi: fAssetAbi,
     functionName: 'decimals',
     query: { enabled: !!fAssetAddress },
   });
@@ -51,9 +50,8 @@ export function useFXRPTokenDetails() {
     data: assetName,
     isLoading: isLoadingAssetName,
     refetch: refetchAssetName,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: fAssetAddress,
-    abi: fAssetAbi,
     functionName: 'assetName',
     query: { enabled: !!fAssetAddress },
   });
@@ -62,9 +60,8 @@ export function useFXRPTokenDetails() {
     data: assetSymbol,
     isLoading: isLoadingAssetSymbol,
     refetch: refetchAssetSymbol,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: fAssetAddress,
-    abi: fAssetAbi,
     functionName: 'assetSymbol',
     query: { enabled: !!fAssetAddress },
   });

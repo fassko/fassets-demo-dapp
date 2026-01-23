@@ -6,10 +6,14 @@ import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from '@flarenetwork/fl
 import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as costonIAssetManagerAbi,
+  useReadIAssetManager as costonUseReadIAssetManager,
   useWatchIAssetManagerEvent as costonUseWatchIAssetManagerEvent,
   useWriteIAssetManager as costonUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAssetManager';
-import { ifAssetAbi as costonIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
+import {
+  ifAssetAbi as costonIFAssetAbi,
+  useReadIfAsset as costonUseReadIFAsset,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
 import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
@@ -19,10 +23,14 @@ import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from '@flarenetwork/f
 import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
+  useReadIAssetManager as coston2UseReadIAssetManager,
   useWatchIAssetManagerEvent as coston2UseWatchIAssetManagerEvent,
   useWriteIAssetManager as coston2UseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAssetManager';
-import { ifAssetAbi as coston2IFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
+import {
+  ifAssetAbi as coston2IFAssetAbi,
+  useReadIfAsset as coston2UseReadIFAsset,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
 import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
@@ -32,10 +40,14 @@ import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from '@flarenetwork/fla
 import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as flareIAssetManagerAbi,
+  useReadIAssetManager as flareUseReadIAssetManager,
   useWatchIAssetManagerEvent as flareUseWatchIAssetManagerEvent,
   useWriteIAssetManager as flareUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAssetManager';
-import { ifAssetAbi as flareIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
+import {
+  ifAssetAbi as flareIFAssetAbi,
+  useReadIfAsset as flareUseReadIFAsset,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
 import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
@@ -45,10 +57,14 @@ import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from '@flarenetwork/
 import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
+  useReadIAssetManager as songbirdUseReadIAssetManager,
   useWatchIAssetManagerEvent as songbirdUseWatchIAssetManagerEvent,
   useWriteIAssetManager as songbirdUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAssetManager';
-import { ifAssetAbi as songbirdIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
+import {
+  ifAssetAbi as songbirdIFAssetAbi,
+  useReadIfAsset as songbirdUseReadIFAsset,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
 import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
@@ -285,5 +301,47 @@ export function getWatchIAssetManagerEvent(chainId: number) {
     default:
       // Default to Flare for backwards compatibility
       return flareUseWatchIAssetManagerEvent;
+  }
+}
+
+/**
+ * Select the appropriate AssetManager Read hook based on the chain ID
+ * @param chainId - The chain ID to get the hook for
+ * @returns The network-specific AssetManager Read hook
+ */
+export function getReadIAssetManager(chainId: number) {
+  switch (chainId) {
+    case flare.id: // Flare Mainnet
+      return flareUseReadIAssetManager;
+    case flareTestnet.id: // Coston2 Testnet
+      return coston2UseReadIAssetManager;
+    case songbird.id: // Songbird
+      return songbirdUseReadIAssetManager;
+    case songbirdTestnet.id: // Coston Testnet
+      return costonUseReadIAssetManager;
+    default:
+      // Default to Flare for backwards compatibility
+      return flareUseReadIAssetManager;
+  }
+}
+
+/**
+ * Select the appropriate IFAsset Read hook based on the chain ID
+ * @param chainId - The chain ID to get the hook for
+ * @returns The network-specific IFAsset Read hook
+ */
+export function getReadIFAsset(chainId: number) {
+  switch (chainId) {
+    case flare.id: // Flare Mainnet
+      return flareUseReadIFAsset;
+    case flareTestnet.id: // Coston2 Testnet
+      return coston2UseReadIFAsset;
+    case songbird.id: // Songbird
+      return songbirdUseReadIFAsset;
+    case songbirdTestnet.id: // Coston Testnet
+      return costonUseReadIFAsset;
+    default:
+      // Default to Flare for backwards compatibility
+      return flareUseReadIFAsset;
   }
 }

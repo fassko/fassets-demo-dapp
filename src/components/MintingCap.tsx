@@ -4,16 +4,20 @@ import { useEffect, useState } from 'react';
 
 import { Loader2, RefreshCw } from 'lucide-react';
 
-import { useChainId, useReadContract } from 'wagmi';
+import { useChainId } from 'wagmi';
 
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, type ReadContractReturnType } from 'viem';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
-import { getAssetManagerAbi, getIFAssetAbi } from '@/lib/abiUtils';
+import {
+  getAssetManagerAbi,
+  getReadIAssetManager,
+  getReadIFAsset,
+} from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { formatPrice } from '@/lib/ftsoUtils';
 
@@ -47,20 +51,37 @@ export default function MintingCap() {
 
   const {
     assetManagerAddress,
-    settings,
+    settings: rawSettings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
     refetchSettings,
   } = useAssetManager();
 
-  // Read total FXRP supply
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+  type GetSettingsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getSettings'
+  >;
+  type GetAllAgentsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getAllAgents',
+    readonly [bigint, bigint]
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  const settings = rawSettings as GetSettingsReturnType | undefined;
+
+  // Read total FXRP supply using typed hook from flare-wagmi-periphery-package
+  const useReadIFAsset = getReadIFAsset(chainId);
   const {
     data: totalSupply,
     isLoading: isLoadingSupply,
     refetch: refetchSupply,
-  } = useReadContract({
+  } = useReadIFAsset({
     address: settings?.fAsset as `0x${string}`,
-    abi: getIFAssetAbi(chainId),
     functionName: 'totalSupply',
     query: {
       enabled: !!settings?.fAsset,
@@ -68,14 +89,14 @@ export default function MintingCap() {
     },
   });
 
-  // Read all agents
+  // Read all agents using typed hook from flare-wagmi-periphery-package
+  const useReadIAssetManager = getReadIAssetManager(chainId);
   const {
-    data: allAgentsData,
+    data: rawAllAgentsData,
     isLoading: isLoadingAgents,
     refetch: refetchAgents,
-  } = useReadContract({
-    address: assetManagerAddress!,
-    abi: getAssetManagerAbi(chainId),
+  } = useReadIAssetManager({
+    address: assetManagerAddress as `0x${string}`,
     functionName: 'getAllAgents',
     query: {
       enabled: !!assetManagerAddress,
@@ -83,6 +104,9 @@ export default function MintingCap() {
     },
     args: [BigInt(0), BigInt(100)],
   });
+
+  // Type assertion using the type extracted from the ABI
+  const allAgentsData = rawAllAgentsData as GetAllAgentsReturnType | undefined;
 
   // Calculate minting capacity
   useEffect(() => {
@@ -115,7 +139,8 @@ export default function MintingCap() {
         const mintedLots = supply / lotSizeUBA;
 
         // Get agents and calculate available capacity
-        const agents = allAgentsData[0];
+        // Type is extracted from the ABI using ReadContractReturnType
+        const agents = (allAgentsData as GetAllAgentsReturnType)[0];
         let availableToMintLots = 0;
 
         // Create a public client for reading contract data

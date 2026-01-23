@@ -3,9 +3,11 @@
 
 import { useEffect, useState } from 'react';
 
-import { useAccount, useChainId, useReadContract } from 'wagmi';
+import { useAccount, useChainId } from 'wagmi';
 
-import { getIFAssetAbi } from '@/lib/abiUtils';
+import { type ReadContractReturnType } from 'viem';
+
+import { getAssetManagerAbi, getReadIFAsset } from '@/lib/abiUtils';
 
 import { useAssetManager } from './useAssetManager';
 
@@ -13,21 +15,32 @@ export function useFXRPBalance() {
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const { address: userAddress, isConnected } = useAccount();
   const chainId = useChainId();
-  const { settings, assetManagerAddress } = useAssetManager();
+  const { settings: rawSettings, assetManagerAddress } = useAssetManager();
 
-  // Read FXRP balance using wagmi
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+  type GetSettingsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getSettings'
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  const settings = rawSettings as GetSettingsReturnType | undefined;
+
+  // Read FXRP balance using typed hook from flare-wagmi-periphery-package
   // FXRP is an IFAsset token
+  // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
+  const useReadIFAsset = getReadIFAsset(chainId);
   const {
     data: fxrpBalanceData,
     refetch: refetchFxrpBalance,
     isLoading: isLoadingBalance,
     error: balanceError,
-  } = useReadContract({
+  } = useReadIFAsset({
     // Get the FXRP token address from the settings
-    // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
     address: settings?.fAsset as `0x${string}`,
-    // FXRP is an IFAsset token
-    abi: getIFAssetAbi(chainId),
     functionName: 'balanceOf',
     args: [userAddress as `0x${string}`],
     query: {

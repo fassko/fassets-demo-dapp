@@ -13,12 +13,11 @@ import {
   useChainId,
   useChains,
   useConnections,
-  useReadContract,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi';
 
-import { createPublicClient, http } from 'viem';
+import { createPublicClient, http, type ReadContractReturnType } from 'viem';
 
 import { z } from 'zod';
 
@@ -40,6 +39,7 @@ import { useAssetManager } from '@/hooks/useAssetManager';
 import {
   getAgentOwnerRegistryAbi,
   getAssetManagerAbi,
+  getReadIAssetManager,
   getWatchIAssetManagerEvent,
 } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
@@ -161,10 +161,22 @@ export default function Mint() {
   const chainId = useChainId();
   const {
     assetManagerAddress,
-    settings,
+    settings: rawSettings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use a const reference to the ABI for proper type inference
+  const assetManagerAbi = getAssetManagerAbi(chainId);
+  type GetSettingsReturnType = ReadContractReturnType<
+    typeof assetManagerAbi,
+    'getSettings'
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  const settings = rawSettings as GetSettingsReturnType | undefined;
   const connections = useConnections();
   const chains = useChains();
   const isConnected = connections.length > 0;
@@ -202,21 +214,35 @@ export default function Mint() {
     chainId
   );
 
-  // Read available agents hook
-  const { data: availableAgentsData, isLoading: isLoadingAgentsData } =
-    useReadContract({
-      address: assetManagerAddress!,
-      // Use the IAssetManager ABI to read the available agents
-      abi: getAssetManagerAbi(chainId),
-      // Use the getAvailableAgentsDetailedList function to get the available agents
-      // https://dev.flare.network/fassets/reference/IAssetManager/#getAvailableAgentsDetailedList
-      functionName: 'getAvailableAgentsDetailedList',
-      query: {
-        enabled: !!assetManagerAddress,
-      },
-      // List agents from index 0 to 100
-      args: [BigInt(0), BigInt(100)],
-    });
+  // Read available agents hook using typed hook from flare-wagmi-periphery-package
+  // https://dev.flare.network/fassets/reference/IAssetManager/#getAvailableAgentsDetailedList
+  const useReadIAssetManager = getReadIAssetManager(chainId);
+  
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature
+  type GetAvailableAgentsReturnType = ReadContractReturnType<
+    ReturnType<typeof getAssetManagerAbi>,
+    'getAvailableAgentsDetailedList',
+    readonly [bigint, bigint]
+  >;
+  
+  const {
+    data: availableAgentsData,
+    isLoading: isLoadingAgentsData,
+  } = useReadIAssetManager({
+    address: assetManagerAddress as `0x${string}`,
+    functionName: 'getAvailableAgentsDetailedList',
+    query: {
+      enabled: !!assetManagerAddress,
+    },
+    // List agents from index 0 to 100
+    args: [BigInt(0), BigInt(100)],
+  });
+  
+  // Type assertion using the type extracted from the ABI
+  const typedAvailableAgentsData = availableAgentsData as
+    | GetAvailableAgentsReturnType
+    | undefined;
 
   // Write contract for reserveCollateral function using default wagmi hook
   // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
@@ -336,8 +362,10 @@ export default function Mint() {
   // Process available agents at startup
   useEffect(() => {
     const fetchAgentsWithNames = async () => {
-      if (availableAgentsData && settings) {
-        const agents = availableAgentsData[0]; // First element is the agents array
+      if (typedAvailableAgentsData && settings) {
+        // getAvailableAgentsDetailedList returns a tuple [agents[], ...]
+        // Type is extracted from the ABI using ReadContractReturnType
+        const agents = typedAvailableAgentsData[0];
 
         // Filter agents with available lots
         const availableAgentsWithCollateral = agents.filter(
@@ -421,7 +449,7 @@ export default function Mint() {
     };
 
     fetchAgentsWithNames();
-  }, [availableAgentsData, settings, chain, chainId]);
+  }, [typedAvailableAgentsData, settings, chain, chainId]);
 
   async function mint(data: MintXRPFormData) {
     setError(null);
