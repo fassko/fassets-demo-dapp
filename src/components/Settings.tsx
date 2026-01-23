@@ -13,12 +13,15 @@ import {
 
 import { useChainId } from 'wagmi';
 
+import { type ReadContractReturnType } from 'viem';
+
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
 import { useFXRPTokenDetails } from '@/hooks/useFXRPTokenDetails';
+import { getAssetManagerAbi } from '@/lib/abiUtils';
 import { getExplorerName } from '@/lib/chainUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { formatPrice } from '@/lib/ftsoUtils';
@@ -35,13 +38,26 @@ interface SettingsProps {
 export default function Settings({ onNavigate }: SettingsProps) {
   // Use FAssets asset manager hook to read settings
   const {
-    settings,
+    settings: rawSettings,
     isLoading: loading,
     error,
     refetchSettings,
   } = useAssetManager();
 
   const chainId = useChainId();
+
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+  type GetSettingsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getSettings'
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  const settings = rawSettings as GetSettingsReturnType | undefined;
+
   const { priceData } = useFXRPPrice();
   const {
     fAssetAddress,
