@@ -23,8 +23,6 @@ import {
   useWriteContract,
 } from 'wagmi';
 
-import { decodeEventLog } from 'viem';
-
 import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -34,7 +32,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
-import { getAssetManagerAbi } from '@/lib/abiUtils';
+import {
+  getAssetManagerAbi,
+  getWatchIAssetManagerEvent,
+} from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -71,6 +72,29 @@ const ExecuteFormDataSchema = z.object({
 
 type ExecuteFormData = z.infer<typeof ExecuteFormDataSchema>;
 
+// Event data types for UI display (string representations)
+// Based on IAssetManagerEvents ABI from @flarenetwork/flare-wagmi-periphery-package
+// https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
+type MintingExecutedEventDisplay = {
+  agentVault: string;
+  collateralReservationId: string;
+  mintedAmountUBA: string;
+  agentFeeUBA: string;
+  poolFeeUBA: string;
+};
+
+// https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
+type RedemptionTicketCreatedEventDisplay = {
+  agentVault: string;
+  redemptionTicketId: string;
+  ticketValueUBA: string;
+};
+
+type TransactionEvents = {
+  mintingExecuted: MintingExecutedEventDisplay | null;
+  redemptionTicketCreated: RedemptionTicketCreatedEventDisplay | null;
+};
+
 // Execute FXRP minting
 // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
 // https://dev.flare.network/fassets/developer-guides/fassets-mint/
@@ -95,20 +119,8 @@ export default function Execute() {
   const [verificationResult, setVerificationResult] = useState<boolean | null>(
     null
   );
-  const [transactionEvents, setTransactionEvents] = useState<{
-    mintingExecuted: {
-      agentVault: string;
-      collateralReservationId: string;
-      mintedAmountUBA: string;
-      agentFeeUBA: string;
-      poolFeeUBA: string;
-    } | null;
-    redemptionTicketCreated: {
-      agentVault: string;
-      redemptionTicketId: string;
-      ticketValueUBA: string;
-    } | null;
-  } | null>(null);
+  const [transactionEvents, setTransactionEvents] =
+    useState<TransactionEvents | null>(null);
 
   const { isConnected } = useAccount();
 
@@ -137,11 +149,104 @@ export default function Execute() {
   } = useWriteContract();
 
   // Wait for execute minting transaction receipt
-  const {
-    data: receipt,
-    isSuccess: isExecuteSuccess,
-    error: receiptError,
-  } = useWaitForTransactionReceipt({ hash: executeHash });
+  const { error: receiptError } = useWaitForTransactionReceipt({
+    hash: executeHash,
+  });
+
+  // Watch for MintingExecuted events using the flare-wagmi-periphery-package hook
+  // https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
+  const useWatchIAssetManagerEvent = getWatchIAssetManagerEvent(chainId);
+  useWatchIAssetManagerEvent({
+    address: assetManagerAddress as `0x${string}`,
+    eventName: 'MintingExecuted',
+    enabled: !!assetManagerAddress && !!executeHash,
+    onLogs: logs => {
+      console.log('MintingExecuted event received:', logs);
+
+      for (const log of logs) {
+        if (
+          log.transactionHash === executeHash &&
+          log.args.agentVault !== undefined &&
+          log.args.collateralReservationId !== undefined &&
+          log.args.mintedAmountUBA !== undefined &&
+          log.args.agentFeeUBA !== undefined &&
+          log.args.poolFeeUBA !== undefined
+        ) {
+          console.log('=== MintingExecuted Event ===');
+          console.log('Agent Vault:', log.args.agentVault);
+          console.log(
+            'Collateral Reservation ID:',
+            log.args.collateralReservationId.toString()
+          );
+          console.log(
+            'Minted Amount UBA:',
+            log.args.mintedAmountUBA.toString()
+          );
+          console.log('Agent Fee UBA:', log.args.agentFeeUBA.toString());
+          console.log('Pool Fee UBA:', log.args.poolFeeUBA.toString());
+          console.log('=====================================');
+
+          setTransactionEvents(prev => ({
+            ...prev,
+            mintingExecuted: {
+              agentVault: log.args.agentVault!,
+              collateralReservationId:
+                log.args.collateralReservationId!.toString(),
+              mintedAmountUBA: log.args.mintedAmountUBA!.toString(),
+              agentFeeUBA: log.args.agentFeeUBA!.toString(),
+              poolFeeUBA: log.args.poolFeeUBA!.toString(),
+            },
+            redemptionTicketCreated: prev?.redemptionTicketCreated ?? null,
+          }));
+
+          setSuccess(
+            `Minting executed successfully! Transaction hash: ${executeHash}`
+          );
+          break;
+        }
+      }
+    },
+  });
+
+  // Watch for RedemptionTicketCreated events using the flare-wagmi-periphery-package hook
+  // https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
+  useWatchIAssetManagerEvent({
+    address: assetManagerAddress as `0x${string}`,
+    eventName: 'RedemptionTicketCreated',
+    enabled: !!assetManagerAddress && !!executeHash,
+    onLogs: logs => {
+      console.log('RedemptionTicketCreated event received:', logs);
+
+      for (const log of logs) {
+        if (
+          log.transactionHash === executeHash &&
+          log.args.agentVault !== undefined &&
+          log.args.redemptionTicketId !== undefined &&
+          log.args.ticketValueUBA !== undefined
+        ) {
+          console.log('=== RedemptionTicketCreated Event ===');
+          console.log('Agent Vault:', log.args.agentVault);
+          console.log(
+            'Redemption Ticket ID:',
+            log.args.redemptionTicketId.toString()
+          );
+          console.log('Ticket Value UBA:', log.args.ticketValueUBA.toString());
+          console.log('=====================================');
+
+          setTransactionEvents(prev => ({
+            ...prev,
+            mintingExecuted: prev?.mintingExecuted ?? null,
+            redemptionTicketCreated: {
+              agentVault: log.args.agentVault!,
+              redemptionTicketId: log.args.redemptionTicketId!.toString(),
+              ticketValueUBA: log.args.ticketValueUBA!.toString(),
+            },
+          }));
+          break;
+        }
+      }
+    },
+  });
 
   // Main execute minting process
   const executeMintingProcess = async (data: ExecuteFormData) => {
@@ -378,188 +483,6 @@ export default function Execute() {
       );
     }
   }, [receiptError]);
-
-  // Handle transaction success and decode any errors
-  useEffect(() => {
-    if (isExecuteSuccess && receipt) {
-      console.log('Execute transaction successful, processing logs...');
-      console.log('Transaction details:', {
-        hash: receipt.transactionHash,
-        blockNumber: receipt.blockNumber,
-        gasUsed: receipt.gasUsed,
-        effectiveGasPrice: receipt.effectiveGasPrice,
-        logsCount: receipt.logs.length,
-        status: receipt.status,
-      });
-
-      // Log transaction status for debugging
-      console.log('Transaction status:', receipt.status, typeof receipt.status);
-
-      // Check if transaction failed (status 0)
-      if (String(receipt.status) === '0') {
-        console.error('Transaction failed with status 0');
-
-        // Try to decode error from logs
-        for (const log of receipt.logs) {
-          try {
-            // Try to decode as various error events
-            const decodedLog = decodeEventLog({
-              abi: getAssetManagerAbi(chainId),
-              data: log.data,
-              topics: log.topics,
-            });
-
-            console.log(
-              `Decoded error event: ${decodedLog.eventName}`,
-              decodedLog.args
-            );
-
-            // Handle specific error events - check for any error events
-            if (
-              decodedLog.eventName &&
-              typeof decodedLog.eventName === 'string'
-            ) {
-              console.error(`=== ${decodedLog.eventName} Error ===`);
-              console.error(
-                'Transaction failed with error event:',
-                decodedLog.eventName
-              );
-              console.error('Error arguments:', decodedLog.args);
-
-              // Handle specific known errors
-              if (
-                decodedLog.eventName.includes('Invalid') ||
-                decodedLog.eventName.includes('CrtId')
-              ) {
-                console.error(
-                  'This appears to be an invalid collateral reservation ID error.'
-                );
-                console.error('Please check that:');
-                console.error('1. The collateral reservation ID exists');
-                console.error('2. The reservation has not expired');
-                console.error('3. The reservation belongs to the correct user');
-                console.error('=====================================');
-
-                setError(
-                  'Invalid Collateral Reservation ID: The provided reservation ID does not exist or has expired. Please check your reservation ID and try again.'
-                );
-                return;
-              }
-            }
-          } catch (error) {
-            // This log is not a recognized error event, continue to next log
-            console.log(
-              'Log could not be decoded as known error event:',
-              log,
-              error
-            );
-          }
-        }
-
-        // If no specific error was decoded, show generic failure message
-        setError(
-          'Transaction failed: The contract rejected the transaction. This could be due to invalid parameters, expired reservation, or insufficient funds.'
-        );
-        return;
-      }
-
-      const events: {
-        mintingExecuted: {
-          agentVault: string;
-          collateralReservationId: string;
-          mintedAmountUBA: string;
-          agentFeeUBA: string;
-          poolFeeUBA: string;
-        } | null;
-        redemptionTicketCreated: {
-          agentVault: string;
-          redemptionTicketId: string;
-          ticketValueUBA: string;
-        } | null;
-      } = {
-        mintingExecuted: null,
-        redemptionTicketCreated: null,
-      };
-
-      // Process each log in the transaction receipt
-      // Decode the logs for various events:
-      // * MintingExecuted: https://dev.flare.network/fassets/reference/IAssetManagerEvents#mintingexecuted
-      // * RedemptionTicketCreated: https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionticketcreated
-      for (const log of receipt.logs) {
-        try {
-          // Try to decode the log as various events
-          const decodedLog = decodeEventLog({
-            abi: getAssetManagerAbi(chainId),
-            data: log.data,
-            topics: log.topics,
-          });
-
-          console.log(
-            `Decoded event: ${decodedLog.eventName}`,
-            decodedLog.args
-          );
-
-          if (decodedLog.eventName === 'MintingExecuted') {
-            console.log('=== MintingExecuted Event ===');
-            console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log(
-              'Collateral Reservation ID:',
-              decodedLog.args.collateralReservationId.toString()
-            );
-            console.log(
-              'Minted Amount UBA:',
-              decodedLog.args.mintedAmountUBA.toString()
-            );
-            console.log(
-              'Agent Fee UBA:',
-              decodedLog.args.agentFeeUBA.toString()
-            );
-            console.log('Pool Fee UBA:', decodedLog.args.poolFeeUBA.toString());
-            console.log('=====================================');
-
-            events.mintingExecuted = {
-              agentVault: decodedLog.args.agentVault,
-              collateralReservationId:
-                decodedLog.args.collateralReservationId.toString(),
-              mintedAmountUBA: decodedLog.args.mintedAmountUBA.toString(),
-              agentFeeUBA: decodedLog.args.agentFeeUBA.toString(),
-              poolFeeUBA: decodedLog.args.poolFeeUBA.toString(),
-            };
-          } else if (decodedLog.eventName === 'RedemptionTicketCreated') {
-            console.log('=== RedemptionTicketCreated Event ===');
-            console.log('Agent Vault:', decodedLog.args.agentVault);
-            console.log(
-              'Redemption Ticket ID:',
-              decodedLog.args.redemptionTicketId.toString()
-            );
-            console.log(
-              'Ticket Value UBA:',
-              decodedLog.args.ticketValueUBA.toString()
-            );
-            console.log('=====================================');
-
-            events.redemptionTicketCreated = {
-              agentVault: decodedLog.args.agentVault,
-              redemptionTicketId: decodedLog.args.redemptionTicketId.toString(),
-              ticketValueUBA: decodedLog.args.ticketValueUBA.toString(),
-            };
-          }
-        } catch (error) {
-          // This log is not a recognized event, continue to next log
-          console.log('Log could not be decoded as known event:', log, error);
-        }
-      }
-
-      // Store events in state for UI display
-      if (Object.keys(events).length > 0) {
-        setTransactionEvents(events);
-      }
-
-      setSuccess(
-        `Minting executed successfully! Transaction hash: ${receipt.transactionHash}`
-      );
-    }
-  }, [isExecuteSuccess, receipt, chainId]);
 
   return (
     <div className='w-full max-w-4xl mx-auto p-6'>
