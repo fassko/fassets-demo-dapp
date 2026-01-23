@@ -17,6 +17,7 @@ import {
   getAssetManagerAbi,
   getReadIAssetManager,
   getReadIFAsset,
+  getTypedSettings,
 } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { formatPrice } from '@/lib/ftsoUtils';
@@ -57,22 +58,16 @@ export default function MintingCap() {
     refetchSettings,
   } = useAssetManager();
 
-  // Extract return type from the ABI using viem's ReadContractReturnType
-  // This gets the type directly from the ABI function signature for getSettings
-  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  // Use utility function to properly type settings from ABI
+  const settings = getTypedSettings(rawSettings);
+
+  // Extract return type for getAllAgents from the ABI
   type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
-  type GetSettingsReturnType = ReadContractReturnType<
-    AssetManagerAbi,
-    'getSettings'
-  >;
   type GetAllAgentsReturnType = ReadContractReturnType<
     AssetManagerAbi,
     'getAllAgents',
     readonly [bigint, bigint]
   >;
-
-  // Type assertion using the type extracted from the ABI
-  const settings = rawSettings as GetSettingsReturnType | undefined;
 
   // Read total FXRP supply using typed hook from flare-wagmi-periphery-package
   const useReadIFAsset = getReadIFAsset(chainId);

@@ -13,8 +13,6 @@ import {
   useWaitForTransactionReceipt,
 } from 'wagmi';
 
-import { type ReadContractReturnType } from 'viem';
-
 import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { getAssetManagerAbi, getWriteIFAsset } from '@/lib/abiUtils';
+import { getTypedSettings, getWriteIFAsset } from '@/lib/abiUtils';
 import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
@@ -63,20 +61,8 @@ export default function Transfer() {
     error: assetManagerError,
   } = useAssetManager();
 
-  // Extract return type from the ABI using viem's ReadContractReturnType
-  // This gets the type directly from the ABI function signature for getSettings
-  // Use ReturnType to get the ABI type first to avoid deep instantiation
-  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
-  type GetSettingsReturnType = ReadContractReturnType<
-    AssetManagerAbi,
-    'getSettings'
-  >;
-
-  // Type assertion using the type extracted from the ABI
-  // Use a more explicit assertion to ensure TypeScript recognizes the type
-  const settings = (rawSettings as GetSettingsReturnType | undefined) as
-    | GetSettingsReturnType
-    | undefined;
+  // Use utility function to properly type settings from ABI
+  const settings = getTypedSettings(rawSettings);
 
   // FXRP balance hook
   // Use the useFXRPBalance hook to get the FXRP balance

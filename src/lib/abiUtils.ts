@@ -2,6 +2,7 @@
 // Maps chain IDs to the appropriate ABIs and hooks from @flarenetwork/flare-wagmi-periphery-package
 import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
 
+
 import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/FtsoV2Interface';
 import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAgentOwnerRegistry';
 import {
@@ -75,6 +76,8 @@ import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@fla
 import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IPaymentVerification';
 import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IReferencedPaymentNonexistenceVerification';
 
+import { type ReadContractReturnType } from 'viem';
+
 export function getAssetManagerAbi(chainId: number) {
   switch (chainId) {
     case flare.id: // Flare Mainnet
@@ -89,6 +92,27 @@ export function getAssetManagerAbi(chainId: number) {
       // Default to Flare for backwards compatibility
       return flareIAssetManagerAbi;
   }
+}
+
+/**
+ * Type helper to extract the return type of getSettings from the AssetManager ABI
+ * This provides proper type inference for settings objects returned from useAssetManager
+ */
+export type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+export type GetSettingsReturnType = ReadContractReturnType<
+  AssetManagerAbi,
+  'getSettings'
+>;
+
+/**
+ * Helper function to properly type settings from useAssetManager hook
+ * @param rawSettings - The raw settings object from useAssetManager (may be untyped)
+ * @returns Properly typed settings object or undefined
+ */
+export function getTypedSettings(
+  rawSettings: unknown
+): GetSettingsReturnType | undefined {
+  return rawSettings as GetSettingsReturnType | undefined;
 }
 
 /**

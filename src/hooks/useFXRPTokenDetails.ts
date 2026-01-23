@@ -3,13 +3,16 @@
 
 import { useChainId } from 'wagmi';
 
-import { getReadIFAsset } from '@/lib/abiUtils';
+import { getReadIFAsset, getTypedSettings } from '@/lib/abiUtils';
 
 import { useAssetManager } from './useAssetManager';
 
 export function useFXRPTokenDetails() {
   const chainId = useChainId();
-  const { settings } = useAssetManager();
+  const { settings: rawSettings } = useAssetManager();
+
+  // Use utility function to properly type settings from ABI
+  const settings = getTypedSettings(rawSettings);
 
   const fAssetAddress = settings?.fAsset as `0x${string}` | undefined;
 
