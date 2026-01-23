@@ -12,7 +12,6 @@ import {
   useChainId,
   useWaitForTransactionReceipt,
   useWriteContract,
-  useConnections,
 } from 'wagmi';
 
 import { decodeEventLog, keccak256 } from 'viem';
@@ -42,6 +41,7 @@ import {
   submitAttestationRequest,
   verifyReferencedPaymentNonexistence,
 } from '@/lib/fdcUtils';
+import { getExplorerUrl } from '@/lib/utils';
 import {
   getAccountBalance,
   getLatestLedgerInfoWithFDCDeadlines,
@@ -73,7 +73,7 @@ type RedeemXRPFormData = z.infer<typeof RedeemXRPFormDataSchema>;
 
 export default function Redeem() {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
@@ -350,11 +350,50 @@ export default function Redeem() {
         stack: receiptError instanceof Error ? receiptError.stack : undefined,
       });
 
-      setError(
-        `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
+      const errorMessage =
+        receiptError instanceof Error
+          ? receiptError.message
+          : String(receiptError);
+
+      // Create error message with transaction link
+      const createErrorWithLink = (message: string) => (
+        <div className='space-y-2'>
+          <p>{message}</p>
+          {redeemHash && (
+            <p className='text-sm'>
+              <a
+                href={getExplorerUrl(chainId, redeemHash, 'tx')}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-red-600 hover:text-red-800 underline'
+              >
+                View transaction on explorer
+              </a>
+            </p>
+          )}
+        </div>
       );
+
+      // Provide user-friendly error messages for common redemption failures
+      if (errorMessage.includes('execution reverted')) {
+        setError(
+          createErrorWithLink(
+            'Redemption failed. This may be due to: insufficient FXRP balance, invalid redemption amount, or no available agents to fulfill the redemption. Please check your balance and try again with a smaller amount.'
+          )
+        );
+      } else if (errorMessage.includes('insufficient funds')) {
+        setError(
+          createErrorWithLink(
+            'Insufficient funds to complete the redemption. Please check your wallet balance for gas fees.'
+          )
+        );
+      } else if (errorMessage.includes('user rejected')) {
+        setError('Transaction was cancelled by the user.');
+      } else {
+        setError(createErrorWithLink(`Redemption failed: ${errorMessage}`));
+      }
     }
-  }, [receiptError]);
+  }, [receiptError, redeemHash, chainId]);
 
   const refreshBalances = useCallback(async () => {
     try {
@@ -469,6 +508,25 @@ export default function Redeem() {
     if (writeError) {
       console.error('Write contract error:', writeError);
 
+      // Create error message with transaction link if available
+      const createErrorWithLink = (message: string) => (
+        <div className='space-y-2'>
+          <p>{message}</p>
+          {redeemHash && (
+            <p className='text-sm'>
+              <a
+                href={getExplorerUrl(chainId, redeemHash, 'tx')}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-red-600 hover:text-red-800 underline'
+              >
+                View transaction on explorer
+              </a>
+            </p>
+          )}
+        </div>
+      );
+
       // Handle specific error types
       if (
         writeError.message.includes('User denied transaction signature') ||
@@ -477,18 +535,22 @@ export default function Redeem() {
         setError('Transaction was cancelled by the user.');
       } else if (writeError.message.includes('execution reverted')) {
         setError(
-          'Transaction failed: The contract rejected the transaction. This could be due to insufficient funds, invalid parameters, or network issues.'
+          createErrorWithLink(
+            'Redemption failed. This may be due to: insufficient FXRP balance, invalid redemption amount, or no available agents to fulfill the redemption. Please check your balance and try again with a smaller amount.'
+          )
         );
       } else if (writeError.message.includes('insufficient funds')) {
         setError(
-          'Insufficient funds to complete the transaction. Please check your wallet balance.'
+          createErrorWithLink(
+            'Insufficient funds to complete the redemption. Please check your wallet balance for gas fees.'
+          )
         );
       } else {
-        setError(`Transaction failed: ${writeError.message}`);
+        setError(createErrorWithLink(`Redemption failed: ${writeError.message}`));
       }
       setIsProcessing(false);
     }
-  }, [writeError]);
+  }, [writeError, redeemHash, chainId]);
 
   // Update processing state based on transaction status
   useEffect(() => {
