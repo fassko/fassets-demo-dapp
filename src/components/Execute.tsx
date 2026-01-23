@@ -20,7 +20,6 @@ import {
   useAccount,
   useChainId,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from 'wagmi';
 
 import { z } from 'zod';
@@ -35,6 +34,7 @@ import { useFdcContracts } from '@/hooks/useFdcContracts';
 import {
   getAssetManagerAbi,
   getWatchIAssetManagerEvent,
+  getWriteIAssetManager,
 } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
@@ -139,14 +139,14 @@ export default function Execute() {
     error: addressError,
   } = useFdcContracts();
 
-  // Write contract with executeMinting function
+  // Write contract with executeMinting function using contract-specific hook
   // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
   const {
     data: executeHash,
-    writeContract: executeMinting,
+    mutateAsync: executeMinting,
     isPending: isExecutePending,
     error: writeError,
-  } = useWriteContract();
+  } = getWriteIAssetManager(chainId);
 
   // Wait for execute minting transaction receipt
   const { error: receiptError } = useWaitForTransactionReceipt({
@@ -333,9 +333,10 @@ export default function Execute() {
 
       // Execute minting on AssetManager contract
       // https://dev.flare.network/fassets/reference/IAssetManager#executeminting
-      executeMinting({
+      // mutateAsync returns a promise, so we await it
+      await executeMinting({
         address: assetManagerAddress,
-        abi: getAssetManagerAbi(chainId),
+        // The contract-specific hook already includes the ABI
         functionName: 'executeMinting',
         args: [
           {

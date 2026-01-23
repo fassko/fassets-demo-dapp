@@ -15,7 +15,7 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useChainId, useWaitForTransactionReceipt, useWriteContract, useConnections } from 'wagmi';
+import { useChainId, useConnections, useWaitForTransactionReceipt } from 'wagmi';
 
 import { z } from 'zod';
 
@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
+import { getRequestAttestationHook } from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -85,13 +86,13 @@ export default function Attestation() {
     error: addressError,
   } = useFdcContracts();
 
-  // Write contract with requestAttestation function using default wagmi hook
+  // Write contract with requestAttestation function using contract-specific hook
   // https://dev.flare.network/fdc/reference/IFdcHub#requestattestation
   const {
-    writeContract: requestAttestation,
+    mutateAsync: requestAttestation,
     data: attestationHash,
     error: writeError,
-  } = useWriteContract();
+  } = getRequestAttestationHook(chainId);
 
   // Wait for transaction receipt
   const { data: receipt, isSuccess: isAttestationSuccess } =

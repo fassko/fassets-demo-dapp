@@ -11,10 +11,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   useChainId,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from 'wagmi';
 
-import { decodeEventLog, keccak256 } from 'viem';
+import { decodeEventLog, keccak256, type ReadContractReturnType } from 'viem';
 
 import { z } from 'zod';
 
@@ -30,7 +29,11 @@ import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { getAssetManagerAbi } from '@/lib/abiUtils';
+import {
+  getAssetManagerAbi,
+  getRequestAttestationHook,
+  getWriteIAssetManager,
+} from '@/lib/abiUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -125,10 +128,25 @@ export default function Redeem() {
   // FAssets Asset manager hook
   const {
     assetManagerAddress,
-    settings,
+    settings: rawSettings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+  type GetSettingsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getSettings'
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  // Use a more explicit assertion to ensure TypeScript recognizes the type
+  const settings = (rawSettings as GetSettingsReturnType | undefined) as
+    | GetSettingsReturnType
+    | undefined;
 
   // FXRP balance hook
   // Use the useFXRPBalance hook to get the FXRP balance
@@ -154,12 +172,12 @@ export default function Redeem() {
 
   const chainId = useChainId();
 
-  // FDC Attestation contract functions using default wagmi hook
+  // FDC Attestation contract functions using contract-specific hook
   const {
-    writeContract: requestAttestation,
+    mutateAsync: requestAttestation,
     data: attestationHash,
     error: writeAttestationError,
-  } = useWriteContract();
+  } = getRequestAttestationHook(chainId);
 
   // Wait for the FDC attestation transaction receipt
   const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
@@ -182,13 +200,14 @@ export default function Redeem() {
 
   const watchedAmount = watch('amount');
 
-  // Write contract for redeem function
+  // Write contract for redeem function using contract-specific hook
+  // https://dev.flare.network/fassets/reference/IAssetManager#redeem
   const {
     data: redeemHash,
-    writeContract: redeemContract,
+    mutateAsync: redeemContract,
     isPending: isRedeemPending,
     error: writeError,
-  } = useWriteContract();
+  } = getWriteIAssetManager(chainId);
 
   // Wait for transaction receipt
   const {
@@ -477,14 +496,13 @@ export default function Redeem() {
         throw new Error('Lots must be a positive integer');
       }
 
-      // Call the redeem function using wagmi - Diamond proxy approach
-      redeemContract({
+      // Call the redeem function using contract-specific hook
+      // mutateAsync returns a promise, so we await it
+      await redeemContract({
         address: assetManagerAddress!,
-        // Use the AssetManager ABI from the Flare Contracts Registry
-        // https://dev.flare.network/network/guides/flare-contracts-registry
-        abi: getAssetManagerAbi(chainId),
         // Use the redeem function from the AssetManager ABI
         // https://dev.flare.network/fassets/reference/IAssetManager#redeem
+        // The contract-specific hook already includes the ABI
         functionName: 'redeem',
         // Parameters for the redeem function
         // Lots, XRPL address, executor (zero address for this demo)

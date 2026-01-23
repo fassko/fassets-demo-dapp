@@ -576,7 +576,8 @@ export const submitAttestationRequest = async (
   console.log('Request fee:', requestFee);
 
   // Submit the attestation request
-  requestAttestation({
+  // mutateAsync returns a promise, so we await it
+  await requestAttestation({
     address: fdcAddresses.fdcHub as `0x${string}`,
     functionName: 'requestAttestation',
     args: [abiEncodedRequest as `0x${string}`],

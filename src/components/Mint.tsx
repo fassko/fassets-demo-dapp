@@ -14,7 +14,6 @@ import {
   useChains,
   useConnections,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from 'wagmi';
 
 import { createPublicClient, http, type ReadContractReturnType } from 'viem';
@@ -41,6 +40,7 @@ import {
   getAssetManagerAbi,
   getReadIAssetManager,
   getWatchIAssetManagerEvent,
+  getWriteIAssetManager,
 } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
@@ -168,10 +168,10 @@ export default function Mint() {
 
   // Extract return type from the ABI using viem's ReadContractReturnType
   // This gets the type directly from the ABI function signature for getSettings
-  // Use a const reference to the ABI for proper type inference
-  const assetManagerAbi = getAssetManagerAbi(chainId);
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
   type GetSettingsReturnType = ReadContractReturnType<
-    typeof assetManagerAbi,
+    AssetManagerAbi,
     'getSettings'
   >;
 
@@ -244,14 +244,14 @@ export default function Mint() {
     | GetAvailableAgentsReturnType
     | undefined;
 
-  // Write contract for reserveCollateral function using default wagmi hook
+  // Write contract for reserveCollateral function using contract-specific hook
   // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
   const {
     data: reserveHash,
-    writeContract: reserveCollateral,
+    mutateAsync: reserveCollateral,
     isPending: isReservePending,
     error: writeError,
-  } = useWriteContract();
+  } = getWriteIAssetManager(chainId);
 
   // Wait for collateral reservation transaction receipt
   const { isLoading: isConfirming, error: receiptError } =
@@ -532,13 +532,13 @@ export default function Mint() {
 
       console.log('>> assetManagerAddress:', assetManagerAddress);
 
-      // Call the reserveCollateral function using the hook
+      // Call the reserveCollateral function using the contract-specific hook
       // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
-      const result = reserveCollateral({
+      // The hook already includes the ABI, so we don't need to pass it
+      // mutateAsync returns a promise, so we await it
+      const result = await reserveCollateral({
         // Use the asset manager address
         address: assetManagerAddress as `0x${string}`,
-        // Use the appropriate ABI for the chain
-        abi: getAssetManagerAbi(chainId),
         functionName: 'reserveCollateral',
         // Pass the parameters to the reserveCollateral function
         args: [

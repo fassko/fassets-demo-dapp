@@ -13,6 +13,7 @@ import {
 import {
   ifAssetAbi as costonIFAssetAbi,
   useReadIfAsset as costonUseReadIFAsset,
+  useWriteIfAsset as costonUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
 import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
@@ -30,6 +31,7 @@ import {
 import {
   ifAssetAbi as coston2IFAssetAbi,
   useReadIfAsset as coston2UseReadIFAsset,
+  useWriteIfAsset as coston2UseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
 import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
@@ -47,6 +49,7 @@ import {
 import {
   ifAssetAbi as flareIFAssetAbi,
   useReadIfAsset as flareUseReadIFAsset,
+  useWriteIfAsset as flareUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
 import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
@@ -64,6 +67,7 @@ import {
 import {
   ifAssetAbi as songbirdIFAssetAbi,
   useReadIfAsset as songbirdUseReadIFAsset,
+  useWriteIfAsset as songbirdUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
 import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
@@ -343,5 +347,26 @@ export function getReadIFAsset(chainId: number) {
     default:
       // Default to Flare for backwards compatibility
       return flareUseReadIFAsset;
+  }
+}
+
+/**
+ * Select the appropriate IFAsset Write hook based on the chain ID
+ * @param chainId - The chain ID to get the hook for
+ * @returns The network-specific IFAsset Write hook
+ */
+export function getWriteIFAsset(chainId: number) {
+  switch (chainId) {
+    case flare.id: // Flare Mainnet
+      return flareUseWriteIFAsset();
+    case flareTestnet.id: // Coston2 Testnet
+      return coston2UseWriteIFAsset();
+    case songbird.id: // Songbird
+      return songbirdUseWriteIFAsset();
+    case songbirdTestnet.id: // Coston Testnet
+      return costonUseWriteIFAsset();
+    default:
+      // Default to Flare for backwards compatibility
+      return flareUseWriteIFAsset();
   }
 }

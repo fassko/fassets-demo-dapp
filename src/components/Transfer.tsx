@@ -11,8 +11,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import {
   useChainId,
   useWaitForTransactionReceipt,
-  useWriteContract,
 } from 'wagmi';
+
+import { type ReadContractReturnType } from 'viem';
 
 import { z } from 'zod';
 
@@ -24,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { getIFAssetAbi } from '@/lib/abiUtils';
+import { getAssetManagerAbi, getWriteIFAsset } from '@/lib/abiUtils';
 import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
@@ -57,10 +58,25 @@ export default function Transfer() {
 
   // Use FAssets asset manager hook to read settings
   const {
-    settings,
+    settings: rawSettings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+
+  // Extract return type from the ABI using viem's ReadContractReturnType
+  // This gets the type directly from the ABI function signature for getSettings
+  // Use ReturnType to get the ABI type first to avoid deep instantiation
+  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+  type GetSettingsReturnType = ReadContractReturnType<
+    AssetManagerAbi,
+    'getSettings'
+  >;
+
+  // Type assertion using the type extracted from the ABI
+  // Use a more explicit assertion to ensure TypeScript recognizes the type
+  const settings = (rawSettings as GetSettingsReturnType | undefined) as
+    | GetSettingsReturnType
+    | undefined;
 
   // FXRP balance hook
   // Use the useFXRPBalance hook to get the FXRP balance
@@ -87,13 +103,14 @@ export default function Transfer() {
 
   const watchedAmount = watch('amount');
 
-  // Write contract for transfer function hook
+  // Write contract for transfer function using contract-specific hook
+  // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
   const {
     data: transferHash,
-    writeContract: transferContract,
+    mutateAsync: transferContract,
     isPending: isTransferPending,
     error: writeError,
-  } = useWriteContract();
+  } = getWriteIFAsset(chainId);
 
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isTransferSuccess } =
@@ -170,13 +187,13 @@ export default function Transfer() {
         Math.floor(parseFloat(data.amount) * Math.pow(10, decimals))
       );
 
-      // Call the transfer function using wagmi
-      transferContract({
+      // Call the transfer function using contract-specific hook
+      // The hook already includes the IFAsset ABI
+      // mutateAsync returns a promise, so we await it
+      await transferContract({
         // Use the FXRP token address from the settings
         // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
         address: settings.fAsset as `0x${string}`,
-        // Use the IFAsset ABI
-        abi: getIFAssetAbi(chainId),
         functionName: 'transfer',
         args: [data.recipientAddress as `0x${string}`, amountInWei],
       });
