@@ -18,7 +18,7 @@ import {
   useWriteContract,
 } from 'wagmi';
 
-import { createPublicClient, decodeEventLog, http } from 'viem';
+import { createPublicClient, http } from 'viem';
 
 import { z } from 'zod';
 
@@ -37,7 +37,11 @@ import {
 } from '@/components/ui/select';
 import { SuccessMessage } from '@/components/ui/success-message';
 import { useAssetManager } from '@/hooks/useAssetManager';
-import { getAgentOwnerRegistryAbi, getAssetManagerAbi } from '@/lib/abiUtils';
+import {
+  getAgentOwnerRegistryAbi,
+  getAssetManagerAbi,
+  getWatchIAssetManagerEvent,
+} from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
 
@@ -223,13 +227,61 @@ export default function Mint() {
   } = useWriteContract();
 
   // Wait for collateral reservation transaction receipt
-  const {
-    isLoading: isConfirming,
-    isSuccess: isReserveSuccess,
-    data: receipt,
-    error: receiptError,
-  } = useWaitForTransactionReceipt({
-    hash: reserveHash,
+  const { isLoading: isConfirming, error: receiptError } =
+    useWaitForTransactionReceipt({
+      hash: reserveHash,
+    });
+
+  // Watch for CollateralReserved events using the flare-wagmi-periphery-package hook
+  // https://dev.flare.network/fassets/reference/IAssetManagerEvents#collateralreserved
+  const useWatchIAssetManagerEvent = getWatchIAssetManagerEvent(chainId);
+  useWatchIAssetManagerEvent({
+    address: assetManagerAddress as `0x${string}`,
+    eventName: 'CollateralReserved',
+    enabled: !!assetManagerAddress && !!reserveHash,
+    onLogs: logs => {
+      console.log('CollateralReserved event received:', logs);
+
+      for (const log of logs) {
+        // Check if this event is from our transaction and has required args
+        if (
+          log.transactionHash === reserveHash &&
+          log.args.valueUBA !== undefined &&
+          log.args.feeUBA !== undefined &&
+          log.args.collateralReservationId !== undefined &&
+          log.args.paymentAddress !== undefined &&
+          log.args.paymentReference !== undefined
+        ) {
+          console.log('CollateralReserved event decoded:', {
+            agentVault: log.args.agentVault,
+            minter: log.args.minter,
+            collateralReservationId: log.args.collateralReservationId,
+            valueUBA: log.args.valueUBA,
+            feeUBA: log.args.feeUBA,
+            paymentAddress: log.args.paymentAddress,
+            paymentReference: log.args.paymentReference,
+            executor: log.args.executor,
+            executorFeeNatWei: log.args.executorFeeNatWei,
+          });
+
+          const totalUBA = log.args.valueUBA + log.args.feeUBA;
+          const totalXRP = Number(totalUBA) / 10 ** 6;
+          console.log(`You need to pay ${totalXRP} XRP`);
+
+          // Show the success message
+          setSuccess(
+            <SuccessMessage
+              reservationId={log.args.collateralReservationId.toString()}
+              paymentAmount={`${totalXRP} XRP`}
+              paymentAddress={log.args.paymentAddress}
+              paymentReference={log.args.paymentReference}
+            />
+          );
+          reset();
+          break;
+        }
+      }
+    },
   });
 
   // Handle receipt errors
@@ -348,81 +400,6 @@ export default function Mint() {
 
     fetchAgentsWithNames();
   }, [availableAgentsData, settings, chain, chainId]);
-
-  // Handle successful reservation
-  useEffect(() => {
-    if (isReserveSuccess && receipt) {
-      console.log('Transaction receipt:', receipt);
-
-      // Try to decode the CollateralReserved event from the transaction logs
-      // https://dev.flare.network/fassets/reference/IAssetManagerEvents#collateralreserved
-      try {
-        if (receipt.logs && receipt.logs.length > 0) {
-          console.log('Transaction logs:', receipt.logs);
-
-          // Look for CollateralReserved event
-          for (const log of receipt.logs) {
-            try {
-              // Try to decode the log as a CollateralReserved event
-              const decodedLog = decodeEventLog({
-                abi: getAssetManagerAbi(chainId),
-                data: log.data,
-                topics: log.topics,
-              });
-
-              if (decodedLog.eventName === 'CollateralReserved') {
-                console.log('CollateralReserved event decoded:', {
-                  eventName: decodedLog.eventName,
-                  args: decodedLog.args,
-                  // The important fields from the event:
-                  agentVault: decodedLog.args.agentVault,
-                  minter: decodedLog.args.minter,
-                  collateralReservationId:
-                    decodedLog.args.collateralReservationId,
-                  valueUBA: decodedLog.args.valueUBA,
-                  feeUBA: decodedLog.args.feeUBA,
-                  paymentAddress: decodedLog.args.paymentAddress,
-                  paymentReference: decodedLog.args.paymentReference,
-                  executor: decodedLog.args.executor,
-                  executorFeeNatWei: decodedLog.args.executorFeeNatWei,
-                });
-
-                const totalUBA =
-                  decodedLog.args.valueUBA + decodedLog.args.feeUBA;
-                const totalXRP = Number(totalUBA) / 10 ** 6;
-                console.log(`You need to pay ${totalXRP} XRP`);
-
-                // Show the success message
-                setSuccess(
-                  <SuccessMessage
-                    reservationId={decodedLog.args.collateralReservationId.toString()}
-                    paymentAmount={`${totalXRP} XRP`}
-                    paymentAddress={decodedLog.args.paymentAddress}
-                    paymentReference={decodedLog.args.paymentReference}
-                  />
-                );
-                break;
-              }
-            } catch {
-              // This log is not a CollateralReserved event, continue to next log
-              console.log('Log is not a CollateralReserved event:', log);
-            }
-          }
-        }
-
-        // Log the transaction hash and block number
-        console.log('Transaction successful:', {
-          hash: receipt.transactionHash,
-          blockNumber: receipt.blockNumber,
-          gasUsed: receipt.gasUsed,
-          effectiveGasPrice: receipt.effectiveGasPrice,
-        });
-      } catch (error) {
-        console.error('Error decoding transaction result:', error);
-      }
-      reset();
-    }
-  }, [isReserveSuccess, receipt, reset, chainId]);
 
   async function mint(data: MintXRPFormData) {
     setError(null);

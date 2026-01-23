@@ -6,6 +6,7 @@ import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from '@flarenetwork/fl
 import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as costonIAssetManagerAbi,
+  useWatchIAssetManagerEvent as costonUseWatchIAssetManagerEvent,
   useWriteIAssetManager as costonUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAssetManager';
 import { ifAssetAbi as costonIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
@@ -18,6 +19,7 @@ import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from '@flarenetwork/f
 import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
+  useWatchIAssetManagerEvent as coston2UseWatchIAssetManagerEvent,
   useWriteIAssetManager as coston2UseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAssetManager';
 import { ifAssetAbi as coston2IFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
@@ -30,6 +32,7 @@ import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from '@flarenetwork/fla
 import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as flareIAssetManagerAbi,
+  useWatchIAssetManagerEvent as flareUseWatchIAssetManagerEvent,
   useWriteIAssetManager as flareUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAssetManager';
 import { ifAssetAbi as flareIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
@@ -42,6 +45,7 @@ import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from '@flarenetwork/
 import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAgentOwnerRegistry';
 import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
+  useWatchIAssetManagerEvent as songbirdUseWatchIAssetManagerEvent,
   useWriteIAssetManager as songbirdUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAssetManager';
 import { ifAssetAbi as songbirdIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
@@ -260,5 +264,26 @@ export function getWriteIAssetManager(chainId: number) {
     default:
       // Default to Flare for backwards compatibility
       return flareUseWriteIAssetManager();
+  }
+}
+
+/**
+ * Select the appropriate AssetManager Watch Event hook based on the chain ID
+ * @param chainId - The chain ID to get the hook for
+ * @returns The network-specific AssetManager Watch Event hook
+ */
+export function getWatchIAssetManagerEvent(chainId: number) {
+  switch (chainId) {
+    case flare.id: // Flare Mainnet
+      return flareUseWatchIAssetManagerEvent;
+    case flareTestnet.id: // Coston2 Testnet
+      return coston2UseWatchIAssetManagerEvent;
+    case songbird.id: // Songbird
+      return songbirdUseWatchIAssetManagerEvent;
+    case songbirdTestnet.id: // Coston Testnet
+      return costonUseWatchIAssetManagerEvent;
+    default:
+      // Default to Flare for backwards compatibility
+      return flareUseWatchIAssetManagerEvent;
   }
 }

@@ -2,7 +2,7 @@
 // More info: https://dev.flare.network/fassets/minting#collateral-reservation-fee
 
 import { getAssetManagerAbi } from '@/lib/abiUtils';
-import { publicClient } from '@/lib/publicClient';
+import { createFlarePublicClient } from '@/lib/publicClient';
 
 /**
  * Calculate reservation fee for a given number of lots
@@ -21,6 +21,9 @@ export async function calculateReservationFee(
   }
 
   try {
+    // Create a public client for the correct chain
+    const publicClient = createFlarePublicClient(chainId);
+
     const feeData = await publicClient.readContract({
       address: assetManagerAddress as `0x${string}`,
       // Use the network-specific AssetManager ABI to read the collateralReservationFee function
