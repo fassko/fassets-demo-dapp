@@ -44,6 +44,7 @@ import {
 } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { calculateReservationFee, weiToFLR } from '@/lib/feeUtils';
+import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
 const MintXRPFormDataSchema = z.object({
@@ -138,7 +139,7 @@ function useReservationFee(
 // https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral
 
 export default function Mint() {
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<React.ReactNode | null>(null);
   const [success, setSuccess] = useState<React.ReactNode | null>(null);
 
   const [availableAgents, setAvailableAgents] = useState<
@@ -275,6 +276,8 @@ export default function Mint() {
               paymentAmount={`${totalXRP} XRP`}
               paymentAddress={log.args.paymentAddress}
               paymentReference={log.args.paymentReference}
+              transactionHash={log.transactionHash}
+              chainId={chainId}
             />
           );
           reset();
@@ -289,11 +292,30 @@ export default function Mint() {
     if (receiptError) {
       console.error('Transaction receipt error:', receiptError);
 
+      const errorMessage =
+        receiptError instanceof Error
+          ? receiptError.message
+          : String(receiptError);
+
       setError(
-        `Transaction receipt failed: ${receiptError instanceof Error ? receiptError.message : String(receiptError)}`
+        <div className='space-y-2'>
+          <p>Transaction receipt failed: {errorMessage}</p>
+          {reserveHash && (
+            <p className='text-sm'>
+              <a
+                href={getExplorerUrl(chainId, reserveHash, 'tx')}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-red-600 hover:text-red-800 underline'
+              >
+                View transaction on explorer
+              </a>
+            </p>
+          )}
+        </div>
       );
     }
-  }, [receiptError]);
+  }, [receiptError, reserveHash, chainId]);
 
   // Process settings at startup
   useEffect(() => {
@@ -552,6 +574,25 @@ export default function Mint() {
         stack: writeError.stack,
       });
 
+      // Helper to create error with transaction link
+      const createErrorWithLink = (message: string) => (
+        <div className='space-y-2'>
+          <p>{message}</p>
+          {reserveHash && (
+            <p className='text-sm'>
+              <a
+                href={getExplorerUrl(chainId, reserveHash, 'tx')}
+                target='_blank'
+                rel='noopener noreferrer'
+                className='text-red-600 hover:text-red-800 underline'
+              >
+                View transaction on explorer
+              </a>
+            </p>
+          )}
+        </div>
+      );
+
       // Handle specific error types
       if (
         writeError.message.includes('User denied transaction signature') ||
@@ -560,17 +601,21 @@ export default function Mint() {
         setError('Transaction was cancelled by the user.');
       } else if (writeError.message.includes('execution reverted')) {
         setError(
-          'Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.'
+          createErrorWithLink(
+            'Transaction failed: The contract rejected the transaction. This could be due to insufficient agent capacity, invalid parameters, or network issues.'
+          )
         );
       } else if (writeError.message.includes('insufficient funds')) {
         setError(
-          'Insufficient funds to complete the transaction. Please check your wallet balance.'
+          createErrorWithLink(
+            'Insufficient funds to complete the transaction. Please check your wallet balance.'
+          )
         );
       } else {
-        setError(`Transaction failed: ${writeError.message}`);
+        setError(createErrorWithLink(`Transaction failed: ${writeError.message}`));
       }
     }
-  }, [writeError]);
+  }, [writeError, reserveHash, chainId]);
 
   // Clear error when new transaction starts
   useEffect(() => {

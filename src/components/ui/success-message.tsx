@@ -1,14 +1,17 @@
 import { useState } from 'react';
 
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, ExternalLink } from 'lucide-react';
 
 import { copyToClipboardWithBooleanState } from '@/lib/clipboard';
+import { getExplorerUrl } from '@/lib/utils';
 
 interface SuccessMessageProps {
   reservationId: string;
   paymentAmount: string;
   paymentAddress: string;
   paymentReference: string;
+  transactionHash?: string;
+  chainId?: number;
 }
 
 export function SuccessMessage({
@@ -16,6 +19,8 @@ export function SuccessMessage({
   paymentAmount,
   paymentAddress,
   paymentReference,
+  transactionHash,
+  chainId,
 }: SuccessMessageProps) {
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [copiedReservationId, setCopiedReservationId] =
@@ -30,9 +35,22 @@ export function SuccessMessage({
 
   return (
     <div className='space-y-3'>
-      <p className='font-semibold text-blue-800'>
-        Successfully reserved collateral!
-      </p>
+      <div className='flex items-center justify-between'>
+        <p className='font-semibold text-blue-800'>
+          Successfully reserved collateral!
+        </p>
+        {transactionHash && chainId && (
+          <a
+            href={getExplorerUrl(chainId, transactionHash, 'tx')}
+            target='_blank'
+            rel='noopener noreferrer'
+            className='inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 hover:underline'
+          >
+            View transaction
+            <ExternalLink className='h-3 w-3' />
+          </a>
+        )}
+      </div>
       <div className='bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4'>
         <p className='text-blue-800 text-sm'>
           <strong>Next step:</strong> Make an XRPL payment using the details
