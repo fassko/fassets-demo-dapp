@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
+import { useFXRPTokenDetails } from '@/hooks/useFXRPTokenDetails';
 import { getExplorerName } from '@/lib/chainUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import { formatPrice } from '@/lib/ftsoUtils';
@@ -42,6 +43,14 @@ export default function Settings({ onNavigate }: SettingsProps) {
 
   const chainId = useChainId();
   const { priceData } = useFXRPPrice();
+  const {
+    fAssetAddress,
+    tokenName,
+    tokenSymbol,
+    tokenDecimals,
+    assetName,
+    assetSymbol,
+  } = useFXRPTokenDetails();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -187,6 +196,38 @@ export default function Settings({ onNavigate }: SettingsProps) {
                   {
                     title: 'Agent Owner Registry',
                     value: createExplorerLink(settings.agentOwnerRegistry),
+                  },
+                ])}
+
+                {settingsBox('FXRP Token Details', [
+                  {
+                    title: 'Token Address',
+                    value: fAssetAddress
+                      ? createExplorerLink(fAssetAddress)
+                      : 'Loading...',
+                  },
+                  {
+                    title: 'Name',
+                    value: tokenName ?? 'Loading...',
+                  },
+                  {
+                    title: 'Symbol',
+                    value: tokenSymbol ?? 'Loading...',
+                  },
+                  {
+                    title: 'Decimals',
+                    value:
+                      tokenDecimals !== undefined
+                        ? tokenDecimals.toString()
+                        : 'Loading...',
+                  },
+                  {
+                    title: 'Underlying Asset Name',
+                    value: assetName ?? 'Loading...',
+                  },
+                  {
+                    title: 'Underlying Asset Symbol',
+                    value: assetSymbol ?? 'Loading...',
                   },
                 ])}
 
