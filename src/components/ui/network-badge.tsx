@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { useAccount } from 'wagmi';
+import { useChainId } from 'wagmi';
 
 import { Badge } from '@/components/ui/badge';
 import { getChainName } from '@/lib/chainUtils';
@@ -13,7 +13,7 @@ interface NetworkBadgeProps {
 }
 
 export function NetworkBadge({ className, style }: NetworkBadgeProps) {
-  const { chain } = useAccount();
+  const chainId = useChainId();
   const [mounted, setMounted] = useState(false);
 
   // Only render on client side to avoid hydration mismatch
@@ -21,7 +21,7 @@ export function NetworkBadge({ className, style }: NetworkBadgeProps) {
     setMounted(true);
   }, []);
 
-  if (!mounted || !chain) {
+  if (!mounted || !chainId) {
     return null;
   }
 
@@ -33,7 +33,7 @@ export function NetworkBadge({ className, style }: NetworkBadgeProps) {
       }
       style={style}
     >
-      {getChainName(chain.id)}
+      {getChainName(chainId)}
     </Badge>
   );
 }

@@ -3,19 +3,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
-import { useAccount } from 'wagmi';
+import { useChainId } from 'wagmi';
 
 import { getXRPUSDPrice, type FTSOPriceData } from '@/lib/ftsoUtils';
 
 export function useFXRPPrice() {
-  const { chain } = useAccount();
+  const chainId = useChainId();
   const [priceData, setPriceData] = useState<FTSOPriceData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<number>(0);
 
   const fetchPrice = useCallback(async () => {
-    if (!chain) {
+    if (!chainId) {
       setError('No chain connected');
       return;
     }
@@ -24,7 +24,7 @@ export function useFXRPPrice() {
     setError(null);
 
     try {
-      const data = await getXRPUSDPrice(chain.id);
+      const data = await getXRPUSDPrice(chainId);
       if (data) {
         setPriceData(data);
         setLastFetch(Date.now());
@@ -36,18 +36,18 @@ export function useFXRPPrice() {
     } finally {
       setIsLoading(false);
     }
-  }, [chain]);
+  }, [chainId]);
 
   // Fetch price on mount and when chain changes
   useEffect(() => {
-    if (chain) {
+    if (chainId) {
       fetchPrice();
     }
-  }, [chain, fetchPrice]);
+  }, [chainId, fetchPrice]);
 
   // Auto-refresh price every 30 seconds
   useEffect(() => {
-    if (!chain || !priceData) return;
+    if (!chainId || !priceData) return;
 
     const interval = setInterval(() => {
       const now = Date.now();
@@ -58,7 +58,7 @@ export function useFXRPPrice() {
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [chain, priceData, lastFetch, fetchPrice]);
+  }, [chainId, priceData, lastFetch, fetchPrice]);
 
   return {
     priceData,

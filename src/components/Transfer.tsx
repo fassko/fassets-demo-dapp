@@ -9,7 +9,6 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import {
-  useAccount,
   useChainId,
   useWaitForTransactionReceipt,
   useWriteContract,
@@ -54,7 +53,6 @@ export default function Transfer() {
   const [success, setSuccess] = useState<string | null>(null);
 
   // Get current chain for explorer URL
-  const { chain } = useAccount();
   const chainId = useChainId();
 
   // Use FAssets asset manager hook to read settings
@@ -301,11 +299,11 @@ export default function Transfer() {
               <Alert className='bg-cyan-50 border-cyan-200 text-cyan-800'>
                 <AlertDescription>
                   {success}
-                  {transferHash && chain && (
+                  {transferHash && chainId && (
                     <div className='mt-2'>
                       <span className='text-sm'>Transaction hash: </span>
                       <a
-                        href={getExplorerUrl(chain.id, transferHash, 'tx')}
+                        href={getExplorerUrl(chainId, transferHash, 'tx')}
                         target='_blank'
                         rel='noopener noreferrer'
                         className='text-cyan-600 hover:text-cyan-800 underline font-mono text-sm'

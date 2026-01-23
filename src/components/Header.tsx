@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 
-import { useAccount } from 'wagmi';
+import { useChainId } from 'wagmi';
 
 import ConnectWallet from '@/components/ConnectWallet';
 import { getChainName } from '@/lib/chainUtils';
 
 export default function Header() {
-  const { chain } = useAccount();
+  const chainId = useChainId();
   const [mounted, setMounted] = useState(false);
 
   // Only render on client side to avoid hydration mismatch
@@ -30,9 +30,9 @@ export default function Header() {
                 >
                   FAssets Demo
                 </h1>
-                {mounted && chain && (
+                {mounted && chainId && (
                   <span className='text-xs md:text-sm font-medium text-gray-600 bg-gray-100 px-2 py-1 rounded-md'>
-                    {getChainName(chain.id)}
+                    {getChainName(chainId)}
                   </span>
                 )}
               </div>

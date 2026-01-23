@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ChevronDown, Copy, ExternalLink, LogOut, Wallet } from 'lucide-react';
 
-import { useAccount, useConnect, useDisconnect } from 'wagmi';
+import { useAccount, useChainId, useConnect, useDisconnect } from 'wagmi';
 
 import {
   AlertDialog,
@@ -21,7 +21,8 @@ import { copyToClipboard } from '@/lib/clipboard';
 import { getExplorerUrl } from '@/lib/utils';
 
 export default function ConnectWallet() {
-  const { address, isConnected, chain } = useAccount();
+  const { address, isConnected } = useAccount();
+  const chainId = useChainId();
   const { connect, connectors, error } = useConnect();
   const { disconnect } = useDisconnect();
   const [showMenu, setShowMenu] = useState(false);
@@ -152,11 +153,11 @@ export default function ConnectWallet() {
         <div className='absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-2xl border border-gray-200 z-50'>
           <div className='p-4 space-y-3'>
             {/* Network Info */}
-            {chain && (
+            {chainId && (
               <div className='bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-3 border border-blue-200'>
                 <p className='text-xs text-gray-600 mb-1'>Network</p>
                 <p className='font-semibold text-blue-900'>
-                  {getChainName(chain.id)}
+                  {getChainName(chainId)}
                 </p>
               </div>
             )}
@@ -176,9 +177,9 @@ export default function ConnectWallet() {
                   >
                     <Copy className='h-4 w-4 text-gray-600' />
                   </button>
-                  {chain && (
+                  {chainId && (
                     <a
-                      href={getExplorerUrl(chain.id, address!, 'address')}
+                      href={getExplorerUrl(chainId, address!, 'address')}
                       target='_blank'
                       rel='noopener noreferrer'
                       className='p-2 hover:bg-gray-200 rounded-md transition-colors'

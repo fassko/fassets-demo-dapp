@@ -11,7 +11,7 @@ import {
   Settings as SettingsIcon,
 } from 'lucide-react';
 
-import { useAccount } from 'wagmi';
+import { useChainId } from 'wagmi';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ export default function Settings({ onNavigate }: SettingsProps) {
     refetchSettings,
   } = useAssetManager();
 
-  const { chain } = useAccount();
+  const chainId = useChainId();
   const { priceData } = useFXRPPrice();
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -61,7 +61,7 @@ export default function Settings({ onNavigate }: SettingsProps) {
   function createExplorerLink(address: string) {
     const isCopied = copiedAddress === address;
     // Get the explorer name based on the current chain, default to 'flare'
-    const explorer = chain ? getExplorerName(chain.id) : 'flare';
+    const explorer = chainId ? getExplorerName(chainId) : 'flare';
 
     return (
       <div className='flex items-center gap-2'>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Loader2, RefreshCw } from 'lucide-react';
 
-import { useAccount, useChainId, useReadContract } from 'wagmi';
+import { useChainId, useReadContract } from 'wagmi';
 
 import { createPublicClient, http } from 'viem';
 
@@ -43,7 +43,6 @@ export default function MintingCap() {
   const [error, setError] = useState<string | null>(null);
 
   const chainId = useChainId();
-  const { chain } = useAccount();
   const { priceData } = useFXRPPrice();
 
   const {
@@ -121,7 +120,7 @@ export default function MintingCap() {
 
         // Create a public client for reading contract data
         // Use the current connected chain or fall back to a default
-        const currentChain = chain || getChainById(14); // Default to Flare mainnet if no chain connected
+        const currentChain = getChainById(chainId) || getChainById(14); // Default to Flare mainnet if no chain connected
         if (!currentChain) {
           throw new Error('Unable to determine chain');
         }
@@ -208,14 +207,7 @@ export default function MintingCap() {
     };
 
     calculateMintingCap();
-  }, [
-    settings,
-    totalSupply,
-    allAgentsData,
-    assetManagerAddress,
-    chain,
-    chainId,
-  ]);
+  }, [settings, totalSupply, allAgentsData, assetManagerAddress, chainId]);
 
   const loading =
     isLoadingSettings ||
