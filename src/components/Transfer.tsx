@@ -10,11 +10,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 
 import {
   useAccount,
+  useChainId,
   useWaitForTransactionReceipt,
   useWriteContract,
 } from 'wagmi';
-
-import { erc20Abi } from 'viem';
 
 import { z } from 'zod';
 
@@ -26,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { getIFAssetAbi } from '@/lib/abiUtils';
 import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
@@ -55,6 +55,7 @@ export default function Transfer() {
 
   // Get current chain for explorer URL
   const { chain } = useAccount();
+  const chainId = useChainId();
 
   // Use FAssets asset manager hook to read settings
   const {
@@ -176,8 +177,8 @@ export default function Transfer() {
         // Use the FXRP token address from the settings
         // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
         address: settings.fAsset as `0x${string}`,
-        // Use the ERC20 ABI
-        abi: erc20Abi,
+        // Use the IFAsset ABI
+        abi: getIFAssetAbi(chainId),
         functionName: 'transfer',
         args: [data.recipientAddress as `0x${string}`, amountInWei],
       });

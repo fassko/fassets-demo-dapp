@@ -6,14 +6,14 @@ import { Loader2, RefreshCw } from 'lucide-react';
 
 import { useAccount, useChainId, useReadContract } from 'wagmi';
 
-import { createPublicClient, erc20Abi, http } from 'viem';
+import { createPublicClient, http } from 'viem';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
-import { getAssetManagerAbi } from '@/lib/abiUtils';
+import { getAssetManagerAbi, getIFAssetAbi } from '@/lib/abiUtils';
 import { getChainById } from '@/lib/chainUtils';
 import { formatPrice } from '@/lib/ftsoUtils';
 
@@ -61,7 +61,7 @@ export default function MintingCap() {
     refetch: refetchSupply,
   } = useReadContract({
     address: settings?.fAsset as `0x${string}`,
-    abi: erc20Abi,
+    abi: getIFAssetAbi(chainId),
     functionName: 'totalSupply',
     query: {
       enabled: !!settings?.fAsset,

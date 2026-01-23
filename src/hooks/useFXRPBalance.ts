@@ -3,19 +3,20 @@
 
 import { useEffect, useState } from 'react';
 
-import { useAccount, useReadContract } from 'wagmi';
+import { useAccount, useChainId, useReadContract } from 'wagmi';
 
-import { erc20Abi } from 'viem';
+import { getIFAssetAbi } from '@/lib/abiUtils';
 
 import { useAssetManager } from './useAssetManager';
 
 export function useFXRPBalance() {
   const [fxrpBalance, setFxrpBalance] = useState<string>('0');
   const { address: userAddress, isConnected } = useAccount();
+  const chainId = useChainId();
   const { settings, assetManagerAddress } = useAssetManager();
 
   // Read FXRP balance using wagmi
-  // FXRP is an ERC20 token
+  // FXRP is an IFAsset token
   const {
     data: fxrpBalanceData,
     refetch: refetchFxrpBalance,
@@ -25,8 +26,8 @@ export function useFXRPBalance() {
     // Get the FXRP token address from the settings
     // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
     address: settings?.fAsset as `0x${string}`,
-    // FXRP is an ERC20 token
-    abi: erc20Abi,
+    // FXRP is an IFAsset token
+    abi: getIFAssetAbi(chainId),
     functionName: 'balanceOf',
     args: [userAddress as `0x${string}`],
     query: {

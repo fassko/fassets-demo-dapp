@@ -8,6 +8,7 @@ import {
   iAssetManagerAbi as costonIAssetManagerAbi,
   useWriteIAssetManager as costonUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAssetManager';
+import { ifAssetAbi as costonIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
 import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
@@ -19,6 +20,7 @@ import {
   iAssetManagerAbi as coston2IAssetManagerAbi,
   useWriteIAssetManager as coston2UseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAssetManager';
+import { ifAssetAbi as coston2IFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
 import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
@@ -30,6 +32,7 @@ import {
   iAssetManagerAbi as flareIAssetManagerAbi,
   useWriteIAssetManager as flareUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAssetManager';
+import { ifAssetAbi as flareIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
 import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
@@ -41,6 +44,7 @@ import {
   iAssetManagerAbi as songbirdIAssetManagerAbi,
   useWriteIAssetManager as songbirdUseWriteIAssetManager,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAssetManager';
+import { ifAssetAbi as songbirdIFAssetAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
 import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
@@ -209,6 +213,27 @@ export function getFtsoV2InterfaceAbi(chainId: number) {
     default:
       // Default to Flare for backwards compatibility
       return flareFtsoV2InterfaceAbi;
+  }
+}
+
+/**
+ * Select the appropriate IFAsset ABI based on the chain ID
+ * @param chainId - The chain ID to get the ABI for
+ * @returns The network-specific IFAsset ABI
+ */
+export function getIFAssetAbi(chainId: number) {
+  switch (chainId) {
+    case flare.id: // Flare Mainnet
+      return flareIFAssetAbi;
+    case flareTestnet.id: // Coston2 Testnet
+      return coston2IFAssetAbi;
+    case songbird.id: // Songbird
+      return songbirdIFAssetAbi;
+    case songbirdTestnet.id: // Coston Testnet
+      return costonIFAssetAbi;
+    default:
+      // Default to Flare for backwards compatibility
+      return flareIFAssetAbi;
   }
 }
 
