@@ -7,6 +7,7 @@ import {
   Play,
   Send,
   Settings,
+  Zap,
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -23,6 +24,7 @@ const getActiveClasses = (color: string, isActive: boolean): string => {
     orange: 'bg-orange-100 text-orange-900 border-b-2 border-orange-300',
     cyan: 'bg-cyan-100 text-cyan-900 border-b-2 border-cyan-300',
     green: 'bg-green-100 text-green-900 border-b-2 border-green-300',
+    emerald: 'bg-emerald-100 text-emerald-900 border-b-2 border-emerald-300',
   };
 
   return colorMap[color as keyof typeof colorMap] || colorMap.blue;
@@ -35,6 +37,7 @@ export default function Navigation() {
     { path: '/', label: 'Settings', color: 'slate', icon: Settings },
     { path: '/minting-cap', label: '🧢 Cap', color: 'red', icon: null },
     { path: '/mint', label: 'Mint', color: 'blue', icon: Coins },
+    { path: '/direct-mint', label: 'Direct Mint', color: 'emerald', icon: Zap },
     {
       path: '/attestation',
       label: 'Attestation',
@@ -70,7 +73,9 @@ export default function Navigation() {
                     ? '⚙️'
                     : tab.label === 'Mint'
                       ? '🪙'
-                      : tab.label === 'Attestation'
+                      : tab.label === 'Direct Mint'
+                        ? '⚡'
+                        : tab.label === 'Attestation'
                         ? '✓'
                         : tab.label === 'Execute'
                           ? '▶️'

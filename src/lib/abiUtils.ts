@@ -16,6 +16,10 @@ import {
   useReadIfAsset as costonUseReadIFAsset,
   useWriteIfAsset as costonUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
+import {
+  iDirectMintingAbi as costonIDirectMintingAbi,
+  useWatchIDirectMintingEvent as costonUseWatchIDirectMintingEvent,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IDirectMinting';
 import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
@@ -34,6 +38,10 @@ import {
   useReadIfAsset as coston2UseReadIFAsset,
   useWriteIfAsset as coston2UseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
+import {
+  iDirectMintingAbi as coston2IDirectMintingAbi,
+  useWatchIDirectMintingEvent as coston2UseWatchIDirectMintingEvent,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IDirectMinting';
 import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
@@ -52,6 +60,10 @@ import {
   useReadIfAsset as flareUseReadIFAsset,
   useWriteIfAsset as flareUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
+import {
+  iDirectMintingAbi as flareIDirectMintingAbi,
+  useWatchIDirectMintingEvent as flareUseWatchIDirectMintingEvent,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IDirectMinting';
 import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
@@ -70,6 +82,10 @@ import {
   useReadIfAsset as songbirdUseReadIFAsset,
   useWriteIfAsset as songbirdUseWriteIFAsset,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
+import {
+  iDirectMintingAbi as songbirdIDirectMintingAbi,
+  useWatchIDirectMintingEvent as songbirdUseWatchIDirectMintingEvent,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IDirectMinting';
 import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
@@ -392,5 +408,41 @@ export function getWriteIFAsset(chainId: number) {
     default:
       // Default to Flare for backwards compatibility
       return flareUseWriteIFAsset();
+  }
+}
+
+/**
+ * Select the appropriate IDirectMinting ABI based on the chain ID
+ */
+export function getDirectMintingAbi(chainId: number) {
+  switch (chainId) {
+    case flare.id:
+      return flareIDirectMintingAbi;
+    case flareTestnet.id:
+      return coston2IDirectMintingAbi;
+    case songbird.id:
+      return songbirdIDirectMintingAbi;
+    case songbirdTestnet.id:
+      return costonIDirectMintingAbi;
+    default:
+      return flareIDirectMintingAbi;
+  }
+}
+
+/**
+ * Select the appropriate IDirectMinting Watch Event hook based on the chain ID
+ */
+export function getWatchIDirectMintingEvent(chainId: number) {
+  switch (chainId) {
+    case flare.id:
+      return flareUseWatchIDirectMintingEvent;
+    case flareTestnet.id:
+      return coston2UseWatchIDirectMintingEvent;
+    case songbird.id:
+      return songbirdUseWatchIDirectMintingEvent;
+    case songbirdTestnet.id:
+      return costonUseWatchIDirectMintingEvent;
+    default:
+      return flareUseWatchIDirectMintingEvent;
   }
 }

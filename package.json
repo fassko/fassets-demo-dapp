@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@flarenetwork/flare-periphery-contract-artifacts": "^0.1.40",
-    "@flarenetwork/flare-wagmi-periphery-package": "^2.3.0",
+    "@flarenetwork/flare-wagmi-periphery-package": "^3.1.0",
     "@hookform/resolvers": "^5.2.1",
     "@openzeppelin/contracts": "^5.4.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
