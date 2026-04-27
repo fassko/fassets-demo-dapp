@@ -23,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
 import XRPLBalanceCard from '@/components/ui/XRPLBalanceCard';
 import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
@@ -53,32 +54,59 @@ import {
 } from '@/lib/xrpUtils';
 import { AttestationData } from '@/types/attestation';
 
-// Form data types
-const RedeemXRPFormDataSchema = z.object({
-  xrplAddress: z
+type RedemptionMode = 'lots' | 'amount';
+
+// Schema factory — validation differs slightly between lots (integer) and amount (decimal)
+function makeRedeemSchema(mode: RedemptionMode) {
+  const xrplAddress = z
     .string()
     .min(25, 'Address is too short')
     .max(35, 'Address is too long')
-    .regex(/^r[1-9A-Za-km-z]{20,34}$/, 'Invalid XRPL address'),
-  amount: z
-    .string()
-    .min(1, 'Amount is required')
-    .refine(
-      val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
-      'Amount must be a positive number'
-    )
-    .refine(
-      val => parseFloat(val) <= 1000000,
-      'Amount cannot exceed 1,000,000'
-    ),
-});
+    .regex(/^r[1-9A-Za-km-z]{20,34}$/, 'Invalid XRPL address');
 
-type RedeemXRPFormData = z.infer<typeof RedeemXRPFormDataSchema>;
+  if (mode === 'lots') {
+    return z.object({
+      xrplAddress,
+      amount: z
+        .string()
+        .min(1, 'Lots is required')
+        .refine(
+          val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+          'Lots must be a positive number'
+        )
+        .refine(
+          val => Number.isInteger(parseFloat(val)),
+          'Lots must be a whole number'
+        )
+        .refine(
+          val => parseFloat(val) <= 1000000,
+          'Amount cannot exceed 1,000,000'
+        ),
+    });
+  }
+
+  return z.object({
+    xrplAddress,
+    amount: z
+      .string()
+      .min(1, 'Amount is required')
+      .refine(
+        val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+        'Amount must be a positive number'
+      ),
+  });
+}
+
+type RedeemXRPFormData = z.infer<ReturnType<typeof makeRedeemSchema>>;
 
 export default function Redeem() {
+  const [redemptionMode, setRedemptionMode] = useState<RedemptionMode>('amount');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [remainingLots, setRemainingLots] = useState<string | null>(null);
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
@@ -180,7 +208,7 @@ export default function Redeem() {
     reset,
     watch,
   } = useForm<RedeemXRPFormData>({
-    resolver: zodResolver(RedeemXRPFormDataSchema),
+    resolver: zodResolver(makeRedeemSchema(redemptionMode)),
     defaultValues: {
       xrplAddress: '',
       amount: '',
@@ -235,6 +263,18 @@ export default function Redeem() {
             `Decoded event: ${decodedLog.eventName}`,
             decodedLog.args
           );
+
+          // RedemptionRequestIncomplete event — partial redemption (only relevant for redeemAmount)
+          // https://dev.flare.network/fassets/reference/IAssetManagerEvents
+          if (decodedLog.eventName === 'RedemptionRequestIncomplete') {
+            const remaining = decodedLog.args.remainingLots?.toString();
+            console.log(
+              'RedemptionRequestIncomplete — remaining lots:',
+              remaining
+            );
+            if (remaining) setRemainingLots(remaining);
+            continue;
+          }
 
           // RedemptionRequested event
           // https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionrequested
@@ -295,8 +335,9 @@ export default function Redeem() {
         }
       }
 
+      const unit = redemptionMode === 'lots' ? 'lots' : 'XRP';
       setSuccess(
-        `Successfully redeemed ${watchedAmount} lots to ${xrplAddress}`
+        `Successfully submitted redemption of ${watchedAmount} ${unit} to ${xrplAddress}`
       );
       reset();
       refetchFxrpBalance();
@@ -444,9 +485,9 @@ export default function Redeem() {
 
   const isValidXrplAddress = (address: string): boolean => {
     try {
-      RedeemXRPFormDataSchema.pick({ xrplAddress: true }).parse({
-        xrplAddress: address,
-      });
+      makeRedeemSchema(redemptionMode)
+        .pick({ xrplAddress: true })
+        .parse({ xrplAddress: address });
       return isValidXRPAddress(address);
     } catch {
       return false;
@@ -469,6 +510,7 @@ export default function Redeem() {
     setIsProcessing(true);
     setError(null);
     setSuccess(null);
+    setRemainingLots(null);
 
     try {
       if (!settings) {
@@ -479,28 +521,39 @@ export default function Redeem() {
         throw new Error('Please connect your wallet');
       }
 
-      // Validate that amount is a positive integer (lots)
-      const lots = parseInt(data.amount);
-      if (isNaN(lots) || lots <= 0) {
-        throw new Error('Lots must be a positive integer');
-      }
+      const executor = '0x0000000000000000000000000000000000000000' as const;
 
-      // Call the redeem function using contract-specific hook
-      // mutateAsync returns a promise, so we await it
-      await redeemContract({
-        address: assetManagerAddress!,
-        // Use the redeem function from the AssetManager ABI
+      if (redemptionMode === 'lots') {
+        const lots = parseInt(data.amount);
+        if (isNaN(lots) || lots <= 0) {
+          throw new Error('Lots must be a positive integer');
+        }
+
         // https://dev.flare.network/fassets/reference/IAssetManager#redeem
-        // The contract-specific hook already includes the ABI
-        functionName: 'redeem',
-        // Parameters for the redeem function
-        // Lots, XRPL address, executor (zero address for this demo)
-        args: [
-          BigInt(lots),
-          data.xrplAddress,
-          '0x0000000000000000000000000000000000000000',
-        ],
-      });
+        await redeemContract({
+          address: assetManagerAddress!,
+          functionName: 'redeem',
+          args: [BigInt(lots), data.xrplAddress, executor],
+        });
+      } else {
+        const amountXrp = parseFloat(data.amount);
+        if (isNaN(amountXrp) || amountXrp <= 0) {
+          throw new Error('Amount must be positive');
+        }
+
+        // Convert XRP to UBA (1 XRP = 10^assetDecimals UBA, typically 6 for XRP)
+        const decimals = Number(settings.assetDecimals);
+        const amountUBA = BigInt(
+          Math.floor(amountXrp * Math.pow(10, decimals))
+        );
+
+        // https://dev.flare.network/fassets/reference/IAssetManager#redeemamount
+        await redeemContract({
+          address: assetManagerAddress!,
+          functionName: 'redeemAmount',
+          args: [amountUBA, data.xrplAddress, executor],
+        });
+      }
     } catch (error) {
       console.error('Error redeeming to XRP:', error);
       setError(
@@ -829,6 +882,37 @@ export default function Redeem() {
             />
           </div>
 
+          {/* Mode selector — redeem by whole lots vs arbitrary amount */}
+          <Tabs
+            value={redemptionMode}
+            onValueChange={value => {
+              setRedemptionMode(value as RedemptionMode);
+              reset({ xrplAddress: '', amount: '' });
+              setSuccess(null);
+              setError(null);
+              setRemainingLots(null);
+            }}
+            className='mb-4'
+          >
+            <TabsList className='bg-green-100'>
+              <TabsTrigger value='amount'>By Amount (redeemAmount)</TabsTrigger>
+              <TabsTrigger value='lots'>By Lots (redeem)</TabsTrigger>
+            </TabsList>
+            <TabsContent value='amount' className='text-xs text-green-700 mt-1'>
+              Redeem an arbitrary FXRP amount via{' '}
+              <code className='bg-green-100 px-1 rounded'>redeemAmount</code>.
+              Subject to the lot-size minimum; if liquidity is partial, a
+              <code className='bg-green-100 px-1 rounded ml-1'>
+                RedemptionRequestIncomplete
+              </code>{' '}
+              event reports the remainder.
+            </TabsContent>
+            <TabsContent value='lots' className='text-xs text-green-700 mt-1'>
+              Redeem whole lots only — the standard{' '}
+              <code className='bg-green-100 px-1 rounded'>redeem</code> flow.
+            </TabsContent>
+          </Tabs>
+
           {/* Redeem to XRP Section */}
           <form onSubmit={handleSubmit(redeemToXRP)} className='space-y-6'>
             <div className='space-y-4'>
@@ -852,14 +936,14 @@ export default function Redeem() {
 
               <div className='space-y-2'>
                 <Label htmlFor='amount' className='text-green-900'>
-                  Lots
+                  {redemptionMode === 'lots' ? 'Lots' : 'FXRP Amount'}
                 </Label>
                 <Input
                   {...register('amount')}
                   type='number'
-                  placeholder='1'
-                  step='1'
-                  min='1'
+                  placeholder={redemptionMode === 'lots' ? '1' : '5.5'}
+                  step={redemptionMode === 'lots' ? '1' : 'any'}
+                  min='0'
                   className='border-green-300 focus:ring-green-500 focus:border-green-500'
                 />
                 {errors.amount && (
@@ -868,108 +952,107 @@ export default function Redeem() {
                   </p>
                 )}
                 <p className='text-xs text-green-600'>
-                  Amount in lots (1 lot ={' '}
-                  {settings?.lotSizeAMG
-                    ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6)
-                    : '0'}{' '}
-                  XRP)
+                  {redemptionMode === 'lots' ? (
+                    <>
+                      Amount in lots (1 lot ={' '}
+                      {settings?.lotSizeAMG
+                        ? (
+                            Number(settings.lotSizeAMG) / Math.pow(10, 6)
+                          ).toFixed(6)
+                        : '0'}{' '}
+                      XRP)
+                    </>
+                  ) : (
+                    <>
+                      FXRP amount to redeem. Lot size:{' '}
+                      {settings?.lotSizeAMG
+                        ? (
+                            Number(settings.lotSizeAMG) / Math.pow(10, 6)
+                          ).toFixed(6)
+                        : '0'}{' '}
+                      XRP — non-multiple amounts may be partially filled.
+                    </>
+                  )}
                 </p>
                 {watchedAmount &&
                   watchedAmount !== '' &&
-                  !isNaN(parseFloat(watchedAmount)) && (
-                    <div className='mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2'>
-                      <p className='text-sm text-green-800'>
-                        <span className='font-semibold'>FXRP to burn:</span>{' '}
-                        {parseFloat(watchedAmount) *
-                          (settings?.lotSizeAMG
-                            ? Number(settings.lotSizeAMG) / Math.pow(10, 6)
-                            : 0)}{' '}
-                        FXRP
-                      </p>
-                      <p className='text-xs text-green-600'>
-                        ({watchedAmount} lots ×{' '}
-                        {settings?.lotSizeAMG
-                          ? (
-                              Number(settings.lotSizeAMG) / Math.pow(10, 6)
-                            ).toFixed(6)
-                          : '0'}{' '}
-                        XRP per lot)
-                      </p>
+                  !isNaN(parseFloat(watchedAmount)) &&
+                  (() => {
+                    const lotSize = settings?.lotSizeAMG
+                      ? Number(settings.lotSizeAMG) / Math.pow(10, 6)
+                      : 0;
+                    const fxrpToBurn =
+                      redemptionMode === 'lots'
+                        ? parseFloat(watchedAmount) * lotSize
+                        : parseFloat(watchedAmount);
+                    const feeBIPS = settings?.redemptionFeeBIPS
+                      ? Number(settings.redemptionFeeBIPS)
+                      : 0;
+                    const fee = (fxrpToBurn * feeBIPS) / 10000;
+                    const net = fxrpToBurn - fee;
 
-                      <div className='pt-2 border-t border-green-200 space-y-1'>
-                        {settings?.redemptionFeeBIPS &&
-                          Number(settings.redemptionFeeBIPS) > 0 && (
+                    return (
+                      <div className='mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2'>
+                        <p className='text-sm text-green-800'>
+                          <span className='font-semibold'>FXRP to burn:</span>{' '}
+                          {fxrpToBurn} FXRP
+                        </p>
+                        <p className='text-xs text-green-600'>
+                          {redemptionMode === 'lots' ? (
+                            <>
+                              ({watchedAmount} lots × {lotSize.toFixed(6)} XRP
+                              per lot)
+                            </>
+                          ) : (
+                            <>(arbitrary amount via redeemAmount)</>
+                          )}
+                        </p>
+
+                        <div className='pt-2 border-t border-green-200 space-y-1'>
+                          {feeBIPS > 0 ? (
                             <>
                               <p className='text-sm text-green-800'>
                                 <span className='font-semibold'>
                                   Redemption Fee:
                                 </span>{' '}
-                                {(
-                                  (parseFloat(watchedAmount) *
-                                    (settings?.lotSizeAMG
-                                      ? Number(settings.lotSizeAMG) /
-                                        Math.pow(10, 6)
-                                      : 0) *
-                                    Number(settings.redemptionFeeBIPS)) /
-                                  10000
-                                ).toFixed(6)}{' '}
-                                XRP
+                                {fee.toFixed(6)} XRP
                               </p>
                               <p className='text-xs text-green-600'>
-                                ({Number(settings.redemptionFeeBIPS) / 100}%
-                                deducted from XRP value)
+                                ({feeBIPS / 100}% deducted from XRP value)
                               </p>
-
                               <div className='pt-1 border-t border-green-300'>
                                 <p className='text-sm font-semibold text-green-900'>
                                   <span>XRP to be redeemed:</span>{' '}
-                                  {(
-                                    parseFloat(watchedAmount) *
-                                    (settings?.lotSizeAMG
-                                      ? Number(settings.lotSizeAMG) /
-                                        Math.pow(10, 6)
-                                      : 0) *
-                                    (1 -
-                                      Number(settings.redemptionFeeBIPS) /
-                                        10000)
-                                  ).toFixed(6)}{' '}
-                                  XRP
+                                  {net.toFixed(6)} XRP
                                 </p>
                                 <p className='text-xs text-green-600'>
                                   (Net amount after fee deduction)
                                 </p>
                               </div>
                             </>
+                          ) : (
+                            <div className='pt-1 border-t border-green-300'>
+                              <p className='text-sm font-semibold text-green-900'>
+                                <span>XRP to be redeemed:</span>{' '}
+                                {fxrpToBurn.toFixed(6)} XRP
+                              </p>
+                              <p className='text-xs text-green-600'>
+                                (No redemption fee)
+                              </p>
+                            </div>
                           )}
-
-                        {(!settings?.redemptionFeeBIPS ||
-                          Number(settings.redemptionFeeBIPS) === 0) && (
-                          <div className='pt-1 border-t border-green-300'>
-                            <p className='text-sm font-semibold text-green-900'>
-                              <span>XRP to be redeemed:</span>{' '}
-                              {(
-                                parseFloat(watchedAmount) *
-                                (settings?.lotSizeAMG
-                                  ? Number(settings.lotSizeAMG) /
-                                    Math.pow(10, 6)
-                                  : 0)
-                              ).toFixed(6)}{' '}
-                              XRP
-                            </p>
-                            <p className='text-xs text-green-600'>
-                              (No redemption fee)
-                            </p>
-                          </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
               </div>
             </div>
 
             <Button
               type='submit'
-              disabled={isProcessing || !isConnected || isLoadingSettings}
+              disabled={
+                !mounted || isProcessing || !isConnected || isLoadingSettings
+              }
               className='w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer'
             >
               {isProcessing ? (
@@ -1005,6 +1088,17 @@ export default function Redeem() {
             {success && (
               <Alert className='bg-green-50 border-green-200 text-green-800'>
                 <AlertDescription>{success}</AlertDescription>
+              </Alert>
+            )}
+
+            {remainingLots && (
+              <Alert className='bg-amber-50 border-amber-200 text-amber-900'>
+                <AlertDescription>
+                  Partial redemption — {remainingLots} lot
+                  {remainingLots === '1' ? '' : 's'} could not be filled
+                  (insufficient agent liquidity). The unfilled FAssets remain
+                  in your wallet; submit another redemption to retry.
+                </AlertDescription>
               </Alert>
             )}
 
