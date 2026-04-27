@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { ExternalLink, Loader2, RefreshCw, Zap } from 'lucide-react';
+import { ExternalLink, Loader2, Plus, RefreshCw, Tag, Zap } from 'lucide-react';
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { useAccount, useChainId } from 'wagmi';
+import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { z } from 'zod';
 
@@ -18,10 +18,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import {
   getReadIAssetManager,
+  getReadIMintingTagManager,
   getWatchIDirectMintingEvent,
+  getWriteIMintingTagManager,
 } from '@/lib/abiUtils';
 import { getExplorerUrl } from '@/lib/utils';
 import { XRP_CONFIG } from '@/lib/xrpUtils';
@@ -41,6 +51,8 @@ const DirectMintFormSchema = z.object({
 });
 
 type DirectMintFormData = z.infer<typeof DirectMintFormSchema>;
+
+type MintMode = 'memo' | 'tag';
 
 type PaymentState =
   | { status: 'idle' }
@@ -65,6 +77,7 @@ export default function DirectMint() {
   const { address: connectedAddress } = useAccount();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const effectiveAddress = mounted ? connectedAddress : undefined;
 
   const {
     assetManagerAddress,
@@ -80,6 +93,10 @@ export default function DirectMint() {
   const [paymentState, setPaymentState] = useState<PaymentState>({
     status: 'idle',
   });
+
+  const [mintMode, setMintMode] = useState<MintMode>('memo');
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [tagSetupError, setTagSetupError] = useState<string | null>(null);
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -116,6 +133,67 @@ export default function DirectMint() {
     functionName: 'getDirectMintingMinimumFeeUBA',
     query: { enabled: !!assetManagerAddress },
   });
+
+  // MintingTagManager address (resolved via AssetManager.getMintingTagManager())
+  const { data: mintingTagManagerAddressData } = useReadIAssetManager({
+    address: assetManagerAddress as `0x${string}`,
+    functionName: 'getMintingTagManager',
+    query: { enabled: !!assetManagerAddress && mintMode === 'tag' },
+  });
+  const mintingTagManagerAddress = mintingTagManagerAddressData as
+    | `0x${string}`
+    | undefined;
+
+  // Tag-mode reads against MintingTagManager
+  const useReadIMintingTagManager = getReadIMintingTagManager(chainId);
+
+  const { data: reservationFeeData } = useReadIMintingTagManager({
+    address: mintingTagManagerAddress,
+    functionName: 'reservationFee',
+    query: { enabled: !!mintingTagManagerAddress && mintMode === 'tag' },
+  });
+
+  const {
+    data: reservedTagsData,
+    refetch: refetchReservedTags,
+    isLoading: isLoadingReservedTags,
+  } = useReadIMintingTagManager({
+    address: mintingTagManagerAddress,
+    functionName: 'reservedTagsForOwner',
+    args: connectedAddress
+      ? [connectedAddress as `0x${string}`]
+      : undefined,
+    query: {
+      enabled:
+        !!mintingTagManagerAddress && !!connectedAddress && mintMode === 'tag',
+    },
+  });
+
+  const { data: mintingRecipientData, refetch: refetchMintingRecipient } =
+    useReadIMintingTagManager({
+      address: mintingTagManagerAddress,
+      functionName: 'mintingRecipient',
+      args: selectedTag ? [BigInt(selectedTag)] : undefined,
+      query: {
+        enabled:
+          !!mintingTagManagerAddress && !!selectedTag && mintMode === 'tag',
+      },
+    });
+
+  // Tag-mode writes (single hook reused for reserve + setMintingRecipient)
+  const {
+    data: tagTxHash,
+    writeContract: writeTagManager,
+    isPending: isTagWritePending,
+    error: tagWriteError,
+    reset: resetTagWrite,
+  } = getWriteIMintingTagManager(chainId);
+
+  const { isLoading: isTagTxConfirming, isSuccess: isTagTxConfirmed } =
+    useWaitForTransactionReceipt({ hash: tagTxHash });
+
+  // Track which tag-management action is in flight so we can react to confirmation
+  const pendingTagActionRef = useRef<'reserve' | 'setRecipient' | null>(null);
 
   // Watch for DirectMintingExecuted on the AssetManager (uses IDirectMinting ABI)
   // https://dev.flare.network/fassets/direct-minting
@@ -169,6 +247,89 @@ export default function DirectMint() {
     if (minimumFeeUBAData !== undefined)
       setMinimumFeeUBA(minimumFeeUBAData as bigint);
   }, [minimumFeeUBAData]);
+
+  // Auto-select the first reserved tag if none selected
+  const reservedTags = reservedTagsData as readonly bigint[] | undefined;
+  useEffect(() => {
+    if (
+      mintMode === 'tag' &&
+      reservedTags &&
+      reservedTags.length > 0 &&
+      !selectedTag
+    ) {
+      setSelectedTag(reservedTags[0].toString());
+    }
+  }, [mintMode, reservedTags, selectedTag]);
+
+  // Read recipient currently configured for the selected tag (zero-address = unset)
+  const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+  const configuredRecipient = mintingRecipientData as `0x${string}` | undefined;
+  const isRecipientConfigured =
+    !!configuredRecipient &&
+    !!effectiveAddress &&
+    configuredRecipient !== ZERO_ADDRESS &&
+    configuredRecipient.toLowerCase() === effectiveAddress.toLowerCase();
+
+  // After a tag-management tx confirms, refetch the relevant read so the UI
+  // reflects the new state and the user can move on to the next step.
+  useEffect(() => {
+    if (!isTagTxConfirmed || !pendingTagActionRef.current) return;
+    const action = pendingTagActionRef.current;
+    pendingTagActionRef.current = null;
+    resetTagWrite();
+    if (action === 'reserve') {
+      refetchReservedTags();
+    } else if (action === 'setRecipient') {
+      refetchMintingRecipient();
+    }
+  }, [
+    isTagTxConfirmed,
+    refetchReservedTags,
+    refetchMintingRecipient,
+    resetTagWrite,
+  ]);
+
+  const reservationFee = reservationFeeData as bigint | undefined;
+
+  const handleReserveTag = useCallback(() => {
+    if (!mintingTagManagerAddress || reservationFee === undefined) return;
+    setTagSetupError(null);
+    pendingTagActionRef.current = 'reserve';
+    writeTagManager({
+      address: mintingTagManagerAddress,
+      functionName: 'reserve',
+      value: reservationFee,
+    });
+  }, [mintingTagManagerAddress, reservationFee, writeTagManager]);
+
+  const handleSetRecipient = useCallback(() => {
+    if (!mintingTagManagerAddress || !selectedTag || !effectiveAddress) return;
+    setTagSetupError(null);
+    pendingTagActionRef.current = 'setRecipient';
+    writeTagManager({
+      address: mintingTagManagerAddress,
+      functionName: 'setMintingRecipient',
+      args: [BigInt(selectedTag), effectiveAddress as `0x${string}`],
+    });
+  }, [
+    mintingTagManagerAddress,
+    selectedTag,
+    effectiveAddress,
+    writeTagManager,
+  ]);
+
+  // Surface tag-write errors in the UI without crashing the page
+  useEffect(() => {
+    if (tagWriteError) {
+      pendingTagActionRef.current = null;
+      const msg =
+        tagWriteError.message.includes('User denied') ||
+        tagWriteError.message.includes('user rejected')
+          ? 'Transaction was cancelled.'
+          : tagWriteError.message;
+      setTagSetupError(msg);
+    }
+  }, [tagWriteError]);
 
   // Clean up polling on unmount
   useEffect(() => {
@@ -230,26 +391,58 @@ export default function DirectMint() {
       return;
     }
 
+    if (mintMode === 'tag') {
+      if (!selectedTag) {
+        setPaymentState({
+          status: 'error',
+          message: 'Please select or reserve a minting tag first',
+        });
+        return;
+      }
+      if (!isRecipientConfigured) {
+        setPaymentState({
+          status: 'error',
+          message:
+            'The selected tag has no recipient set. Click "Set recipient to my address" first.',
+        });
+        return;
+      }
+    }
+
     setPaymentState({ status: 'creating' });
 
-    const memoData = buildDirectMintingMemo(effectiveAddress as Address);
     const drops = String(
       Math.floor(parseFloat(data.amountXrp) * XRP_CONFIG.DROPS_PER_XRP)
     );
+
+    // Tag mode uses XRPL DestinationTag; memo mode uses a 32-byte memo with
+    // the recipient address. https://dev.flare.network/fassets/direct-minting
+    const txjson: Record<string, unknown> =
+      mintMode === 'tag'
+        ? {
+            TransactionType: 'Payment',
+            Destination: coreVaultXrplAddress,
+            Amount: drops,
+            DestinationTag: Number(selectedTag),
+          }
+        : {
+            TransactionType: 'Payment',
+            Destination: coreVaultXrplAddress,
+            Amount: drops,
+            Memos: [
+              {
+                Memo: {
+                  MemoData: buildDirectMintingMemo(effectiveAddress as Address),
+                },
+              },
+            ],
+          };
 
     try {
       const res = await fetch('/api/xaman/create-payload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txjson: {
-            TransactionType: 'Payment',
-            Destination: coreVaultXrplAddress,
-            Amount: drops,
-            Memos: [{ Memo: { MemoData: memoData } }],
-          },
-          options: { submit: true },
-        }),
+        body: JSON.stringify({ txjson, options: { submit: true } }),
       });
 
       const payload = await res.json();
@@ -297,17 +490,19 @@ export default function DirectMint() {
     return (Number(minimumFeeUBA) / XRP_CONFIG.DROPS_PER_XRP).toFixed(6);
   }
 
-  const effectiveAddress = mounted ? connectedAddress : undefined;
   const memoPreview = effectiveAddress
     ? buildDirectMintingMemo(effectiveAddress as Address)
     : null;
 
   const isLoading = isLoadingSettings;
+  const isTagModeReady =
+    mintMode !== 'tag' || (!!selectedTag && isRecipientConfigured);
   const isReady =
     !!assetManagerAddress &&
     !!coreVaultXrplAddress &&
     !!effectiveAddress &&
-    !isLoading;
+    !isLoading &&
+    isTagModeReady;
   const isCreating = paymentState.status === 'creating';
 
   return (
@@ -390,22 +585,209 @@ export default function DirectMint() {
             </p>
           </div>
 
-          {/* Memo preview */}
-          {memoPreview && (
-            <div className='space-y-1'>
-              <Label className='text-emerald-900'>XRPL Memo (32 bytes)</Label>
-              <div className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-xs text-emerald-700 break-all'>
-                {memoPreview}
-              </div>
-              <p className='text-xs text-emerald-600'>
-                Prefix{' '}
+          {/* Mode selector — memo vs tag */}
+          <Tabs
+            value={mintMode}
+            onValueChange={value => {
+              setMintMode(value as MintMode);
+              setTagSetupError(null);
+              setPaymentState({ status: 'idle' });
+            }}
+          >
+            <TabsList className='bg-emerald-100'>
+              <TabsTrigger value='memo'>Memo</TabsTrigger>
+              <TabsTrigger value='tag'>Tag</TabsTrigger>
+            </TabsList>
+
+            {/* MEMO MODE */}
+            <TabsContent value='memo' className='space-y-1 mt-3'>
+              {memoPreview && (
+                <>
+                  <Label className='text-emerald-900'>
+                    XRPL Memo (32 bytes)
+                  </Label>
+                  <div className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-xs text-emerald-700 break-all'>
+                    {memoPreview}
+                  </div>
+                  <p className='text-xs text-emerald-600'>
+                    Prefix{' '}
+                    <code className='bg-emerald-100 px-1 rounded'>
+                      4642505266410018
+                    </code>{' '}
+                    + recipient address
+                  </p>
+                </>
+              )}
+            </TabsContent>
+
+            {/* TAG MODE */}
+            <TabsContent value='tag' className='space-y-3 mt-3'>
+              <p className='text-xs text-emerald-700'>
+                Reserve a tag once via{' '}
                 <code className='bg-emerald-100 px-1 rounded'>
-                  4642505266410018
+                  MintingTagManager.reserve()
+                </code>
+                , set its recipient, then send XRPL payments using{' '}
+                <code className='bg-emerald-100 px-1 rounded'>
+                  DestinationTag
                 </code>{' '}
-                + recipient address
+                instead of a memo.
               </p>
-            </div>
-          )}
+
+              <div className='rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2 text-sm'>
+                <div className='flex items-center justify-between'>
+                  <span className='font-medium text-emerald-900'>
+                    Tag Manager:
+                  </span>
+                  <span className='font-mono text-xs text-emerald-700 break-all max-w-[260px] text-right'>
+                    {mintingTagManagerAddress ?? '—'}
+                  </span>
+                </div>
+                {reservationFee !== undefined && (
+                  <div className='flex items-center justify-between'>
+                    <span className='font-medium text-emerald-900'>
+                      Reservation Fee:
+                    </span>
+                    <span className='text-emerald-700'>
+                      {(Number(reservationFee) / 1e18).toFixed(6)} FLR
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Tag selection / reservation */}
+              <div className='space-y-2'>
+                <Label className='text-emerald-900'>Minting Tag</Label>
+                {isLoadingReservedTags ? (
+                  <div className='flex items-center gap-2 text-sm text-emerald-700'>
+                    <Loader2 className='h-4 w-4 animate-spin' />
+                    Loading your reserved tags…
+                  </div>
+                ) : reservedTags && reservedTags.length > 0 ? (
+                  <div className='flex items-center gap-2'>
+                    <Select
+                      value={selectedTag ?? undefined}
+                      onValueChange={value => setSelectedTag(value)}
+                    >
+                      <SelectTrigger className='border-emerald-300 focus:ring-emerald-500 flex-1'>
+                        <SelectValue placeholder='Select a tag' />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {reservedTags.map(t => (
+                          <SelectItem key={t.toString()} value={t.toString()}>
+                            <span className='font-mono'>#{t.toString()}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      type='button'
+                      variant='outline'
+                      onClick={handleReserveTag}
+                      disabled={
+                        !mintingTagManagerAddress ||
+                        reservationFee === undefined ||
+                        isTagWritePending ||
+                        isTagTxConfirming
+                      }
+                      className='border-emerald-300 text-emerald-700 hover:bg-emerald-100'
+                    >
+                      {(isTagWritePending || isTagTxConfirming) &&
+                      pendingTagActionRef.current === 'reserve' ? (
+                        <Loader2 className='h-4 w-4 animate-spin' />
+                      ) : (
+                        <>
+                          <Plus className='h-4 w-4 mr-1' />
+                          Reserve another
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className='flex items-center gap-2'>
+                    <p className='text-sm text-emerald-700 flex-1'>
+                      You have no reserved tags yet.
+                    </p>
+                    <Button
+                      type='button'
+                      onClick={handleReserveTag}
+                      disabled={
+                        !mintingTagManagerAddress ||
+                        reservationFee === undefined ||
+                        !effectiveAddress ||
+                        isTagWritePending ||
+                        isTagTxConfirming
+                      }
+                      className='bg-emerald-600 hover:bg-emerald-700'
+                    >
+                      {(isTagWritePending || isTagTxConfirming) &&
+                      pendingTagActionRef.current === 'reserve' ? (
+                        <>
+                          <Loader2 className='h-4 w-4 animate-spin mr-2' />
+                          Reserving…
+                        </>
+                      ) : (
+                        <>
+                          <Tag className='h-4 w-4 mr-2' />
+                          Reserve a tag
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Recipient configuration for the selected tag */}
+              {selectedTag && (
+                <div className='rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm space-y-2'>
+                  <div className='flex items-center justify-between'>
+                    <span className='font-medium text-emerald-900'>
+                      Recipient for tag #{selectedTag}:
+                    </span>
+                  </div>
+                  <div className='font-mono text-xs text-emerald-700 break-all'>
+                    {configuredRecipient && configuredRecipient !== ZERO_ADDRESS
+                      ? configuredRecipient
+                      : '— not set —'}
+                  </div>
+                  {!isRecipientConfigured && (
+                    <Button
+                      type='button'
+                      onClick={handleSetRecipient}
+                      disabled={
+                        !effectiveAddress ||
+                        isTagWritePending ||
+                        isTagTxConfirming
+                      }
+                      className='bg-emerald-600 hover:bg-emerald-700 w-full'
+                    >
+                      {(isTagWritePending || isTagTxConfirming) &&
+                      pendingTagActionRef.current === 'setRecipient' ? (
+                        <>
+                          <Loader2 className='h-4 w-4 animate-spin mr-2' />
+                          Setting recipient…
+                        </>
+                      ) : (
+                        'Set recipient to my address'
+                      )}
+                    </Button>
+                  )}
+                  {isRecipientConfigured && (
+                    <p className='text-xs text-emerald-600'>
+                      ✓ Recipient is set to your wallet — ready to mint with
+                      this tag.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {tagSetupError && (
+                <Alert variant='destructive'>
+                  <AlertDescription>{tagSetupError}</AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+          </Tabs>
 
           {/* QR pending state */}
           {paymentState.status === 'pending' && (

@@ -21,6 +21,11 @@ import {
   useWatchIDirectMintingEvent as costonUseWatchIDirectMintingEvent,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IDirectMinting';
 import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
+import {
+  iMintingTagManagerAbi as costonIMintingTagManagerAbi,
+  useReadIMintingTagManager as costonUseReadIMintingTagManager,
+  useWriteIMintingTagManager as costonUseWriteIMintingTagManager,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IMintingTagManager';
 import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
 import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IPaymentVerification';
@@ -43,6 +48,11 @@ import {
   useWatchIDirectMintingEvent as coston2UseWatchIDirectMintingEvent,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IDirectMinting';
 import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
+import {
+  iMintingTagManagerAbi as coston2IMintingTagManagerAbi,
+  useReadIMintingTagManager as coston2UseReadIMintingTagManager,
+  useWriteIMintingTagManager as coston2UseWriteIMintingTagManager,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IMintingTagManager';
 import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
 import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IPaymentVerification';
@@ -65,6 +75,11 @@ import {
   useWatchIDirectMintingEvent as flareUseWatchIDirectMintingEvent,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IDirectMinting';
 import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
+import {
+  iMintingTagManagerAbi as flareIMintingTagManagerAbi,
+  useReadIMintingTagManager as flareUseReadIMintingTagManager,
+  useWriteIMintingTagManager as flareUseWriteIMintingTagManager,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IMintingTagManager';
 import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
 import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IPaymentVerification';
@@ -87,6 +102,11 @@ import {
   useWatchIDirectMintingEvent as songbirdUseWatchIDirectMintingEvent,
 } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IDirectMinting';
 import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
+import {
+  iMintingTagManagerAbi as songbirdIMintingTagManagerAbi,
+  useReadIMintingTagManager as songbirdUseReadIMintingTagManager,
+  useWriteIMintingTagManager as songbirdUseWriteIMintingTagManager,
+} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IMintingTagManager';
 import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
 import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
 import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IPaymentVerification';
@@ -444,5 +464,59 @@ export function getWatchIDirectMintingEvent(chainId: number) {
       return costonUseWatchIDirectMintingEvent;
     default:
       return flareUseWatchIDirectMintingEvent;
+  }
+}
+
+/**
+ * Select the appropriate IMintingTagManager ABI based on the chain ID
+ */
+export function getMintingTagManagerAbi(chainId: number) {
+  switch (chainId) {
+    case flare.id:
+      return flareIMintingTagManagerAbi;
+    case flareTestnet.id:
+      return coston2IMintingTagManagerAbi;
+    case songbird.id:
+      return songbirdIMintingTagManagerAbi;
+    case songbirdTestnet.id:
+      return costonIMintingTagManagerAbi;
+    default:
+      return flareIMintingTagManagerAbi;
+  }
+}
+
+/**
+ * Select the appropriate IMintingTagManager Read hook based on the chain ID
+ */
+export function getReadIMintingTagManager(chainId: number) {
+  switch (chainId) {
+    case flare.id:
+      return flareUseReadIMintingTagManager;
+    case flareTestnet.id:
+      return coston2UseReadIMintingTagManager;
+    case songbird.id:
+      return songbirdUseReadIMintingTagManager;
+    case songbirdTestnet.id:
+      return costonUseReadIMintingTagManager;
+    default:
+      return flareUseReadIMintingTagManager;
+  }
+}
+
+/**
+ * Select the appropriate IMintingTagManager Write hook based on the chain ID
+ */
+export function getWriteIMintingTagManager(chainId: number) {
+  switch (chainId) {
+    case flare.id:
+      return flareUseWriteIMintingTagManager();
+    case flareTestnet.id:
+      return coston2UseWriteIMintingTagManager();
+    case songbird.id:
+      return songbirdUseWriteIMintingTagManager();
+    case songbirdTestnet.id:
+      return costonUseWriteIMintingTagManager();
+    default:
+      return flareUseWriteIMintingTagManager();
   }
 }

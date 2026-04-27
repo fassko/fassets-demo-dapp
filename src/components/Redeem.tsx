@@ -32,6 +32,7 @@ import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import {
   getAssetManagerAbi,
+  getReadIAssetManager,
   getRequestAttestationHook,
   getTypedSettings,
   getWriteIAssetManager,
@@ -54,9 +55,9 @@ import {
 } from '@/lib/xrpUtils';
 import { AttestationData } from '@/types/attestation';
 
-type RedemptionMode = 'lots' | 'amount';
+type RedemptionMode = 'lots' | 'amount' | 'tag';
 
-// Schema factory — validation differs slightly between lots (integer) and amount (decimal)
+// Schema factory — validation differs between lots (integer), amount (decimal), and tag (decimal + tag)
 function makeRedeemSchema(mode: RedemptionMode) {
   const xrplAddress = z
     .string()
@@ -82,9 +83,31 @@ function makeRedeemSchema(mode: RedemptionMode) {
           val => parseFloat(val) <= 1000000,
           'Amount cannot exceed 1,000,000'
         ),
+      destinationTag: z.string().optional(),
     });
   }
 
+  if (mode === 'tag') {
+    return z.object({
+      xrplAddress,
+      amount: z
+        .string()
+        .min(1, 'Amount is required')
+        .refine(
+          val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
+          'Amount must be a positive number'
+        ),
+      destinationTag: z
+        .string()
+        .min(1, 'Destination tag is required')
+        .refine(
+          val => /^\d+$/.test(val),
+          'Tag must be a non-negative integer'
+        ),
+    });
+  }
+
+  // 'amount' mode
   return z.object({
     xrplAddress,
     amount: z
@@ -94,6 +117,7 @@ function makeRedeemSchema(mode: RedemptionMode) {
         val => !isNaN(parseFloat(val)) && parseFloat(val) > 0,
         'Amount must be a positive number'
       ),
+    destinationTag: z.string().optional(),
   });
 }
 
@@ -189,6 +213,17 @@ export default function Redeem() {
 
   const chainId = useChainId();
 
+  // Read minimumRedeemAmountUBA — needed for tag-mode validation
+  const useReadIAssetManager = getReadIAssetManager(chainId);
+  const { data: minimumRedeemAmountUBAData } = useReadIAssetManager({
+    address: assetManagerAddress as `0x${string}`,
+    functionName: 'minimumRedeemAmountUBA',
+    query: { enabled: !!assetManagerAddress },
+  });
+  const minimumRedeemAmountUBA = minimumRedeemAmountUBAData as
+    | bigint
+    | undefined;
+
   // FDC Attestation contract functions using contract-specific hook
   const {
     mutateAsync: requestAttestation,
@@ -212,6 +247,7 @@ export default function Redeem() {
     defaultValues: {
       xrplAddress: '',
       amount: '',
+      destinationTag: '',
     },
   });
 
@@ -276,9 +312,15 @@ export default function Redeem() {
             continue;
           }
 
-          // RedemptionRequested event
-          // https://dev.flare.network/fassets/reference/IAssetManagerEvents#redemptionrequested
-          if (decodedLog.eventName === 'RedemptionRequested') {
+          // RedemptionRequested or RedemptionWithTagRequested
+          // Both events share the same fields used by the FDC flow below; the
+          // tagged variant additionally carries `destinationTag` which we surface
+          // in the success message.
+          // https://dev.flare.network/fassets/reference/IAssetManagerEvents
+          if (
+            decodedLog.eventName === 'RedemptionRequested' ||
+            decodedLog.eventName === 'RedemptionWithTagRequested'
+          ) {
             console.log('=== RedemptionRequested Event ===');
             console.log('Agent Vault:', decodedLog.args.agentVault);
             console.log('Redeemer:', decodedLog.args.redeemer);
@@ -336,8 +378,10 @@ export default function Redeem() {
       }
 
       const unit = redemptionMode === 'lots' ? 'lots' : 'XRP';
+      const tagSuffix =
+        redemptionMode === 'tag' ? ` with destination tag` : '';
       setSuccess(
-        `Successfully submitted redemption of ${watchedAmount} ${unit} to ${xrplAddress}`
+        `Successfully submitted redemption of ${watchedAmount} ${unit}${tagSuffix} to ${xrplAddress}`
       );
       reset();
       refetchFxrpBalance();
@@ -535,7 +579,7 @@ export default function Redeem() {
           functionName: 'redeem',
           args: [BigInt(lots), data.xrplAddress, executor],
         });
-      } else {
+      } else if (redemptionMode === 'amount') {
         const amountXrp = parseFloat(data.amount);
         if (isNaN(amountXrp) || amountXrp <= 0) {
           throw new Error('Amount must be positive');
@@ -552,6 +596,40 @@ export default function Redeem() {
           address: assetManagerAddress!,
           functionName: 'redeemAmount',
           args: [amountUBA, data.xrplAddress, executor],
+        });
+      } else {
+        // 'tag' mode — redeemWithTag(amountUBA, xrplAddress, executor, destinationTag)
+        const amountXrp = parseFloat(data.amount);
+        if (isNaN(amountXrp) || amountXrp <= 0) {
+          throw new Error('Amount must be positive');
+        }
+        if (!data.destinationTag) {
+          throw new Error('Destination tag is required');
+        }
+
+        const decimals = Number(settings.assetDecimals);
+        const amountUBA = BigInt(
+          Math.floor(amountXrp * Math.pow(10, decimals))
+        );
+
+        if (
+          minimumRedeemAmountUBA !== undefined &&
+          amountUBA < minimumRedeemAmountUBA
+        ) {
+          const minXrp =
+            Number(minimumRedeemAmountUBA) / Math.pow(10, decimals);
+          throw new Error(
+            `Amount must be at least ${minXrp} XRP (minimumRedeemAmountUBA = ${minimumRedeemAmountUBA.toString()})`
+          );
+        }
+
+        const destinationTag = BigInt(data.destinationTag);
+
+        // https://dev.flare.network/fassets/reference/IAssetManager#redeemwithtag
+        await redeemContract({
+          address: assetManagerAddress!,
+          functionName: 'redeemWithTag',
+          args: [amountUBA, data.xrplAddress, executor, destinationTag],
         });
       }
     } catch (error) {
@@ -896,6 +974,7 @@ export default function Redeem() {
           >
             <TabsList className='bg-green-100'>
               <TabsTrigger value='amount'>By Amount (redeemAmount)</TabsTrigger>
+              <TabsTrigger value='tag'>By Tag (redeemWithTag)</TabsTrigger>
               <TabsTrigger value='lots'>By Lots (redeem)</TabsTrigger>
             </TabsList>
             <TabsContent value='amount' className='text-xs text-green-700 mt-1'>
@@ -906,6 +985,29 @@ export default function Redeem() {
                 RedemptionRequestIncomplete
               </code>{' '}
               event reports the remainder.
+            </TabsContent>
+            <TabsContent value='tag' className='text-xs text-green-700 mt-1'>
+              Redeem an arbitrary amount and tag the XRPL payout with an{' '}
+              <code className='bg-green-100 px-1 rounded'>
+                XRPL DestinationTag
+              </code>{' '}
+              via{' '}
+              <code className='bg-green-100 px-1 rounded'>redeemWithTag</code>.
+              Useful for routing the redeemed XRP into a specific account on
+              the destination side (exchanges, custodial wallets).
+              {minimumRedeemAmountUBA !== undefined && (
+                <>
+                  {' '}
+                  Minimum:{' '}
+                  <code className='bg-green-100 px-1 rounded'>
+                    {(
+                      Number(minimumRedeemAmountUBA) / Math.pow(10, 6)
+                    ).toFixed(6)}{' '}
+                    XRP
+                  </code>
+                  .
+                </>
+              )}
             </TabsContent>
             <TabsContent value='lots' className='text-xs text-green-700 mt-1'>
               Redeem whole lots only — the standard{' '}
@@ -933,6 +1035,34 @@ export default function Redeem() {
                   </p>
                 )}
               </div>
+
+              {/* Destination Tag — tag mode only */}
+              {redemptionMode === 'tag' && (
+                <div className='space-y-2'>
+                  <Label htmlFor='destinationTag' className='text-green-900'>
+                    XRPL Destination Tag
+                  </Label>
+                  <Input
+                    {...register('destinationTag')}
+                    id='destinationTag'
+                    type='number'
+                    placeholder='72'
+                    step='1'
+                    min='0'
+                    className='border-green-300 focus:ring-green-500 focus:border-green-500'
+                  />
+                  {errors.destinationTag && (
+                    <p className='text-sm text-destructive'>
+                      {errors.destinationTag.message}
+                    </p>
+                  )}
+                  <p className='text-xs text-green-600'>
+                    Non-negative integer (uint256). Attached to the XRPL payout
+                    so the recipient can route the funds (e.g. a registered
+                    minting tag).
+                  </p>
+                </div>
+              )}
 
               <div className='space-y-2'>
                 <Label htmlFor='amount' className='text-green-900'>
