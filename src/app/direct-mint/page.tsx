@@ -1,12 +1,15 @@
 'use client';
 
-import Layout from '@/components/Layout';
-import DirectMint from '@/components/DirectMint';
+import { useEffect } from 'react';
 
-export default function DirectMintPage() {
-  return (
-    <Layout>
-      <DirectMint />
-    </Layout>
-  );
+import { useRouter } from 'next/navigation';
+
+export default function DirectMintRedirectPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace('/mint');
+  }, [router]);
+
+  return null;
 }

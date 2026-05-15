@@ -2,11 +2,9 @@
 
 import {
   ArrowRight,
-  CheckCircle,
-  Coins,
-  Play,
   Send,
   Settings,
+  Tag,
   Zap,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -25,6 +23,7 @@ const getActiveClasses = (color: string, isActive: boolean): string => {
     cyan: 'bg-cyan-100 text-cyan-900 border-b-2 border-cyan-300',
     green: 'bg-green-100 text-green-900 border-b-2 border-green-300',
     emerald: 'bg-emerald-100 text-emerald-900 border-b-2 border-emerald-300',
+    violet: 'bg-violet-100 text-violet-900 border-b-2 border-violet-300',
   };
 
   return colorMap[color as keyof typeof colorMap] || colorMap.blue;
@@ -36,15 +35,8 @@ export default function Navigation() {
   const tabs = [
     { path: '/', label: 'Settings', color: 'slate', icon: Settings },
     { path: '/minting-cap', label: '🧢 Cap', color: 'red', icon: null },
-    { path: '/mint', label: 'Mint', color: 'blue', icon: Coins },
-    { path: '/direct-mint', label: 'Direct Mint', color: 'emerald', icon: Zap },
-    {
-      path: '/attestation',
-      label: 'Attestation',
-      color: 'purple',
-      icon: CheckCircle,
-    },
-    { path: '/execute', label: 'Execute', color: 'orange', icon: Play },
+    { path: '/mint', label: 'Mint', color: 'emerald', icon: Zap },
+    { path: '/tag', label: 'Tag', color: 'violet', icon: Tag },
     { path: '/transfer', label: 'Transfer', color: 'cyan', icon: Send },
     { path: '/redeem', label: 'Redeem', color: 'green', icon: ArrowRight },
   ];
@@ -72,18 +64,14 @@ export default function Navigation() {
                   : tab.label === 'Settings'
                     ? '⚙️'
                     : tab.label === 'Mint'
-                      ? '🪙'
-                      : tab.label === 'Direct Mint'
-                        ? '⚡'
-                        : tab.label === 'Attestation'
-                        ? '✓'
-                        : tab.label === 'Execute'
-                          ? '▶️'
-                          : tab.label === 'Transfer'
-                            ? '↗️'
-                            : tab.label === 'Redeem'
-                              ? '↪️'
-                              : tab.label}
+                      ? '⚡'
+                      : tab.label === 'Tag'
+                        ? '🏷️'
+                        : tab.label === 'Transfer'
+                        ? '↗️'
+                        : tab.label === 'Redeem'
+                          ? '↪️'
+                          : tab.label}
               </span>
             </Link>
           );

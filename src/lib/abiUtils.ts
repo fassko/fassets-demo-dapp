@@ -114,6 +114,8 @@ import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPay
 
 import { type ReadContractReturnType } from 'viem';
 
+import { mintingTagManagerExtraWriteAbi } from '@/lib/mintingTagManagerExtras';
+
 export function getAssetManagerAbi(chainId: number) {
   switch (chainId) {
     case flare.id: // Flare Mainnet
@@ -322,14 +324,9 @@ export function getIFAssetAbi(chainId: number) {
 }
 
 /**
- * Select the appropriate AssetManager Execute Minting hook based on the chain ID
+ * Select the appropriate AssetManager write hook based on the chain ID
  * @param chainId - The chain ID to get the hook for
- * @returns The network-specific AssetManager Execute Minting hook
- */
-/**
- * Select the appropriate AssetManager Reserve Collateral hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific AssetManager Reserve Collateral hook
+ * @returns The network-specific AssetManager write hook
  */
 export function getWriteIAssetManager(chainId: number) {
   switch (chainId) {
@@ -483,6 +480,11 @@ export function getMintingTagManagerAbi(chainId: number) {
     default:
       return flareIMintingTagManagerAbi;
   }
+}
+
+/** Base periphery ABI plus write helpers missing from older package releases. */
+export function getMintingTagManagerFullAbi(chainId: number) {
+  return [...getMintingTagManagerAbi(chainId), ...mintingTagManagerExtraWriteAbi];
 }
 
 /**
