@@ -3,13 +3,62 @@
 
 import { ethers } from 'ethers';
 
-import { getArtifactNetwork, getChainName } from './chainUtils';
+import { getArtifactNetwork, getChainById, getChainName } from './chainUtils';
 import { extractContractAddress } from './contractAddress';
+
+function getRpcUrl(chainId: number): string {
+  const chain = getChainById(chainId);
+  if (!chain) {
+    throw new Error(`Unsupported chain ID: ${chainId}`);
+  }
+
+  const httpUrl = chain.rpcUrls.default.http[0];
+  if (!httpUrl) {
+    throw new Error(`No RPC URL configured for chain ${chainId}`);
+  }
+
+  return httpUrl;
+}
+
+async function resolveChainId(chainId?: number): Promise<number> {
+  if (chainId) {
+    return chainId;
+  }
+
+  if (typeof window !== 'undefined' && window.ethereum) {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const network = await provider.getNetwork();
+    return Number(network.chainId);
+  }
+
+  // Default to Flare mainnet when no wallet is connected (e.g. first load on Vercel)
+  return 14;
+}
+
+/**
+ * Prefer the connected wallet provider when it matches the target chain;
+ * otherwise use a public JSON-RPC provider so the app works without MetaMask.
+ */
+async function getProvider(chainId: number): Promise<ethers.Provider> {
+  if (typeof window !== 'undefined' && window.ethereum) {
+    try {
+      const browserProvider = new ethers.BrowserProvider(window.ethereum);
+      const network = await browserProvider.getNetwork();
+      if (Number(network.chainId) === chainId) {
+        return browserProvider;
+      }
+    } catch {
+      // Fall back to public RPC below
+    }
+  }
+
+  return new ethers.JsonRpcProvider(getRpcUrl(chainId));
+}
 
 /**
  * Get a contract address from Flare artifacts by product name
  * @param productName - The name of the contract product (e.g., 'AssetManagerFXRP', 'FtsoV2')
- * @param chainId - Optional chain ID (will use current network if not provided)
+ * @param chainId - Optional chain ID (defaults to wallet chain or Flare mainnet)
  * @returns The contract address
  */
 export async function getFlareContractAddress(
@@ -17,39 +66,23 @@ export async function getFlareContractAddress(
   chainId?: number
 ): Promise<`0x${string}`> {
   try {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
+    const resolvedChainId = await resolveChainId(chainId);
+    const provider = await getProvider(resolvedChainId);
 
-      // If no chainId provided, get it from the provider
-      if (!chainId) {
-        const network = await provider.getNetwork();
-        chainId = Number(network.chainId);
-      }
+    console.log(
+      `Getting ${productName} address for ${getChainName(resolvedChainId)}`
+    );
 
-      console.log(
-        `Getting ${productName} address for ${getChainName(chainId)}`
-      );
-
-      // Get the correct network artifacts based on chain ID
-      const networkArtifacts = getArtifactNetwork(chainId);
-
-      // Get the contract product
-      const product = networkArtifacts.products[productName];
-      if (!product) {
-        throw new Error(
-          `Contract product "${productName}" not found in artifacts for chain ${chainId}`
-        );
-      }
-
-      // Get the address from the Flare contracts registry
-      const addressResult = await product.getAddress(provider);
-
-      return extractContractAddress(addressResult);
-    } else {
+    const networkArtifacts = getArtifactNetwork(resolvedChainId);
+    const product = networkArtifacts.products[productName];
+    if (!product) {
       throw new Error(
-        'MetaMask is not installed. Please install MetaMask to use this feature.'
+        `Contract product "${productName}" not found in artifacts for chain ${resolvedChainId}`
       );
     }
+
+    const addressResult = await product.getAddress(provider);
+    return extractContractAddress(addressResult);
   } catch (error) {
     console.error(`Error getting ${productName} address:`, error);
     throw error;

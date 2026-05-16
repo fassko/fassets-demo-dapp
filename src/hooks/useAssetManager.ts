@@ -15,21 +15,32 @@ export function useAssetManager() {
   >(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Get AssetManager address from Flare Contracts Registry at startup
+  // Get AssetManager address from Flare Contracts Registry
   useEffect(() => {
+    let cancelled = false;
+
     const fetchAddress = async () => {
+      setAssetManagerAddress(null);
       try {
-        const address = await getAssetManagerAddress();
-        setAssetManagerAddress(address);
-        setError(null);
+        const address = await getAssetManagerAddress(chainId);
+        if (!cancelled) {
+          setAssetManagerAddress(address);
+          setError(null);
+        }
       } catch (error) {
         console.error('Error fetching AssetManager address:', error);
-        setError('Failed to fetch AssetManager address');
+        if (!cancelled) {
+          setError('Failed to fetch AssetManager address');
+        }
       }
     };
 
     fetchAddress();
-  }, []);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chainId]);
 
   // Read AssetManager settings using typed hook from flare-wagmi-periphery-package
   // Guide: https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
