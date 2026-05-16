@@ -8,10 +8,7 @@ import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import {
-  useChainId,
-  useWaitForTransactionReceipt,
-} from 'wagmi';
+import { useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { z } from 'zod';
 
@@ -206,7 +203,8 @@ export default function Transfer() {
         </CardHeader>
         <CardContent>
           <p className='text-cyan-700 mb-6'>
-            Transfer FXRP tokens to another address.
+            Transfer FXRP tokens to another address. FXRP is an ERC20 token on
+            the Flare network.
           </p>
 
           {/* Balance Overview */}

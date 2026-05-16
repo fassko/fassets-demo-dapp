@@ -34,9 +34,8 @@ export default function Navigation() {
 
   const tabs = [
     { path: '/', label: 'Settings', color: 'slate', icon: Settings },
-    { path: '/minting-cap', label: '🧢 Cap', color: 'red', icon: null },
     { path: '/mint', label: 'Mint', color: 'emerald', icon: Zap },
-    { path: '/tag', label: 'Tag', color: 'violet', icon: Tag },
+    { path: '/tags', label: 'Tags', color: 'violet', icon: Tag },
     { path: '/transfer', label: 'Transfer', color: 'cyan', icon: Send },
     { path: '/redeem', label: 'Redeem', color: 'green', icon: ArrowRight },
   ];
@@ -59,15 +58,13 @@ export default function Navigation() {
               )}
               <span className='hidden sm:inline'>{tab.label}</span>
               <span className='sm:hidden'>
-                {tab.label === '🧢 Cap'
-                  ? '🧢'
-                  : tab.label === 'Settings'
-                    ? '⚙️'
-                    : tab.label === 'Mint'
-                      ? '⚡'
-                      : tab.label === 'Tag'
-                        ? '🏷️'
-                        : tab.label === 'Transfer'
+                {tab.label === 'Settings'
+                  ? '⚙️'
+                  : tab.label === 'Mint'
+                    ? '⚡'
+                    : tab.label === 'Tags'
+                      ? '🏷️'
+                      : tab.label === 'Transfer'
                         ? '↗️'
                         : tab.label === 'Redeem'
                           ? '↪️'

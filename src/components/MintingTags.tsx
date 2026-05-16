@@ -369,9 +369,17 @@ export default function MintingTags() {
           </CardTitle>
         </CardHeader>
         <CardContent className='space-y-6'>
-          <p className='text-violet-700 text-sm'>
+          <p className='text-violet-700'>
             Minting tags are ERC-721 NFTs used for direct minting via XRPL{' '}
-            <code className='bg-violet-100 px-1 rounded'>DestinationTag</code>
+            <a
+              href='https://xrpl.org/docs/concepts/transactions/source-and-destination-tags'
+              target='_blank'
+              rel='noopener noreferrer'
+              className='inline-flex items-center gap-1 text-violet-700 hover:underline'
+            >
+              <code className='bg-violet-100 px-1 rounded'>DestinationTag</code>
+              <ExternalLink className='h-3 w-3 shrink-0' />
+            </a>
             . Manage recipients, allowed executors, and transfers here.{' '}
             <a
               href='https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag'
@@ -406,9 +414,15 @@ export default function MintingTags() {
 
           <div className='rounded-lg border border-violet-200 bg-violet-50/80 p-3 text-sm space-y-1'>
             <div className='flex justify-between gap-2 items-start'>
-              <span className='font-medium text-violet-900 shrink-0'>
+              <a
+                href='https://dev.flare.network/fassets/reference/IMintingTagManager'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='font-medium text-violet-900 shrink-0 inline-flex items-center gap-1 hover:underline'
+              >
                 Tag manager
-              </span>
+                <ExternalLink className='h-3 w-3' />
+              </a>
               {mintingTagManagerAddress ? (
                 <a
                   href={getExplorerUrl(

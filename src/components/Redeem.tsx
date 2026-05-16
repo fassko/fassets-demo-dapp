@@ -1,14 +1,17 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { ArrowRight, ExternalLink, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+
+import { ArrowRight, ExternalLink, Loader2, Tag } from 'lucide-react';
 
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import {
+  useAccount,
   useChainId,
   useWaitForTransactionReceipt,
 } from 'wagmi';
@@ -23,6 +26,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
 import { RedemptionLimitsTable } from '@/components/ui/RedemptionLimitsTable';
@@ -34,10 +44,16 @@ import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import {
   getAssetManagerAbi,
   getReadIAssetManager,
+  getReadIMintingTagManager,
   getRequestAttestationHook,
   getTypedSettings,
   getWriteIAssetManager,
 } from '@/lib/abiUtils';
+import {
+  fetchMintingTagsDetails,
+  type MintingTagDetails,
+} from '@/lib/mintingTagDetails';
+import { isZeroAddress } from '@/lib/mintingTagUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -49,6 +65,7 @@ import {
   verifyReferencedPaymentNonexistence,
 } from '@/lib/fdcUtils';
 import {
+  formatRedeemAmountPlaceholder,
   formatUbaAsAsset,
   getRedemptionQueueTotalValueUBA,
   validateRedeemAmountUBA,
@@ -108,9 +125,12 @@ function makeRedeemSchema(mode: RedemptionMode) {
 type RedeemXRPFormData = z.infer<ReturnType<typeof makeRedeemSchema>>;
 
 export default function Redeem() {
+  const chainId = useChainId();
+  const { address: connectedAddress } = useAccount();
   const [redemptionMode, setRedemptionMode] = useState<RedemptionMode>('amount');
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const effectiveAddress = mounted ? connectedAddress : undefined;
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -196,8 +216,6 @@ export default function Redeem() {
     error: addressError,
   } = useFdcContracts();
 
-  const chainId = useChainId();
-
   // Read minimumRedeemAmountUBA — needed for tag-mode validation
   const useReadIAssetManager = getReadIAssetManager(chainId);
   const { data: minimumRedeemAmountUBAData } = useReadIAssetManager({
@@ -208,6 +226,70 @@ export default function Redeem() {
   const minimumRedeemAmountUBA = minimumRedeemAmountUBAData as
     | bigint
     | undefined;
+
+  // Minting tags — XRPL destination tags owned by the connected wallet
+  const { data: mintingTagManagerAddressData } = useReadIAssetManager({
+    address: assetManagerAddress as `0x${string}`,
+    functionName: 'getMintingTagManager',
+    query: {
+      enabled: !!assetManagerAddress && redemptionMode === 'tag',
+    },
+  });
+  const mintingTagManagerAddress = mintingTagManagerAddressData as
+    | `0x${string}`
+    | undefined;
+
+  const useReadIMintingTagManager = getReadIMintingTagManager(chainId);
+  const {
+    data: reservedTagsData,
+    isLoading: isLoadingReservedTags,
+  } = useReadIMintingTagManager({
+    address: mintingTagManagerAddress,
+    functionName: 'reservedTagsForOwner',
+    args: effectiveAddress ? [effectiveAddress] : undefined,
+    query: {
+      enabled:
+        !!mintingTagManagerAddress &&
+        !!effectiveAddress &&
+        redemptionMode === 'tag',
+    },
+  });
+  const reservedTags = reservedTagsData as readonly bigint[] | undefined;
+
+  const [tagDetails, setTagDetails] = useState<MintingTagDetails[]>([]);
+  const [isLoadingTagDetails, setIsLoadingTagDetails] = useState(false);
+  const [selectedMintingTag, setSelectedMintingTag] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (
+      !mintingTagManagerAddress ||
+      !reservedTags?.length ||
+      redemptionMode !== 'tag'
+    ) {
+      setTagDetails([]);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingTagDetails(true);
+    fetchMintingTagsDetails(mintingTagManagerAddress, reservedTags, chainId)
+      .then(details => {
+        if (!cancelled) setTagDetails(details);
+      })
+      .catch(err => {
+        console.error('Error loading minting tag details:', err);
+        if (!cancelled) setTagDetails([]);
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingTagDetails(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mintingTagManagerAddress, reservedTags, chainId, redemptionMode]);
 
   const [redemptionQueueTotalValueUBA, setRedemptionQueueTotalValueUBA] =
     useState<bigint | null>(null);
@@ -257,6 +339,7 @@ export default function Redeem() {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm<RedeemXRPFormData>({
     resolver: zodResolver(makeRedeemSchema(redemptionMode)),
     defaultValues: {
@@ -267,9 +350,46 @@ export default function Redeem() {
   });
 
   const watchedAmount = watch('amount');
+  const watchedDestinationTag = watch('destinationTag');
 
   const assetDecimals = settings ? Number(settings.assetDecimals) : 6;
+
+  const handleMintingTagSelect = useCallback(
+    (tagId: string) => {
+      setSelectedMintingTag(tagId);
+      setValue('destinationTag', tagId, { shouldValidate: true });
+    },
+    [setValue]
+  );
+
+  const handleDestinationTagInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      setValue('destinationTag', value, { shouldValidate: true });
+      if (
+        selectedMintingTag !== null &&
+        value !== selectedMintingTag
+      ) {
+        setSelectedMintingTag(null);
+      }
+    },
+    [setValue, selectedMintingTag]
+  );
+
+  const selectedTagDetail = useMemo(
+    () =>
+      tagDetails.find(d => d.tagId.toString() === selectedMintingTag),
+    [tagDetails, selectedMintingTag]
+  );
   const walletBalanceUBA = fxrpBalanceData as bigint | undefined;
+
+  const minimumRedeemAmountPlaceholder = useMemo(() => {
+    if (minimumRedeemAmountUBA === undefined) return undefined;
+    return formatRedeemAmountPlaceholder(
+      minimumRedeemAmountUBA,
+      assetDecimals
+    );
+  }, [minimumRedeemAmountUBA, assetDecimals]);
 
   // Write contract for redeem function using contract-specific hook
   // https://dev.flare.network/fassets/reference/IAssetManager#redeem
@@ -401,6 +521,7 @@ export default function Redeem() {
         `Successfully submitted redemption of ${watchedAmount} XRP${tagSuffix} to ${xrplAddress}`
       );
       reset();
+      setSelectedMintingTag(null);
       refetchFxrpBalance();
 
       // Get the latest testXRP index after successful redemption
@@ -1005,9 +1126,9 @@ export default function Redeem() {
             assetDecimals={assetDecimals}
             minimumRedeemAmountUBA={minimumRedeemAmountUBA}
             redemptionQueueTotalValueUBA={redemptionQueueTotalValueUBA}
-            walletBalanceUBA={walletBalanceUBA}
+            walletBalanceUBA={mounted ? walletBalanceUBA : undefined}
             isLoadingQueue={isLoadingQueueTotal}
-            isConnected={isConnected}
+            isConnected={mounted && isConnected}
           />
 
           {/* Mode selector — redeem by amount or with destination tag */}
@@ -1015,7 +1136,8 @@ export default function Redeem() {
             value={redemptionMode}
             onValueChange={value => {
               setRedemptionMode(value as RedemptionMode);
-              reset({ xrplAddress: '', amount: '' });
+              reset({ xrplAddress: '', amount: '', destinationTag: '' });
+              setSelectedMintingTag(null);
               setSuccess(null);
               setError(null);
               setRemainingLots(null);
@@ -1037,9 +1159,17 @@ export default function Redeem() {
             </TabsContent>
             <TabsContent value='tag' className='text-xs text-green-700 mt-1'>
               Redeem an arbitrary amount and tag the XRPL payout with an{' '}
-              <code className='bg-green-100 px-1 rounded'>
-                XRPL DestinationTag
-              </code>{' '}
+              <a
+                href='https://xrpl.org/docs/concepts/transactions/source-and-destination-tags'
+                target='_blank'
+                rel='noopener noreferrer'
+                className='inline-flex items-center gap-1 text-green-700 hover:underline'
+              >
+                <code className='bg-green-100 px-1 rounded'>
+                  XRPL DestinationTag
+                </code>
+                <ExternalLink className='h-3 w-3 shrink-0' />
+              </a>{' '}
               via{' '}
               <code className='bg-green-100 px-1 rounded'>redeemWithTag</code>.
               Useful for exchanges and custodial wallets. See the limits table
@@ -1070,22 +1200,188 @@ export default function Redeem() {
 
               {/* Destination Tag — tag mode only */}
               {redemptionMode === 'tag' && (
-                <div className='space-y-2'>
+                <div className='space-y-3'>
                   <Label htmlFor='destinationTag' className='text-green-900'>
-                    XRPL Destination Tag
+                    <a
+                      href='https://xrpl.org/docs/concepts/transactions/source-and-destination-tags'
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='inline-flex items-center gap-1 hover:underline'
+                    >
+                      XRPL Destination Tag
+                      <ExternalLink className='h-3 w-3' />
+                    </a>
                   </Label>
-                  <Input
-                    {...register('destinationTag')}
-                    id='destinationTag'
-                    type='number'
-                    placeholder='72'
-                    step='1'
-                    min='0'
-                    className='border-green-300 focus:ring-green-500 focus:border-green-500'
-                  />
+
+                  {mounted && isConnected && (
+                    <div className='rounded-lg border border-green-200 overflow-hidden'>
+                      <div className='bg-green-100/70 px-4 py-2 border-b border-green-200 flex items-center justify-between gap-2'>
+                        <h3 className='text-sm font-semibold text-green-900 flex items-center gap-1.5'>
+                          <Tag className='h-3.5 w-3.5' />
+                          Your minting tags
+                        </h3>
+                        <Link
+                          href='/tags'
+                          className='text-xs text-green-700 hover:underline'
+                        >
+                          Manage tags →
+                        </Link>
+                      </div>
+                      {isLoadingReservedTags || isLoadingTagDetails ? (
+                        <div className='flex items-center gap-2 p-4 text-sm text-green-700'>
+                          <Loader2 className='h-4 w-4 animate-spin' />
+                          Loading tags…
+                        </div>
+                      ) : !reservedTags?.length ? (
+                        <p className='p-4 text-sm text-green-700'>
+                          No reserved tags yet.{' '}
+                          <Link
+                            href='/tags'
+                            className='font-medium text-green-800 underline'
+                          >
+                            Reserve a tag
+                          </Link>{' '}
+                          to use its ID as an XRPL destination tag, or enter one
+                          manually below.
+                        </p>
+                      ) : (
+                        <div className='overflow-x-auto'>
+                          <table className='w-full text-sm'>
+                            <thead>
+                              <tr className='border-b border-green-200 bg-green-50 text-left text-xs uppercase tracking-wide text-green-800'>
+                                <th className='px-4 py-2 font-medium'>Tag</th>
+                                <th className='px-4 py-2 font-medium'>
+                                  Mint recipient
+                                </th>
+                                <th className='px-4 py-2 font-medium w-24'>
+                                  Use
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {reservedTags.map(tagId => {
+                                const id = tagId.toString();
+                                const detail = tagDetails.find(
+                                  d => d.tagId.toString() === id
+                                );
+                                const isSelected = selectedMintingTag === id;
+                                return (
+                                  <tr
+                                    key={id}
+                                    role='button'
+                                    tabIndex={0}
+                                    onClick={() => handleMintingTagSelect(id)}
+                                    onKeyDown={e => {
+                                      if (
+                                        e.key === 'Enter' ||
+                                        e.key === ' '
+                                      ) {
+                                        e.preventDefault();
+                                        handleMintingTagSelect(id);
+                                      }
+                                    }}
+                                    className={
+                                      isSelected
+                                        ? 'bg-green-100/80 border-b border-green-200 cursor-pointer'
+                                        : 'border-b border-green-100 hover:bg-green-50/50 cursor-pointer'
+                                    }
+                                  >
+                                    <td className='px-4 py-3 font-mono font-semibold text-green-900'>
+                                      #{id}
+                                    </td>
+                                    <td className='px-4 py-3 font-mono text-xs text-green-800 break-all max-w-[200px]'>
+                                      {detail && !isZeroAddress(detail.recipient)
+                                        ? detail.recipient
+                                        : '— not set —'}
+                                    </td>
+                                    <td className='px-4 py-3 text-xs'>
+                                      {isSelected ? (
+                                        <span className='font-medium text-green-900'>
+                                          Selected
+                                        </span>
+                                      ) : (
+                                        <span className='text-green-600'>
+                                          Click to use
+                                        </span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {reservedTags && reservedTags.length > 0 && (
+                        <div className='p-3 border-t border-green-200 bg-green-50/50'>
+                          <Label className='text-xs text-green-800 mb-1.5 block'>
+                            Or pick from dropdown
+                          </Label>
+                          <Select
+                            value={selectedMintingTag ?? undefined}
+                            onValueChange={handleMintingTagSelect}
+                          >
+                            <SelectTrigger className='border-green-300 focus:ring-green-500'>
+                              <SelectValue placeholder='Select a minting tag' />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {reservedTags.map(t => (
+                                <SelectItem
+                                  key={t.toString()}
+                                  value={t.toString()}
+                                >
+                                  <span className='font-mono'>
+                                    #{t.toString()}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className='space-y-2'>
+                    <Label
+                      htmlFor='destinationTag'
+                      className='text-xs text-green-800'
+                    >
+                      Destination tag (manual entry)
+                    </Label>
+                    <Input
+                      {...register('destinationTag')}
+                      id='destinationTag'
+                      type='number'
+                      placeholder='72'
+                      step='1'
+                      min='0'
+                      value={watchedDestinationTag ?? ''}
+                      onChange={handleDestinationTagInputChange}
+                      className='border-green-300 focus:ring-green-500 focus:border-green-500'
+                    />
+                  </div>
                   {errors.destinationTag && (
                     <p className='text-sm text-destructive'>
                       {errors.destinationTag.message}
+                    </p>
+                  )}
+                  {selectedTagDetail && selectedMintingTag && (
+                    <p className='text-xs text-green-700 bg-green-50 border border-green-200 rounded p-2'>
+                      Using minting tag{' '}
+                      <span className='font-mono font-semibold'>
+                        #{selectedMintingTag}
+                      </span>{' '}
+                      as XRPL destination tag.
+                      {!isZeroAddress(selectedTagDetail.recipient) && (
+                        <>
+                          {' '}
+                          On-chain mint recipient:{' '}
+                          <span className='font-mono break-all'>
+                            {selectedTagDetail.recipient}
+                          </span>
+                        </>
+                      )}
                     </p>
                   )}
                   <p className='text-xs text-green-600'>
@@ -1103,7 +1399,9 @@ export default function Redeem() {
                 <Input
                   {...register('amount')}
                   type='number'
-                  placeholder='5.5'
+                  placeholder={
+                    minimumRedeemAmountPlaceholder ?? 'Loading…'
+                  }
                   step='any'
                   min='0'
                   className='border-green-300 focus:ring-green-500 focus:border-green-500'

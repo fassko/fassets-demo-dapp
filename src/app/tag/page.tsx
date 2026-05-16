@@ -1,12 +1,5 @@
-'use client';
-
-import Layout from '@/components/Layout';
-import MintingTags from '@/components/MintingTags';
+import { redirect } from 'next/navigation';
 
 export default function TagPage() {
-  return (
-    <Layout>
-      <MintingTags />
-    </Layout>
-  );
+  redirect('/tags');
 }

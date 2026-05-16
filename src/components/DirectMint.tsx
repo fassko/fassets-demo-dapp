@@ -51,7 +51,9 @@ import {
 import { isZeroAddress } from '@/lib/mintingTagUtils';
 import {
   computeDirectMintBreakdownFromGrossDrops,
+  computeMinimumDirectMintGrossDrops,
   formatXrpFromDrops,
+  formatXrpPlaceholder,
 } from '@/lib/directMintFeeBreakdown';
 
 const DirectMintFormSchema = z.object({
@@ -300,6 +302,17 @@ export default function DirectMint() {
     executorFeeUBA,
   ]);
 
+  const minimumMintAmountPlaceholder = useMemo(() => {
+    if (!directMintFeeParamsReady) return undefined;
+    const minDrops = computeMinimumDirectMintGrossDrops(
+      feeBIPS as bigint,
+      minimumFeeUBA as bigint,
+      executorFeeUBA
+    );
+    if (minDrops === null) return undefined;
+    return formatXrpPlaceholder(minDrops);
+  }, [directMintFeeParamsReady, feeBIPS, minimumFeeUBA, executorFeeUBA]);
+
   // Auto-select the first reserved tag if none selected
   const reservedTags = reservedTagsData as readonly bigint[] | undefined;
   useEffect(() => {
@@ -434,7 +447,7 @@ export default function DirectMint() {
         setPaymentState({
           status: 'error',
           message:
-            'Set a minting recipient for this tag on the Tag page before paying with Xaman.',
+            'Set a minting recipient for this tag on the Tags page before paying with Xaman.',
         });
         return;
       }
@@ -622,8 +635,8 @@ export default function DirectMint() {
               <p className='text-xs text-emerald-600'>
                 Tag mode mints FXRP to the on-chain recipient for your selected tag.
                 Configure tags on the{' '}
-                <Link href='/tag' className='text-emerald-700 hover:underline font-medium'>
-                  Tag page
+                <Link href='/tags' className='text-emerald-700 hover:underline font-medium'>
+                  Tags page
                 </Link>
                 .
               </p>
@@ -673,18 +686,36 @@ export default function DirectMint() {
                 <code className='bg-emerald-100 px-1 rounded'>
                   MintingTagManager.reserve()
                 </code>
-                , set its recipient, then send XRPL payments using{' '}
-                <code className='bg-emerald-100 px-1 rounded'>
-                  DestinationTag
-                </code>{' '}
+                , set its recipient on the{' '}
+                <Link href='/tags' className='text-emerald-800 hover:underline font-medium'>
+                  Tags page
+                </Link>
+                , then send XRPL payments using{' '}
+                <a
+                  href='https://xrpl.org/docs/concepts/transactions/source-and-destination-tags'
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='inline-flex items-center gap-1 text-emerald-700 hover:underline'
+                >
+                  <code className='bg-emerald-100 px-1 rounded'>
+                    DestinationTag
+                  </code>
+                  <ExternalLink className='h-3 w-3 shrink-0' />
+                </a>{' '}
                 instead of a memo.
               </p>
 
               <div className='rounded-lg border border-emerald-200 bg-emerald-50 p-3 space-y-2 text-sm'>
                 <div className='flex items-center justify-between gap-2'>
-                  <span className='font-medium text-emerald-900 shrink-0'>
-                    Tag Manager:
-                  </span>
+                  <a
+                    href='https://dev.flare.network/fassets/reference/IMintingTagManager'
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='font-medium text-emerald-900 shrink-0 inline-flex items-center gap-1 hover:underline'
+                  >
+                    Tag manager
+                    <ExternalLink className='h-3 w-3' />
+                  </a>
                   {mintingTagManagerAddress ? (
                     <a
                       href={getExplorerUrl(
@@ -813,10 +844,10 @@ export default function DirectMint() {
                     <p className='text-xs text-amber-800'>
                       Set a recipient on the{' '}
                       <Link
-                        href='/tag'
+                        href='/tags'
                         className='font-medium text-emerald-800 underline'
                       >
-                        Tag page
+                        Tags page
                       </Link>{' '}
                       before paying.
                     </p>
@@ -828,7 +859,7 @@ export default function DirectMint() {
                     asChild
                     className='border-emerald-300 text-emerald-800'
                   >
-                    <Link href='/tag'>
+                    <Link href='/tags'>
                       Manage tags (recipient, executor, transfer)
                     </Link>
                   </Button>
@@ -1025,7 +1056,9 @@ export default function DirectMint() {
                     {...register('amountXrp')}
                     id='amountXrp'
                     type='number'
-                    placeholder='20'
+                    placeholder={
+                      minimumMintAmountPlaceholder ?? 'Loading…'
+                    }
                     step='any'
                     min='0'
                     className='border-emerald-300 focus:ring-emerald-500'

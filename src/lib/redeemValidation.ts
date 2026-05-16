@@ -79,6 +79,16 @@ export function formatUbaAsAsset(uba: bigint, assetDecimals: number): string {
   return (Number(uba) / Math.pow(10, assetDecimals)).toFixed(assetDecimals);
 }
 
+/** Compact FXRP/XRP string for input placeholders (drops trailing zeros). */
+export function formatRedeemAmountPlaceholder(
+  uba: bigint,
+  assetDecimals: number
+): string {
+  const n = Number(uba) / Math.pow(10, assetDecimals);
+  if (!Number.isFinite(n)) return '';
+  return n.toFixed(assetDecimals).replace(/\.?0+$/, '');
+}
+
 /** Largest single redemption allowed: min(wallet, queue), if that meets the minimum. */
 export function computeMaxRedeemableUBA(
   walletBalanceUBA: bigint,

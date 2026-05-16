@@ -149,7 +149,7 @@ export function RedemptionLimitsTable({
                 <td
                   className={`px-4 py-3 align-top ${
                     row.highlight
-                      ? 'font-semibold text-green-900'
+                      ? 'font-semibold text-green-900 whitespace-nowrap'
                       : 'text-green-800'
                   }`}
                 >
@@ -174,7 +174,7 @@ export function RedemptionLimitsTable({
       </div>
       {limitingFactor && maxRedeemableUBA !== null && maxRedeemableUBA > BigInt(0) && (
         <p className='border-t border-green-200 px-4 py-2 text-xs text-green-700 sm:hidden'>
-          <span className='font-medium'>You can redeem up to:</span>{' '}
+          <span className='font-medium whitespace-nowrap'>You can redeem up to:</span>{' '}
           {limitingFactor}
         </p>
       )}

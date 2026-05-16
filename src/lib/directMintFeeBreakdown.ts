@@ -88,6 +88,80 @@ export type DirectMintGrossBreakdown = {
   unallocatedUBA: bigint;
 };
 
+/**
+ * Smallest gross XRPL payment (drops) that yields a positive estimated net mint,
+ * using the same fee rules as `computeDirectMintBreakdownFromGrossDrops`.
+ */
+export function computeMinimumDirectMintGrossDrops(
+  feeBIPS: bigint,
+  minimumFeeUBA: bigint,
+  executorFeeUBA: bigint
+): bigint | null {
+  const zero = BigInt(0);
+  const one = BigInt(1);
+
+  const minAtZero = directMintingFeeForNetUBA(zero, feeBIPS, minimumFeeUBA);
+  const floor = minAtZero.appliedMintingFeeUBA + executorFeeUBA;
+
+  if (
+    computeDirectMintBreakdownFromGrossDrops(
+      floor,
+      feeBIPS,
+      minimumFeeUBA,
+      executorFeeUBA
+    ) === null
+  ) {
+    return null;
+  }
+
+  const floorBreakdown = computeDirectMintBreakdownFromGrossDrops(
+    floor,
+    feeBIPS,
+    minimumFeeUBA,
+    executorFeeUBA
+  );
+  if (floorBreakdown && floorBreakdown.netMintUBA > zero) {
+    return floor;
+  }
+
+  // Search up to ~100k XRP in drops for the smallest gross with netMint > 0.
+  let lo = floor + one;
+  let hi = floor + BigInt(100_000_000_000);
+  const atHi = computeDirectMintBreakdownFromGrossDrops(
+    hi,
+    feeBIPS,
+    minimumFeeUBA,
+    executorFeeUBA
+  );
+  if (!atHi || atHi.netMintUBA === zero) return null;
+
+  while (lo < hi) {
+    const mid = (lo + hi) / BigInt(2);
+    const breakdown = computeDirectMintBreakdownFromGrossDrops(
+      mid,
+      feeBIPS,
+      minimumFeeUBA,
+      executorFeeUBA
+    );
+    if (breakdown && breakdown.netMintUBA > zero) {
+      hi = mid;
+    } else {
+      lo = mid + one;
+    }
+  }
+
+  return lo;
+}
+
 export function formatXrpFromDrops(drops: bigint, fractionDigits = 6): string {
   return (Number(drops) / XRP_CONFIG.DROPS_PER_XRP).toFixed(fractionDigits);
+}
+
+/** Compact XRP string for input placeholders (drops trailing zeros). */
+export function formatXrpPlaceholder(drops: bigint): string {
+  const n = Number(drops) / XRP_CONFIG.DROPS_PER_XRP;
+  if (!Number.isFinite(n)) return '';
+  return n
+    .toFixed(6)
+    .replace(/\.?0+$/, '');
 }

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 
 import {
-  ArrowRight,
   Check,
   Copy,
   ExternalLink,
@@ -19,6 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
 import { useFXRPTokenDetails } from '@/hooks/useFXRPTokenDetails';
+import { useMintingCapData } from '@/hooks/useMintingCapData';
 import { getTypedSettings } from '@/lib/abiUtils';
 import { getExplorerName } from '@/lib/chainUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
@@ -29,13 +29,10 @@ import { truncateAddress } from '@/lib/utils';
 // https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity
 // https://dev.flare.network/fassets/operational-parameters
 
-interface SettingsProps {
-  onNavigate?: (tab: string) => void;
-}
-
-export default function Settings({ onNavigate }: SettingsProps) {
+export default function Settings() {
   // Use FAssets asset manager hook to read settings
   const {
+    assetManagerAddress,
     settings: rawSettings,
     isLoading: loading,
     error,
@@ -46,6 +43,12 @@ export default function Settings({ onNavigate }: SettingsProps) {
 
   // Use utility function to properly type settings from ABI
   const settings = getTypedSettings(rawSettings);
+
+  const {
+    mintingData,
+    isLoading: isLoadingMintingCap,
+    refetch: refetchMintingCap,
+  } = useMintingCapData();
 
   const { priceData } = useFXRPPrice();
   const {
@@ -63,13 +66,13 @@ export default function Settings({ onNavigate }: SettingsProps) {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await refetchSettings();
+      await Promise.all([refetchSettings(), refetchMintingCap()]);
     } finally {
       setIsRefreshing(false);
     }
   };
 
-  const isLoading = loading || isRefreshing;
+  const isLoading = loading || isRefreshing || isLoadingMintingCap;
 
   // Helper function to create explorer link with copy functionality
   function createExplorerLink(address: string) {
@@ -102,9 +105,32 @@ export default function Settings({ onNavigate }: SettingsProps) {
     );
   }
 
+  function settingsLabel(title: string, docUrl?: string) {
+    if (!docUrl) {
+      return title;
+    }
+
+    return (
+      <a
+        href={docUrl}
+        target='_blank'
+        rel='noopener noreferrer'
+        className='inline-flex items-center gap-1 hover:text-blue-600 hover:underline'
+      >
+        {title}
+        <ExternalLink className='h-3 w-3' />
+      </a>
+    );
+  }
+
   function settingsBox(
     title: string,
-    items: Array<{ title: string; value: React.ReactNode }>
+    items: Array<{
+      title: string;
+      value: React.ReactNode;
+      docUrl?: string;
+      dividerBefore?: boolean;
+    }>
   ) {
     return (
       <Card>
@@ -114,11 +140,16 @@ export default function Settings({ onNavigate }: SettingsProps) {
         <CardContent>
           <div className='space-y-2 text-sm text-slate-700'>
             {items.map((item, index) => (
-              <div key={index} className='flex justify-between'>
-                <span className='font-medium text-slate-900'>
-                  {item.title}:
-                </span>
-                <span>{item.value}</span>
+              <div key={index}>
+                {item.dividerBefore && (
+                  <hr className='border-slate-200 my-3' />
+                )}
+                <div className='flex justify-between gap-4'>
+                  <span className='font-medium text-slate-900 shrink-0'>
+                    {settingsLabel(item.title, item.docUrl)}:
+                  </span>
+                  <span className='text-right'>{item.value}</span>
+                </div>
               </div>
             ))}
           </div>
@@ -189,27 +220,33 @@ export default function Settings({ onNavigate }: SettingsProps) {
 
             {settings && (
               <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-                {settingsBox('Contract Addresses', [
+                {settingsBox('FXRP Token & Contracts', [
                   {
                     title: 'Asset Manager Controller',
+                    docUrl:
+                      'https://dev.flare.network/fassets/reference/IAssetManagerController',
                     value: createExplorerLink(settings.assetManagerController),
                   },
                   {
-                    title: 'FXRP Token',
-                    value: createExplorerLink(settings.fAsset),
+                    title: 'Asset Manager',
+                    docUrl:
+                      'https://dev.flare.network/fassets/reference/IAssetManager',
+                    value: assetManagerAddress
+                      ? createExplorerLink(assetManagerAddress)
+                      : 'Loading...',
                   },
                   {
                     title: 'Agent Owner Registry',
+                    docUrl:
+                      'https://dev.flare.network/fassets/reference/IAgentOwnerRegistry',
                     value: createExplorerLink(settings.agentOwnerRegistry),
                   },
-                ])}
-
-                {settingsBox('FXRP Token Details', [
                   {
-                    title: 'Token Address',
+                    title: 'FXRP Token',
+                    dividerBefore: true,
                     value: fAssetAddress
                       ? createExplorerLink(fAssetAddress)
-                      : 'Loading...',
+                      : createExplorerLink(settings.fAsset),
                   },
                   {
                     title: 'Name',
@@ -236,54 +273,11 @@ export default function Settings({ onNavigate }: SettingsProps) {
                   },
                 ])}
 
-                {settingsBox('Asset Configuration', [
-                  {
-                    title: 'Asset Decimals',
-                    value: settings.assetDecimals.toString(),
-                  },
-                  {
-                    title: 'Asset Minting Decimals',
-                    value: settings.assetMintingDecimals.toString(),
-                  },
-                  {
-                    title: 'Asset Unit UBA',
-                    value: settings.assetUnitUBA.toString(),
-                  },
-                  {
-                    title: 'Asset Minting Granularity UBA',
-                    value: settings.assetMintingGranularityUBA.toString(),
-                  },
-                ])}
-
-                {settingsBox('Minting Settings', [
-                  {
-                    title: 'Lot Size AMG',
-                    value: settings.lotSizeAMG.toString(),
-                  },
-                  {
-                    title: 'Collateral Reservation Fee (BIPS)',
-                    value: settings.collateralReservationFeeBIPS.toString(),
-                  },
-                ])}
-
                 <Card>
                   <CardHeader>
-                    <div className='flex items-center justify-between'>
-                      <CardTitle className='text-slate-900'>
-                        Minting Cap 🧢
-                      </CardTitle>
-                      {onNavigate && (
-                        <Button
-                          onClick={() => onNavigate('/minting-cap')}
-                          variant='outline'
-                          size='sm'
-                          className='border-blue-300 hover:bg-blue-50 text-blue-700 cursor-pointer'
-                        >
-                          View Details
-                          <ArrowRight className='h-4 w-4 ml-1' />
-                        </Button>
-                      )}
-                    </div>
+                    <CardTitle className='text-slate-900'>
+                      Minting Cap 🧢
+                    </CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className='space-y-2 text-sm text-slate-700'>
@@ -344,6 +338,72 @@ export default function Settings({ onNavigate }: SettingsProps) {
                       )}
                       <div className='flex justify-between'>
                         <span className='font-medium text-slate-900'>
+                          Total Supply (FXRP):
+                        </span>
+                        <span>
+                          {!mintingData
+                            ? 'Loading...'
+                            : mintingData.totalSupplyFXRP.toLocaleString(
+                                undefined,
+                                {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 6,
+                                }
+                              )}
+                        </span>
+                      </div>
+                      {priceData && mintingData && (
+                        <div className='flex justify-between'>
+                          <span className='font-medium text-slate-900'>
+                            Total Supply (USD):
+                          </span>
+                          <span>
+                            {formatPrice(
+                              mintingData.totalSupplyFXRP * priceData.price
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
+                          Available to Mint (lots):
+                        </span>
+                        <span>
+                          {!mintingData
+                            ? 'Loading...'
+                            : mintingData.availableToMintLots.toLocaleString()}
+                        </span>
+                      </div>
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
+                          Available to Mint (FXRP):
+                        </span>
+                        <span>
+                          {!mintingData
+                            ? 'Loading...'
+                            : mintingData.availableToMintFXRP.toLocaleString(
+                                undefined,
+                                {
+                                  minimumFractionDigits: 2,
+                                  maximumFractionDigits: 2,
+                                }
+                              )}
+                        </span>
+                      </div>
+                      {priceData && mintingData && (
+                        <div className='flex justify-between'>
+                          <span className='font-medium text-slate-900'>
+                            Available to Mint (USD):
+                          </span>
+                          <span>
+                            {formatPrice(
+                              mintingData.availableToMintFXRP * priceData.price
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      <div className='flex justify-between'>
+                        <span className='font-medium text-slate-900'>
                           Status:
                         </span>
                         <span>
@@ -361,13 +421,6 @@ export default function Settings({ onNavigate }: SettingsProps) {
                     </div>
                   </CardContent>
                 </Card>
-
-                {settingsBox('Redemption Settings', [
-                  {
-                    title: 'Redemption Fee (BIPS)',
-                    value: settings.redemptionFeeBIPS.toString(),
-                  },
-                ])}
               </div>
             )}
           </div>
