@@ -1,121 +1,159 @@
-# Flare Network Demo App
+# FAssets Demo
 
-A comprehensive demo application showcasing Flare Network's cross-chain capabilities, including Asset Manager settings and FXRP cross-chain payments.
+A Next.js demo application for [Flare FAssets](https://dev.flare.network/fassets/overview), focused on **FXRP** (wrapped XRP on Flare). It walks through reading Asset Manager settings, **direct minting** from XRPL, **minting tags**, on-chain **FXRP transfers**, and **redemption** back to XRP—including FDC attestation for redemption completion.
 
 ## Features
 
-### 1. Asset Manager Settings
+### Settings (`/`)
 
-- View AssetManagerFXRP contract settings from the Flare network
-- Real-time balance display for Flare and XRPL networks
-- Explorer links to verify contract addresses
-- Organized display of contract addresses, asset configuration, minting settings, redemption settings, timelock settings, and liquidation settings
+- Read **AssetManagerFXRP** operational parameters (minting, redemption, timelock, liquidation, and related settings)
+- **FXRP token** metadata (name, symbol, decimals, contract address)
+- **FTSO** FXRP/USD price
+- **Minting cap** usage (total, minted, available lots)
+- Explorer links and copy-to-clipboard for contract addresses
 
-### 2. Cross-Chain Payment Portal
+### Direct Mint (`/mint`)
 
-- Send FXRP (wrapped XRP) on Flare to another address
-- Redeem FXRP back to native XRP on XRPL
-- Real-time balance tracking for FLR, FXRP, and XRP
-- Input validation and error handling
-- Transaction status feedback
+Mint FXRP by sending XRP to the protocol **Core Vault** on XRPL ([direct minting](https://dev.flare.network/fassets/direct-minting)):
 
-## Getting Started
+- **Memo mode** — payment memo encodes your Flare recipient; uses [Xaman](https://xumm.app/) (XUMM) for signing via QR/deeplink
+- **Tag mode** — pay with an **XRPL destination tag** tied to a reserved [minting tag](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) NFT
+- Live **fee breakdown** (minting fee, executor fee, net minted amount) and minimum mint amount
+- Watches `DirectMintingExecuted` on Flare after the XRPL payment is signed
+
+### Minting Tags (`/tags`)
+
+Manage **MintingTagManager** ERC-721 tags used for tag-based direct mint and redemption:
+
+- Reserve tags, set **minting recipient** and **executor**, transfer ownership
+- View tag details (recipient, executor, pending executor changes)
+- Links to tag-based mint and redeem flows
+
+### Transfer (`/transfer`)
+
+- Send **FXRP** (ERC-20) to another Flare address
+- FXRP balance display with refresh
+
+### Redeem (`/redeem`)
+
+Redeem FXRP for native XRP on XRPL:
+
+- **By amount** — `redeemAmount` for arbitrary FXRP amounts (with partial-fill / `RedemptionRequestIncomplete` handling)
+- **By tag** — `redeemWithTag` to attach an XRPL destination tag to the payout (exchanges, custodial wallets)
+- **Redemption limits** table (minimum amount, queue total, wallet balance)
+- **FDC attestation** flow after redemption (`ReferencedPaymentNonexistence`) to complete redemption on-chain
+- FLR, FXRP, and XRPL balance cards; XRPL ledger info with FDC deadlines
+
+## Tech stack
+
+- **Next.js 16** (App Router, Turbopack dev server)
+- **React 19**, **TypeScript**, **Tailwind CSS 4**
+- **wagmi 3** + **viem 2** + **@tanstack/react-query**
+- **@flarenetwork/flare-wagmi-periphery-package** for network-specific FAssets ABIs and hooks
+- **xrpl** for XRPL account/ledger reads
+- **react-hook-form** + **zod** for forms
+
+## Supported networks
+
+| Network | Chain ID |
+|---------|----------|
+| Flare Mainnet | 14 |
+| Flare Testnet (Coston2) | 114 |
+| Songbird | 19 |
+| Songbird Testnet (Coston) | 16 |
+
+Connect an injected wallet (e.g. MetaMask) and switch to a supported Flare network. **Coston2** is the usual testnet for FAssets development.
+
+## Getting started
 
 ### Prerequisites
 
-- Node.js 18+
-- MetaMask wallet extension
-- Flare network configured in MetaMask
+- **Node.js 20+** (recommended; project targets modern Node)
+- A browser wallet with a supported Flare network configured
+- For **Direct Mint (Xaman)**: [Xaman Developer](https://apps.xumm.dev/) API key and secret
 
 ### Installation
-
-1. Clone the repository:
 
 ```bash
 git clone <repository-url>
 cd fassets-demo-dapp
-```
-
-2. Install dependencies:
-
-```bash
 npm install
 ```
 
-3. Start the development server:
+### Environment variables
+
+Create `.env.local` in the project root for Xaman direct-mint signing (server-side API routes only):
+
+```bash
+XAMAN_API_KEY=your_xaman_api_key
+XAMAN_API_SECRET=your_xaman_api_secret
+```
+
+Without these, memo-mode direct mint cannot create Xaman payloads; other pages (settings, transfer, redeem contract calls, tag management) still work when the wallet is connected.
+
+### Development
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-## Components
+Open [http://localhost:3000](http://localhost:3000).
 
-The application is organized into several key components that demonstrate different aspects of the Flare Network ecosystem:
+### Other scripts
 
-### Core FAssets Components
+| Script | Description |
+|--------|-------------|
+| `npm run build` | Production build |
+| `npm run start` | Run production server |
+| `npm run lint` / `npm run lint:fix` | ESLint |
+| `npm run format` / `npm run check:all` | Prettier and combined checks |
+| `npm run generate` | Regenerate wagmi contract hooks |
+| `npm run generate-types` | OpenZeppelin type generation (see `docs/TYPES_GENERATION.md`) |
 
-#### `Settings.tsx` - Asset Manager Configuration
+## Project structure
 
-Displays and manages FAssets AssetManagerFXRP contract settings
+| Path | Role |
+|------|------|
+| `src/app/` | App Router pages (`/`, `/mint`, `/tags`, `/transfer`, `/redeem`) |
+| `src/app/api/xaman/` | Xaman payload create/status (direct mint) |
+| `src/app/api/proof-request/` | DA Layer proof proxy (FDC redemption attestation) |
+| `src/components/` | UI: `Settings`, `DirectMint`, `MintingTags`, `Transfer`, `Redeem` |
+| `src/hooks/` | `useAssetManager`, `useFdcContracts`, `useFXRPBalance`, `useMintingCapData`, etc. |
+| `src/lib/` | ABIs, FDC utils, direct-mint fee math, XRPL helpers, wagmi config |
 
-**Documentation**: [FAssets Settings Guide](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity) | [Operational Parameters](https://dev.flare.network/fassets/operational-parameters)
+## Components and documentation
 
-#### `Mint.tsx` - FXRP Minting Interface
+### Core
 
-Enables users to mint FXRP by reserving FLR collateral
-**Documentation**: [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint) | [IAssetManager Reference](https://dev.flare.network/fassets/reference/IAssetManager#reservecollateral)
+| Component | Description | Docs |
+|-----------|-------------|------|
+| `Settings.tsx` | Asset Manager settings, minting cap, FXRP metadata & price | [FAssets settings](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity), [operational parameters](https://dev.flare.network/fassets/operational-parameters) |
+| `DirectMint.tsx` | XRPL → FXRP direct mint (memo or tag) | [Direct minting](https://dev.flare.network/fassets/direct-minting), [minting tags](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) |
+| `MintingTags.tsx` | Reserve and configure minting tag NFTs | [Minting tags guide](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) |
+| `Transfer.tsx` | FXRP ERC-20 transfers on Flare | [FAssets registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry) |
+| `Redeem.tsx` | `redeemAmount` / `redeemWithTag` + FDC completion | [Redemption](https://dev.flare.network/fassets/developer-guides/fassets-redeem), [FDC payment types](https://dev.flare.network/fdc/attestation-types/payment) |
 
-#### `Execute.tsx` - Minting Execution
+### Removed flows
 
-Executes the actual FXRP minting after collateral reservation
-**Documentation**: [IAssetManager ExecuteMinting](https://dev.flare.network/fassets/reference/IAssetManager#executeminting) | [FAssets Minting Guide](https://dev.flare.network/fassets/developer-guides/fassets-mint/)
-
-### FDC (Flare Data Connector) Components
-
-#### `Attestation.tsx` - Cross-Chain Verification
-
-Demonstrates FDC attestation for XRP payment verification
-**Documentation**: [FDC Payment Attestation](https://dev.flare.network/fdc/attestation-types/payment) | [FDC Implementation Guide](https://dev.flare.network/fdc/guides/fdc-by-hand)
-
-### FXRP Transfer & Redemption Components
-
-#### `Transfer.tsx` - FXRP Transfers
-
-Enables FXRP transfers between Flare addresses
-**Documentation**: [FAssets Asset Manager Registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry)
-
-#### `Redeem.tsx` - FXRP to XRP Redemption
-
-Facilitates redemption of FXRP back to native XRP on XRPL
-**Documentation**: [FAssets Redemption Guide](https://dev.flare.network/fassets/developer-guides/fassets-redeem)
+Older **collateral reserve → execute minting** and standalone **Attestation** demo components were removed in favor of **direct minting** and integrated FDC handling inside **Redeem**.
 
 ## Troubleshooting
 
-### Common Issues
-
-1. **MetaMask not connecting**: Ensure MetaMask is installed and unlocked
-2. **Network errors**: Verify you're connected to Flare Coston2 testnet
-3. **Transaction failures**: Check your account has sufficient FLR for gas fees
-4. **Balance not updating**: Click the "Refresh Balance" buttons
+1. **Wallet not connecting** — Use an injected provider; unlock the extension and approve the site.
+2. **Wrong network** — Switch to Flare Testnet (Coston2) or another supported chain; the header shows the active network.
+3. **Transactions fail** — Ensure sufficient **FLR** for gas on Flare.
+4. **Direct mint stuck** — Confirm Xaman credentials in `.env.local`; complete or cancel the Xaman payload; check Core Vault address and (for tag mode) that the tag recipient is set on-chain.
+5. **Redemption attestation** — Wait for FDC voting rounds; use the redeem UI’s attestation step after the redemption transaction confirms.
+6. **Balances stale** — Use refresh controls on balance cards.
 
 ## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Run `npm run check:all` when applicable
+5. Open a pull request
 
 ## License
 
-This project is licensed under the MIT License.
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT License.
