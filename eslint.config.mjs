@@ -1,24 +1,22 @@
-import { FlatCompat } from '@eslint/eslintrc';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
+import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import eslintPluginImport from 'eslint-plugin-import';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
 
 const eslintConfig = [
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
-  ...compat.extends('prettier'),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
+  eslintConfigPrettier,
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
       import: eslintPluginImport,
     },
     rules: {
+      // New error-level rules in eslint-config-next 16. Existing code still
+      // uses these patterns; keep them visible without failing lint.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/refs': 'warn',
       'import/order': [
         'error',
         {

@@ -437,8 +437,7 @@ export default function Redeem() {
     },
   });
   const mintingTagManagerAddress = mintingTagManagerAddressData as
-    | `0x${string}`
-    | undefined;
+    `0x${string}` | undefined;
 
   const useReadReservedTagsForOwner =
     getReadIMintingTagManagerReservedTagsForOwner(chainId);

@@ -72,11 +72,7 @@ function successMessageWithTxLink(
 }
 
 type PendingAction =
-  | 'reserve'
-  | 'setRecipient'
-  | 'setExecutor'
-  | 'transfer'
-  | null;
+  'reserve' | 'setRecipient' | 'setExecutor' | 'transfer' | null;
 
 function formatExecutorCell(
   executor: string,
@@ -167,8 +163,7 @@ export default function MintingTags() {
     query: { enabled: !!assetManagerAddress },
   });
   const mintingTagManagerAddress = mintingTagManagerAddressData as
-    | `0x${string}`
-    | undefined;
+    `0x${string}` | undefined;
 
   const useReadReservationFee =
     getReadIMintingTagManagerReservationFee(chainId);

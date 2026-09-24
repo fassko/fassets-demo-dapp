@@ -141,9 +141,7 @@ export default function Settings() {
           <div className='space-y-2 text-sm text-slate-700'>
             {items.map((item, index) => (
               <div key={index}>
-                {item.dividerBefore && (
-                  <hr className='border-slate-200 my-3' />
-                )}
+                {item.dividerBefore && <hr className='border-slate-200 my-3' />}
                 <div className='flex justify-between gap-4'>
                   <span className='font-medium text-slate-900 shrink-0'>
                     {settingsLabel(item.title, item.docUrl)}:

@@ -368,9 +368,7 @@ export function getReadIMintingTagManagerReservationFee(chainId: number) {
   });
 }
 
-export function getReadIMintingTagManagerReservedTagsForOwner(
-  chainId: number
-) {
+export function getReadIMintingTagManagerReservedTagsForOwner(chainId: number) {
   return createUseReadContract({
     abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
     functionName: 'reservedTagsForOwner',
@@ -407,9 +405,7 @@ export function getWriteIMintingTagManagerReserve(chainId: number) {
   })();
 }
 
-export function getWriteIMintingTagManagerSetMintingRecipient(
-  chainId: number
-) {
+export function getWriteIMintingTagManagerSetMintingRecipient(chainId: number) {
   return createUseWriteContract({
     abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
     functionName: 'setMintingRecipient',

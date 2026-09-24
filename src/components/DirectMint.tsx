@@ -104,8 +104,7 @@ export default function DirectMint() {
     error: assetManagerError,
   } = useAssetManager();
   const tokenAddress = getTypedSettings(rawSettings)?.fAsset as
-    | `0x${string}`
-    | undefined;
+    `0x${string}` | undefined;
 
   const {
     mintings,
@@ -186,8 +185,7 @@ export default function DirectMint() {
     query: { enabled: !!assetManagerAddress && mintMode === 'tag' },
   });
   const mintingTagManagerAddress = mintingTagManagerAddressData as
-    | `0x${string}`
-    | undefined;
+    `0x${string}` | undefined;
 
   // Tag-mode reads against MintingTagManager
   const useReadReservationFee =

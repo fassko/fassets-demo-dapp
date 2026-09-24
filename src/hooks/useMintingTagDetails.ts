@@ -1,6 +1,6 @@
-import type { Address } from 'viem';
-
 import { useChainId } from 'wagmi';
+
+import type { Address } from 'viem';
 
 import {
   getReadIMintingTagManagerAllowedExecutor,

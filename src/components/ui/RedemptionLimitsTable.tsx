@@ -14,10 +14,7 @@ type RedemptionLimitsTableProps = {
   isConnected: boolean;
 };
 
-function formatXrp(
-  uba: bigint | undefined | null,
-  decimals: number
-): string {
+function formatXrp(uba: bigint | undefined | null, decimals: number): string {
   if (uba === undefined || uba === null) return '—';
   return `${formatUbaAsAsset(uba, decimals)} XRP`;
 }
@@ -38,11 +35,7 @@ export function RedemptionLimitsTable({
     minimumRedeemAmountUBA !== undefined &&
     redemptionQueueTotalValueUBA !== null &&
     walletBalanceUBA !== undefined
-      ? computeMaxRedeemableUBA(
-          walletUba,
-          minUba,
-          queueUba
-        )
+      ? computeMaxRedeemableUBA(walletUba, minUba, queueUba)
       : null;
 
   const limitingFactor =
@@ -95,19 +88,20 @@ export function RedemptionLimitsTable({
     },
     {
       label: 'You can redeem up to',
-      value:
-        !isConnected
-          ? 'Connect wallet'
-          : isLoadingQueue || minimumRedeemAmountUBA === undefined
-            ? '…'
-            : maxRedeemableUBA !== null && maxRedeemableUBA > BigInt(0)
-              ? formatXrp(maxRedeemableUBA, assetDecimals)
-              : '0 XRP',
+      value: !isConnected
+        ? 'Connect wallet'
+        : isLoadingQueue || minimumRedeemAmountUBA === undefined
+          ? '…'
+          : maxRedeemableUBA !== null && maxRedeemableUBA > BigInt(0)
+            ? formatXrp(maxRedeemableUBA, assetDecimals)
+            : '0 XRP',
       description:
-        maxRedeemableUBA !== null && maxRedeemableUBA > BigInt(0) && limitingFactor
+        maxRedeemableUBA !== null &&
+        maxRedeemableUBA > BigInt(0) &&
+        limitingFactor
           ? `Capped by ${limitingFactor.toLowerCase()}`
-          : limitingFactor ??
-            'Lowest of your balance and queue liquidity (must meet minimum)',
+          : (limitingFactor ??
+            'Lowest of your balance and queue liquidity (must meet minimum)'),
       highlight: true,
     },
   ];
@@ -172,12 +166,16 @@ export function RedemptionLimitsTable({
           </tbody>
         </table>
       </div>
-      {limitingFactor && maxRedeemableUBA !== null && maxRedeemableUBA > BigInt(0) && (
-        <p className='border-t border-green-200 px-4 py-2 text-xs text-green-700 sm:hidden'>
-          <span className='font-medium whitespace-nowrap'>You can redeem up to:</span>{' '}
-          {limitingFactor}
-        </p>
-      )}
+      {limitingFactor &&
+        maxRedeemableUBA !== null &&
+        maxRedeemableUBA > BigInt(0) && (
+          <p className='border-t border-green-200 px-4 py-2 text-xs text-green-700 sm:hidden'>
+            <span className='font-medium whitespace-nowrap'>
+              You can redeem up to:
+            </span>{' '}
+            {limitingFactor}
+          </p>
+        )}
     </div>
   );
 }

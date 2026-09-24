@@ -1,7 +1,7 @@
 'use client';
 
-import Layout from '@/components/Layout';
 import DirectMint from '@/components/DirectMint';
+import Layout from '@/components/Layout';
 
 export default function MintPage() {
   return (

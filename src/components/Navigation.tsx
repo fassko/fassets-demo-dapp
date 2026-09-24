@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  ArrowRight,
-  Send,
-  Settings,
-  Tag,
-  Zap,
-} from 'lucide-react';
+import { ArrowRight, Send, Settings, Tag, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
