@@ -53,7 +53,7 @@ const getXRPClient = async (): Promise<Client> => {
 };
 
 // Get latest ledger information
-export const getLatestLedgerInfo = async (): Promise<XRPLedgerInfo> => {
+const getLatestLedgerInfo = async (): Promise<XRPLedgerInfo> => {
   try {
     console.log('Fetching latest XRP ledger info...');
 
@@ -107,9 +107,7 @@ export const getAccountBalance = async (
 };
 
 // Calculate FDC deadline values from ledger info
-export const calculateFDCDeadline = (
-  ledgerInfo: XRPLedgerInfo
-): XRPFDCDeadline => {
+const calculateFDCDeadline = (ledgerInfo: XRPLedgerInfo): XRPFDCDeadline => {
   const { ledgerIndex, closeTime } = ledgerInfo;
 
   // Calculate FDC deadline values
@@ -161,16 +159,4 @@ export const isValidXRPAddress = (address: string): boolean => {
   return (
     address.startsWith('r') && address.length >= 25 && address.length <= 35
   );
-};
-
-// Convert drops to XRP
-export const dropsToXRP = (drops: string | number): string => {
-  const dropsNum = typeof drops === 'string' ? parseFloat(drops) : drops;
-  return (dropsNum / XRP_CONFIG.DROPS_PER_XRP).toString();
-};
-
-// Convert XRP to drops
-export const xrpToDrops = (xrp: string | number): string => {
-  const xrpNum = typeof xrp === 'string' ? parseFloat(xrp) : xrp;
-  return (xrpNum * XRP_CONFIG.DROPS_PER_XRP).toString();
 };

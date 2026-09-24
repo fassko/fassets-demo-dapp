@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { useChainId } from 'wagmi';
 
-import { createPublicClient, http, type ReadContractReturnType } from 'viem';
-
+import { useAgentInfos } from '@/hooks/useAgentInfos';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import {
-  getAssetManagerAbi,
-  getReadIAssetManager,
-  getReadIFAsset,
+  getReadIAssetManagerAgentsGetAllAgents,
+  getReadIfAssetDecimals,
+  getReadIfAssetTotalSupply,
   getTypedSettings,
+  type GetAllAgentsReturnType,
 } from '@/lib/abiUtils';
-import { getChainById } from '@/lib/chainUtils';
 
 const AGENT_STATUS_NORMAL = 0;
 const AGENT_STATUS_LIQUIDATION = 1;
 
-export interface MintingCapData {
+interface MintingCapData {
   mintingCapLots: bigint;
   mintingCapFXRP: number;
   totalSupply: bigint;
@@ -34,10 +33,6 @@ export interface MintingCapData {
 
 export function useMintingCapData() {
   const chainId = useChainId();
-  const [mintingData, setMintingData] = useState<MintingCapData | null>(null);
-  const [isCalculating, setIsCalculating] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
   const {
     assetManagerAddress,
     settings: rawSettings,
@@ -47,36 +42,37 @@ export function useMintingCapData() {
   } = useAssetManager();
 
   const settings = getTypedSettings(rawSettings);
+  const fAssetAddress = settings?.fAsset as `0x${string}` | undefined;
 
-  type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
-  type GetAllAgentsReturnType = ReadContractReturnType<
-    AssetManagerAbi,
-    'getAllAgents',
-    readonly [bigint, bigint]
-  >;
-
-  const useReadIFAsset = getReadIFAsset(chainId);
-  const {
-    data: totalSupply,
-    isLoading: isLoadingSupply,
-    refetch: refetchSupply,
-  } = useReadIFAsset({
-    address: settings?.fAsset as `0x${string}`,
-    functionName: 'totalSupply',
+  const useReadDecimals = getReadIfAssetDecimals(chainId);
+  const { data: tokenDecimals, refetch: refetchDecimals } = useReadDecimals({
+    address: fAssetAddress,
     query: {
-      enabled: !!settings?.fAsset,
+      enabled: !!fAssetAddress,
       staleTime: 0,
     },
   });
 
-  const useReadIAssetManager = getReadIAssetManager(chainId);
+  const useReadTotalSupply = getReadIfAssetTotalSupply(chainId);
+  const {
+    data: totalSupply,
+    isLoading: isLoadingSupply,
+    refetch: refetchSupply,
+  } = useReadTotalSupply({
+    address: fAssetAddress,
+    query: {
+      enabled: !!fAssetAddress,
+      staleTime: 0,
+    },
+  });
+
+  const useReadGetAllAgents = getReadIAssetManagerAgentsGetAllAgents(chainId);
   const {
     data: rawAllAgentsData,
     isLoading: isLoadingAgents,
     refetch: refetchAgents,
-  } = useReadIAssetManager({
+  } = useReadGetAllAgents({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getAllAgents',
     query: {
       enabled: !!assetManagerAddress,
       staleTime: 0,
@@ -85,95 +81,84 @@ export function useMintingCapData() {
   });
 
   const allAgentsData = rawAllAgentsData as GetAllAgentsReturnType | undefined;
+  const agents = allAgentsData?.[0];
 
-  useEffect(() => {
-    const calculateMintingCap = async () => {
-      if (!settings || !totalSupply || !allAgentsData || !assetManagerAddress) {
-        return;
+  const {
+    agentInfos,
+    isLoading: isLoadingAgentInfos,
+    error: agentInfosError,
+    refetchAgentInfos,
+  } = useAgentInfos({
+    agents,
+    assetManagerAddress,
+  });
+
+  const { mintingData, error: calculationError } = useMemo(() => {
+    if (
+      !settings ||
+      totalSupply === undefined ||
+      !agentInfos ||
+      tokenDecimals === undefined
+    ) {
+      return { mintingData: null, error: null };
+    }
+
+    try {
+      const lotSizeUBA =
+        BigInt(settings.lotSizeAMG) *
+        BigInt(settings.assetMintingGranularityUBA);
+
+      const mintingCap =
+        BigInt(settings.mintingCapAMG) *
+        BigInt(settings.assetMintingGranularityUBA);
+
+      const assetDecimals = Number(tokenDecimals);
+      const supply = BigInt(totalSupply);
+      const formattedSupply = Number(supply) / Math.pow(10, assetDecimals);
+      const mintedLots = supply / lotSizeUBA;
+
+      let availableToMintLots = 0;
+      for (const agentInfo of agentInfos) {
+        const isAgentActiveOrLiquidation =
+          Number(agentInfo.status) === AGENT_STATUS_NORMAL ||
+          Number(agentInfo.status) === AGENT_STATUS_LIQUIDATION;
+        const isPubliclyAvailable = agentInfo.publiclyAvailable === true;
+
+        if (isAgentActiveOrLiquidation && isPubliclyAvailable) {
+          availableToMintLots += Number(agentInfo.freeCollateralLots);
+        }
       }
 
-      try {
-        setIsCalculating(true);
-        setError(null);
+      let finalAvailableLots = availableToMintLots;
+      const hasMintingCap = mintingCap > BigInt(0);
 
-        const lotSizeUBA =
-          BigInt(settings.lotSizeAMG) *
-          BigInt(settings.assetMintingGranularityUBA);
+      let usagePercentage = 0;
+      let remainingPercentage = 100;
+      let remainingAmount = BigInt(0);
+      let remainingAmountFXRP = 0;
 
-        const mintingCap =
-          BigInt(settings.mintingCapAMG) *
-          BigInt(settings.assetMintingGranularityUBA);
+      if (hasMintingCap) {
+        remainingAmount = mintingCap - supply;
+        const remainingCapacityLots = Number(remainingAmount / lotSizeUBA);
+        finalAvailableLots = Math.min(
+          remainingCapacityLots,
+          availableToMintLots
+        );
 
-        const assetDecimals = Number(settings.assetDecimals);
+        usagePercentage = (Number(supply) / Number(mintingCap)) * 100;
+        remainingPercentage = 100 - usagePercentage;
+        remainingAmountFXRP =
+          Number(remainingAmount) / Math.pow(10, assetDecimals);
+      }
 
-        const supply = BigInt(totalSupply);
-        const formattedSupply = Number(supply) / Math.pow(10, assetDecimals);
-        const mintedLots = supply / lotSizeUBA;
+      const mintingCapLots = mintingCap / lotSizeUBA;
+      const formattedMintingCap =
+        Number(mintingCap) / Math.pow(10, assetDecimals);
+      const availableToMintFXRP =
+        (finalAvailableLots * Number(lotSizeUBA)) / Math.pow(10, assetDecimals);
 
-        const agents = (allAgentsData as GetAllAgentsReturnType)[0];
-        let availableToMintLots = 0;
-
-        const currentChain = getChainById(chainId) || getChainById(14);
-        if (!currentChain) {
-          throw new Error('Unable to determine chain');
-        }
-
-        const client = createPublicClient({
-          chain: currentChain,
-          transport: http(),
-        });
-
-        for (const agent of agents) {
-          try {
-            const agentInfo = await client.readContract({
-              address: assetManagerAddress as `0x${string}`,
-              abi: getAssetManagerAbi(chainId),
-              functionName: 'getAgentInfo',
-              args: [agent],
-            });
-
-            const isAgentActiveOrLiquidation =
-              Number(agentInfo.status) === AGENT_STATUS_NORMAL ||
-              Number(agentInfo.status) === AGENT_STATUS_LIQUIDATION;
-            const isPubliclyAvailable = agentInfo.publiclyAvailable === true;
-
-            if (isAgentActiveOrLiquidation && isPubliclyAvailable) {
-              availableToMintLots += Number(agentInfo.freeCollateralLots);
-            }
-          } catch (err) {
-            console.error(`Error fetching agent info for ${agent}:`, err);
-          }
-        }
-
-        let finalAvailableLots = availableToMintLots;
-        const hasMintingCap = mintingCap > BigInt(0);
-
-        let usagePercentage = 0;
-        let remainingPercentage = 100;
-        let remainingAmount = BigInt(0);
-        let remainingAmountFXRP = 0;
-
-        if (hasMintingCap) {
-          remainingAmount = mintingCap - supply;
-          const remainingCapacityLots = Number(remainingAmount / lotSizeUBA);
-          finalAvailableLots = Math.min(
-            remainingCapacityLots,
-            availableToMintLots
-          );
-
-          usagePercentage = (Number(supply) / Number(mintingCap)) * 100;
-          remainingPercentage = 100 - usagePercentage;
-          remainingAmountFXRP =
-            Number(remainingAmount) / Math.pow(10, assetDecimals);
-        }
-
-        const mintingCapLots = mintingCap / lotSizeUBA;
-        const formattedMintingCap =
-          Number(mintingCap) / Math.pow(10, assetDecimals);
-        const availableToMintFXRP =
-          (finalAvailableLots * Number(lotSizeUBA)) / Math.pow(10, assetDecimals);
-
-        setMintingData({
+      return {
+        mintingData: {
           mintingCapLots,
           mintingCapFXRP: formattedMintingCap,
           totalSupply: supply,
@@ -187,31 +172,47 @@ export function useMintingCapData() {
           remainingAmountFXRP,
           lotSizeUBA,
           hasMintingCap,
-        });
-      } catch (err) {
-        console.error('Error calculating minting cap:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to calculate minting cap'
-        );
-      } finally {
-        setIsCalculating(false);
-      }
-    };
-
-    calculateMintingCap();
-  }, [settings, totalSupply, allAgentsData, assetManagerAddress, chainId]);
+        } satisfies MintingCapData,
+        error: null,
+      };
+    } catch (err) {
+      console.error('Error calculating minting cap:', err);
+      return {
+        mintingData: null,
+        error:
+          err instanceof Error
+            ? err.message
+            : 'Failed to calculate minting cap',
+      };
+    }
+  }, [agentInfos, settings, tokenDecimals, totalSupply]);
 
   const isLoading =
-    isLoadingSettings || isLoadingSupply || isLoadingAgents || isCalculating;
+    isLoadingSettings ||
+    isLoadingSupply ||
+    isLoadingAgents ||
+    isLoadingAgentInfos;
 
   const refetch = useCallback(async () => {
-    await Promise.all([refetchSettings(), refetchSupply(), refetchAgents()]);
-  }, [refetchSettings, refetchSupply, refetchAgents]);
+    await Promise.all([
+      refetchSettings(),
+      refetchSupply(),
+      refetchDecimals(),
+      refetchAgents(),
+      refetchAgentInfos(),
+    ]);
+  }, [
+    refetchAgentInfos,
+    refetchAgents,
+    refetchDecimals,
+    refetchSettings,
+    refetchSupply,
+  ]);
 
   return {
     mintingData,
     isLoading,
-    error: error ?? assetManagerError,
+    error: calculationError ?? agentInfosError ?? assetManagerError,
     refetch,
   };
 }

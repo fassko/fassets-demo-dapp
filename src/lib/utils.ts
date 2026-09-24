@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { songbirdTestnet, flareTestnet, flare, songbird } from 'wagmi/chains';
+import { flare } from 'wagmi/chains';
+
+import { getChainById } from './chainUtils';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -48,6 +50,15 @@ export function truncateString(
 }
 
 /**
+ * Gets the Blockscout explorer origin for a supported Flare chain.
+ * @param chainId - The chain ID
+ * @returns The explorer base URL, or undefined if the chain is not supported
+ */
+export function getExplorerBaseUrl(chainId: number): string | undefined {
+  return getChainById(chainId)?.blockExplorers?.default?.url;
+}
+
+/**
  * Gets the blockchain explorer URL for a given chain ID and transaction hash or address
  * @param chainId - The chain ID
  * @param hash - The transaction hash or address
@@ -59,12 +70,7 @@ export function getExplorerUrl(
   hash: string,
   type: 'tx' | 'address' = 'tx'
 ): string {
-  const explorers: Record<number, string> = {
-    [flare.id]: 'https://flare-explorer.flare.network',
-    [flareTestnet.id]: 'https://coston2-explorer.flare.network',
-    [songbird.id]: 'https://songbird-explorer.flare.network',
-    [songbirdTestnet.id]: 'https://coston-explorer.flare.network',
-  };
-  const baseUrl = explorers[chainId] || explorers[flare.id];
+  const baseUrl =
+    getExplorerBaseUrl(chainId) ?? flare.blockExplorers.default.url;
   return `${baseUrl}/${type}/${hash}`;
 }

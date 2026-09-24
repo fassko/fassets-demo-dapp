@@ -9,8 +9,6 @@ import {
   type ReactNode,
 } from 'react';
 
-import Link from 'next/link';
-
 import {
   ArrowRightLeft,
   ExternalLink,
@@ -20,34 +18,34 @@ import {
   Tag,
   UserCog,
 } from 'lucide-react';
+import Link from 'next/link';
 
-import {
-  useAccount,
-  useChainId,
-  useWaitForTransactionReceipt,
-  useWriteContract,
-} from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
+
+import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  getMintingTagManagerFullAbi,
-  getReadIAssetManager,
-  getReadIMintingTagManager,
-} from '@/lib/abiUtils';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import {
-  fetchMintingTagsDetails,
+  useMintingTagDetails,
   type MintingTagDetails,
-} from '@/lib/mintingTagDetails';
+} from '@/hooks/useMintingTagDetails';
+import {
+  getReadIDirectMintingSettingsGetMintingTagManager,
+  getReadIMintingTagManagerReservationFee,
+  getReadIMintingTagManagerReservedTagsForOwner,
+  getWriteIMintingTagManagerReserve,
+  getWriteIMintingTagManagerSetAllowedExecutor,
+  getWriteIMintingTagManagerSetMintingRecipient,
+  getWriteIMintingTagManagerTransfer,
+} from '@/lib/abiUtils';
 import {
   formatFlareAddress,
   isZeroAddress,
   tryParseFlareRecipient,
-  ZERO_ADDRESS,
 } from '@/lib/mintingTagUtils';
 import { getExplorerUrl, truncateAddress } from '@/lib/utils';
 
@@ -92,8 +90,69 @@ function formatExecutorCell(
   return executor;
 }
 
+function MintingTagRow({
+  tagId,
+  mintingTagManagerAddress,
+  isSelected,
+  onSelect,
+}: {
+  tagId: bigint;
+  mintingTagManagerAddress: `0x${string}` | undefined;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const id = tagId.toString();
+  const { details, isLoading } = useMintingTagDetails({
+    mintingTagManagerAddress,
+    tagId,
+  });
+
+  return (
+    <tr
+      role='button'
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={
+        isSelected
+          ? 'bg-violet-100/80 border-b border-violet-200 cursor-pointer'
+          : 'border-b border-violet-100 hover:bg-violet-50/50 cursor-pointer'
+      }
+    >
+      <td className='px-4 py-3 font-mono font-semibold text-violet-900'>
+        #{id}
+      </td>
+      <td className='px-4 py-3 font-mono text-xs text-violet-800 break-all max-w-[200px]'>
+        {isLoading && !details
+          ? '…'
+          : details && !isZeroAddress(details.recipient)
+            ? details.recipient
+            : '— not set —'}
+      </td>
+      <td className='px-4 py-3 text-xs text-violet-800 max-w-[240px]'>
+        {isLoading && !details
+          ? '…'
+          : details
+            ? formatExecutorCell(details.allowedExecutor, details)
+            : '—'}
+      </td>
+      <td className='px-4 py-3 text-xs text-violet-600'>
+        {isSelected ? (
+          <span className='font-medium text-violet-900'>Selected</span>
+        ) : null}
+      </td>
+    </tr>
+  );
+}
+
 export default function MintingTags() {
   const chainId = useChainId();
+  const queryClient = useQueryClient();
   const { address: connectedAddress, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -101,41 +160,38 @@ export default function MintingTags() {
 
   const { assetManagerAddress, error: assetManagerError } = useAssetManager();
 
-  const useReadIAssetManager = getReadIAssetManager(chainId);
-  const { data: mintingTagManagerAddressData } = useReadIAssetManager({
+  const useReadMintingTagManager =
+    getReadIDirectMintingSettingsGetMintingTagManager(chainId);
+  const { data: mintingTagManagerAddressData } = useReadMintingTagManager({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getMintingTagManager',
     query: { enabled: !!assetManagerAddress },
   });
   const mintingTagManagerAddress = mintingTagManagerAddressData as
     | `0x${string}`
     | undefined;
 
-  const useReadIMintingTagManager = getReadIMintingTagManager(chainId);
-  const { data: reservationFeeData } = useReadIMintingTagManager({
+  const useReadReservationFee =
+    getReadIMintingTagManagerReservationFee(chainId);
+  const { data: reservationFeeData } = useReadReservationFee({
     address: mintingTagManagerAddress,
-    functionName: 'reservationFee',
     query: { enabled: !!mintingTagManagerAddress },
   });
-  const reservationFee = reservationFeeData as bigint | undefined;
+  const reservationFee = reservationFeeData;
 
+  const useReadReservedTagsForOwner =
+    getReadIMintingTagManagerReservedTagsForOwner(chainId);
   const {
     data: reservedTagsData,
     refetch: refetchReservedTags,
     isLoading: isLoadingReservedTags,
-  } = useReadIMintingTagManager({
+  } = useReadReservedTagsForOwner({
     address: mintingTagManagerAddress,
-    functionName: 'reservedTagsForOwner',
     args: effectiveAddress ? [effectiveAddress] : undefined,
     query: {
       enabled: !!mintingTagManagerAddress && !!effectiveAddress,
     },
   });
-  const reservedTags = reservedTagsData as readonly bigint[] | undefined;
-
-  const [tagDetails, setTagDetails] = useState<MintingTagDetails[]>([]);
-  const [isLoadingDetails, setIsLoadingDetails] = useState(false);
-  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const reservedTags = reservedTagsData;
 
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [recipientInput, setRecipientInput] = useState('');
@@ -147,48 +203,53 @@ export default function MintingTags() {
 
   const pendingActionRef = useRef<PendingAction>(null);
 
-  const tagManagerAbi = useMemo(
-    () => getMintingTagManagerFullAbi(chainId),
-    [chainId]
-  );
+  const reserveWrite = getWriteIMintingTagManagerReserve(chainId);
+  const setRecipientWrite =
+    getWriteIMintingTagManagerSetMintingRecipient(chainId);
+  const setExecutorWrite =
+    getWriteIMintingTagManagerSetAllowedExecutor(chainId);
+  const transferWrite = getWriteIMintingTagManagerTransfer(chainId);
 
-  const {
-    writeContract: writeTagManager,
-    data: tagTxHash,
-    isPending: isTagWritePending,
-    error: tagWriteError,
-    reset: resetTagWrite,
-  } = useWriteContract();
+  const tagTxHash =
+    pendingActionRef.current === 'setRecipient'
+      ? setRecipientWrite.data
+      : pendingActionRef.current === 'setExecutor'
+        ? setExecutorWrite.data
+        : pendingActionRef.current === 'transfer'
+          ? transferWrite.data
+          : pendingActionRef.current === 'reserve'
+            ? reserveWrite.data
+            : undefined;
+  const isTagWritePending =
+    reserveWrite.isPending ||
+    setRecipientWrite.isPending ||
+    setExecutorWrite.isPending ||
+    transferWrite.isPending;
+  const tagWriteError =
+    reserveWrite.error ??
+    setRecipientWrite.error ??
+    setExecutorWrite.error ??
+    transferWrite.error;
+
+  const resetTagWrite = () => {
+    reserveWrite.reset();
+    setRecipientWrite.reset();
+    setExecutorWrite.reset();
+    transferWrite.reset();
+  };
 
   const { isLoading: isTagTxConfirming, isSuccess: isTagTxConfirmed } =
     useWaitForTransactionReceipt({ hash: tagTxHash });
 
-  const loadTagDetails = useCallback(async () => {
-    if (!mintingTagManagerAddress || !reservedTags?.length) {
-      setTagDetails([]);
-      return;
-    }
-    setIsLoadingDetails(true);
-    setDetailsError(null);
-    try {
-      const details = await fetchMintingTagsDetails(
-        mintingTagManagerAddress,
-        reservedTags,
-        chainId
-      );
-      setTagDetails(details);
-    } catch (err) {
-      console.error(err);
-      setDetailsError('Failed to load tag details from chain.');
-      setTagDetails([]);
-    } finally {
-      setIsLoadingDetails(false);
-    }
-  }, [mintingTagManagerAddress, reservedTags, chainId]);
-
-  useEffect(() => {
-    loadTagDetails();
-  }, [loadTagDetails]);
+  const {
+    details: selectedDetails,
+    isLoading: isLoadingSelectedDetails,
+    error: selectedDetailsError,
+    refetch: refetchSelectedDetails,
+  } = useMintingTagDetails({
+    mintingTagManagerAddress,
+    tagId: selectedTag ? BigInt(selectedTag) : undefined,
+  });
 
   useEffect(() => {
     if (reservedTags && reservedTags.length > 0 && !selectedTag) {
@@ -196,24 +257,21 @@ export default function MintingTags() {
     }
   }, [reservedTags, selectedTag]);
 
-  const selectedDetails = useMemo(
-    () => tagDetails.find(d => d.tagId.toString() === selectedTag),
-    [tagDetails, selectedTag]
-  );
-
   useEffect(() => {
     if (!selectedDetails) return;
     setRecipientInput(
-      isZeroAddress(selectedDetails.recipient)
-        ? ''
-        : selectedDetails.recipient
+      isZeroAddress(selectedDetails.recipient) ? '' : selectedDetails.recipient
     );
     setExecutorInput(
       isZeroAddress(selectedDetails.allowedExecutor)
         ? ''
         : selectedDetails.allowedExecutor
     );
-  }, [selectedDetails?.tagId, selectedDetails?.recipient, selectedDetails?.allowedExecutor]);
+  }, [
+    selectedDetails?.tagId,
+    selectedDetails?.recipient,
+    selectedDetails?.allowedExecutor,
+  ]);
 
   const recipientParsed = useMemo(
     () => tryParseFlareRecipient(recipientInput),
@@ -240,8 +298,26 @@ export default function MintingTags() {
 
   const refreshAll = useCallback(async () => {
     await refetchReservedTags();
-    await loadTagDetails();
-  }, [refetchReservedTags, loadTagDetails]);
+    await refetchSelectedDetails();
+    if (!mintingTagManagerAddress) return;
+    await queryClient.invalidateQueries({
+      predicate: query => {
+        const params = query.queryKey[1];
+        if (!params || typeof params !== 'object' || !('address' in params)) {
+          return false;
+        }
+        const address = (params as { address?: string }).address;
+        return (
+          address?.toLowerCase() === mintingTagManagerAddress.toLowerCase()
+        );
+      },
+    });
+  }, [
+    refetchReservedTags,
+    refetchSelectedDetails,
+    queryClient,
+    mintingTagManagerAddress,
+  ]);
 
   useEffect(() => {
     if (!isTagTxConfirmed || !pendingActionRef.current) return;
@@ -286,7 +362,9 @@ export default function MintingTags() {
     }
 
     refreshAll();
-  }, [isTagTxConfirmed, resetTagWrite, refreshAll, tagTxHash, chainId]);
+    // resetTagWrite is a stable wrapper around the four mutation resets.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTagTxConfirmed, refreshAll, tagTxHash, chainId]);
 
   useEffect(() => {
     if (tagWriteError) {
@@ -305,10 +383,9 @@ export default function MintingTags() {
     setActionError(null);
     setActionSuccess(null);
     pendingActionRef.current = 'reserve';
-    writeTagManager({
+    resetTagWrite();
+    reserveWrite.writeContract({
       address: mintingTagManagerAddress,
-      abi: tagManagerAbi,
-      functionName: 'reserve',
       value: reservationFee,
     });
   };
@@ -318,10 +395,9 @@ export default function MintingTags() {
     setActionError(null);
     setActionSuccess(null);
     pendingActionRef.current = 'setRecipient';
-    writeTagManager({
+    resetTagWrite();
+    setRecipientWrite.writeContract({
       address: mintingTagManagerAddress,
-      abi: tagManagerAbi,
-      functionName: 'setMintingRecipient',
       args: [BigInt(selectedTag), recipientParsed],
     });
   };
@@ -331,10 +407,9 @@ export default function MintingTags() {
     setActionError(null);
     setActionSuccess(null);
     pendingActionRef.current = 'setExecutor';
-    writeTagManager({
+    resetTagWrite();
+    setExecutorWrite.writeContract({
       address: mintingTagManagerAddress,
-      abi: tagManagerAbi,
-      functionName: 'setAllowedExecutor',
       args: [BigInt(selectedTag), executorParsed],
     });
   };
@@ -348,10 +423,9 @@ export default function MintingTags() {
     setActionError(null);
     setActionSuccess(null);
     pendingActionRef.current = 'transfer';
-    writeTagManager({
+    resetTagWrite();
+    transferWrite.writeContract({
       address: mintingTagManagerAddress,
-      abi: tagManagerAbi,
-      functionName: 'transfer',
       args: [transferParsed, BigInt(selectedTag)],
     });
   };
@@ -404,10 +478,13 @@ export default function MintingTags() {
             </Alert>
           )}
 
-          {(assetManagerError || detailsError) && (
+          {(assetManagerError || selectedDetailsError) && (
             <Alert variant='destructive'>
               <AlertDescription>
-                {assetManagerError ?? detailsError}
+                {assetManagerError ??
+                  (selectedDetailsError
+                    ? 'Failed to load tag details from chain.'
+                    : null)}
               </AlertDescription>
             </Alert>
           )}
@@ -443,9 +520,7 @@ export default function MintingTags() {
             </div>
             {reservationFee !== undefined && (
               <div className='flex justify-between gap-2'>
-                <span className='font-medium text-violet-900'>
-                  Reserve fee
-                </span>
+                <span className='font-medium text-violet-900'>Reserve fee</span>
                 <span className='text-violet-800'>
                   {(Number(reservationFee) / 1e18).toFixed(6)} FLR
                 </span>
@@ -476,11 +551,15 @@ export default function MintingTags() {
               type='button'
               variant='outline'
               onClick={() => refreshAll()}
-              disabled={!isConnected || isLoadingReservedTags || isLoadingDetails}
+              disabled={
+                !isConnected ||
+                isLoadingReservedTags ||
+                isLoadingSelectedDetails
+              }
               className='border-violet-300 text-violet-800'
             >
               <RefreshCw
-                className={`h-4 w-4 mr-2 ${isLoadingDetails ? 'animate-spin' : ''}`}
+                className={`h-4 w-4 mr-2 ${isLoadingSelectedDetails ? 'animate-spin' : ''}`}
               />
               Refresh
             </Button>
@@ -519,56 +598,14 @@ export default function MintingTags() {
                   <tbody>
                     {reservedTags.map(tagId => {
                       const id = tagId.toString();
-                      const detail = tagDetails.find(
-                        d => d.tagId.toString() === id
-                      );
-                      const isSelected = selectedTag === id;
                       return (
-                        <tr
+                        <MintingTagRow
                           key={id}
-                          role='button'
-                          tabIndex={0}
-                          onClick={() => setSelectedTag(id)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              setSelectedTag(id);
-                            }
-                          }}
-                          className={
-                            isSelected
-                              ? 'bg-violet-100/80 border-b border-violet-200 cursor-pointer'
-                              : 'border-b border-violet-100 hover:bg-violet-50/50 cursor-pointer'
-                          }
-                        >
-                          <td className='px-4 py-3 font-mono font-semibold text-violet-900'>
-                            #{id}
-                          </td>
-                          <td className='px-4 py-3 font-mono text-xs text-violet-800 break-all max-w-[200px]'>
-                            {isLoadingDetails && !detail
-                              ? '…'
-                              : detail && !isZeroAddress(detail.recipient)
-                                ? detail.recipient
-                                : '— not set —'}
-                          </td>
-                          <td className='px-4 py-3 text-xs text-violet-800 max-w-[240px]'>
-                            {isLoadingDetails && !detail
-                              ? '…'
-                              : detail
-                                ? formatExecutorCell(
-                                    detail.allowedExecutor,
-                                    detail
-                                  )
-                                : '—'}
-                          </td>
-                          <td className='px-4 py-3 text-xs text-violet-600'>
-                            {isSelected ? (
-                              <span className='font-medium text-violet-900'>
-                                Selected
-                              </span>
-                            ) : null}
-                          </td>
-                        </tr>
+                          tagId={tagId}
+                          mintingTagManagerAddress={mintingTagManagerAddress}
+                          isSelected={selectedTag === id}
+                          onSelect={() => setSelectedTag(id)}
+                        />
                       );
                     })}
                   </tbody>
@@ -712,9 +749,7 @@ export default function MintingTags() {
                     type='button'
                     variant='outline'
                     className='w-full border-violet-300 text-violet-900'
-                    disabled={
-                      !transferParsed || isTransferToSelf || isTxBusy
-                    }
+                    disabled={!transferParsed || isTransferToSelf || isTxBusy}
                     onClick={handleTransfer}
                   >
                     {isTxBusy && pendingLabel === 'transfer' ? (

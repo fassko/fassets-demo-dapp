@@ -48,23 +48,3 @@ export const copyToClipboardWithTimeout = async (
     console.error('Failed to copy text:', err);
   }
 };
-
-/**
- * Copy text to clipboard with boolean state management
- * @param text - The text to copy to clipboard
- * @param setter - Function to set boolean copied state
- * @param timeout - Timeout in milliseconds (default: 2000)
- */
-export const copyToClipboardWithBooleanState = async (
-  text: string,
-  setter: (value: boolean) => void,
-  timeout: number = 2000
-): Promise<void> => {
-  try {
-    await navigator.clipboard.writeText(text);
-    setter(true);
-    setTimeout(() => setter(false), timeout);
-  } catch (err) {
-    console.error('Failed to copy text:', err);
-  }
-};

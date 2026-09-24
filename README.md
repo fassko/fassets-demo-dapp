@@ -20,6 +20,7 @@ Mint FXRP by sending XRP to the protocol **Core Vault** on XRPL ([direct minting
 - **Tag mode** — pay with an **XRPL destination tag** tied to a reserved [minting tag](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) NFT
 - Live **fee breakdown** (minting fee, executor fee, net minted amount) and minimum mint amount
 - Watches `DirectMintingExecuted` on Flare after the XRPL payment is signed
+- **Your mintings** for the connected wallet (`DirectMintingExecuted`: recipient, amount, fee, time)
 
 ### Minting Tags (`/tags`)
 
@@ -33,15 +34,17 @@ Manage **MintingTagManager** ERC-721 tags used for tag-based direct mint and red
 
 - Send **FXRP** (ERC-20) to another Flare address
 - FXRP balance display with refresh
+- Recent FXRP transfer history for the connected wallet
 
 ### Redeem (`/redeem`)
 
 Redeem FXRP for native XRP on XRPL:
 
-- **By amount** — `redeemAmount` for arbitrary FXRP amounts (with partial-fill / `RedemptionRequestIncomplete` handling)
+- **By amount** — `redeemAmount` for arbitrary FXRP amounts (with partial-fill / `RedemptionAmountIncomplete` handling)
 - **By tag** — `redeemWithTag` to attach an XRPL destination tag to the payout (exchanges, custodial wallets)
 - **Redemption limits** table (minimum amount, queue total, wallet balance)
 - **FDC attestation** flow after redemption (`ReferencedPaymentNonexistence`) to complete redemption on-chain
+- **Last redemptions** for the connected wallet (`RedemptionRequested` / `RedemptionWithTagRequested`)
 - FLR, FXRP, and XRPL balance cards; XRPL ledger info with FDC deadlines
 
 ## Tech stack
@@ -49,18 +52,18 @@ Redeem FXRP for native XRP on XRPL:
 - **Next.js 16** (App Router, Turbopack dev server)
 - **React 19**, **TypeScript**, **Tailwind CSS 4**
 - **wagmi 3** + **viem 2** + **@tanstack/react-query**
-- **@flarenetwork/flare-wagmi-periphery-package** for network-specific FAssets ABIs and hooks
+- **@flarenetwork/flare-periphery-contract-artifacts** for Flare contract addresses and ABIs. AssetManager is a diamond: the app uses composed slices (`IAssetManagerInfo`, `IAssetManagerAgents`, `IAssetManagerRedemption`) and published extensions (`IDirectMinting`, `IRedeemExtended`) instead of the oversized `IAssetManager` aggregator. Those ABIs are bound to wagmi read, write, and event hooks.
 - **xrpl** for XRPL account/ledger reads
 - **react-hook-form** + **zod** for forms
 
 ## Supported networks
 
-| Network | Chain ID |
-|---------|----------|
-| Flare Mainnet | 14 |
-| Flare Testnet (Coston2) | 114 |
-| Songbird | 19 |
-| Songbird Testnet (Coston) | 16 |
+| Network                   | Chain ID |
+| ------------------------- | -------- |
+| Flare Mainnet             | 14       |
+| Flare Testnet (Coston2)   | 114      |
+| Songbird                  | 19       |
+| Songbird Testnet (Coston) | 16       |
 
 Connect an injected wallet (e.g. MetaMask) and switch to a supported Flare network. **Coston2** is the usual testnet for FAssets development.
 
@@ -101,37 +104,38 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### Other scripts
 
-| Script | Description |
-|--------|-------------|
-| `npm run build` | Production build |
-| `npm run start` | Run production server |
-| `npm run lint` / `npm run lint:fix` | ESLint |
+| Script                                 | Description                  |
+| -------------------------------------- | ---------------------------- |
+| `npm run build`                        | Production build             |
+| `npm run start`                        | Run production server        |
+| `npm run lint` / `npm run lint:fix`    | ESLint                       |
 | `npm run format` / `npm run check:all` | Prettier and combined checks |
-| `npm run generate` | Regenerate wagmi contract hooks |
-| `npm run generate-types` | OpenZeppelin type generation (see `docs/TYPES_GENERATION.md`) |
 
 ## Project structure
 
-| Path | Role |
-|------|------|
-| `src/app/` | App Router pages (`/`, `/mint`, `/tags`, `/transfer`, `/redeem`) |
-| `src/app/api/xaman/` | Xaman payload create/status (direct mint) |
-| `src/app/api/proof-request/` | DA Layer proof proxy (FDC redemption attestation) |
-| `src/components/` | UI: `Settings`, `DirectMint`, `MintingTags`, `Transfer`, `Redeem` |
-| `src/hooks/` | `useAssetManager`, `useFdcContracts`, `useFXRPBalance`, `useMintingCapData`, etc. |
-| `src/lib/` | ABIs, FDC utils, direct-mint fee math, XRPL helpers, wagmi config |
+| Path                            | Role                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| `src/app/`                      | App Router pages (`/`, `/mint`, `/tags`, `/transfer`, `/redeem`)                  |
+| `src/app/api/xaman/`            | Xaman payload create/status (direct mint)                                         |
+| `src/app/api/fxrp-transfers/`   | Blockscout proxy for recent FXRP token transfers                                  |
+| `src/app/api/fxrp-mintings/`    | Blockscout proxy for the connected wallet’s `DirectMintingExecuted` logs          |
+| `src/app/api/fxrp-redemptions/` | Blockscout proxy for recent redemption request logs                               |
+| `src/app/api/proof-request/`    | DA Layer proof proxy (FDC redemption attestation)                                 |
+| `src/components/`               | UI: `Settings`, `DirectMint`, `MintingTags`, `Transfer`, `Redeem`                 |
+| `src/hooks/`                    | `useAssetManager`, `useFdcContracts`, `useFXRPBalance`, `useMintingCapData`, etc. |
+| `src/lib/`                      | ABIs, FDC utils, direct-mint fee math, XRPL helpers, wagmi config                 |
 
 ## Components and documentation
 
 ### Core
 
-| Component | Description | Docs |
-|-----------|-------------|------|
-| `Settings.tsx` | Asset Manager settings, minting cap, FXRP metadata & price | [FAssets settings](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity), [operational parameters](https://dev.flare.network/fassets/operational-parameters) |
-| `DirectMint.tsx` | XRPL → FXRP direct mint (memo or tag) | [Direct minting](https://dev.flare.network/fassets/direct-minting), [minting tags](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) |
-| `MintingTags.tsx` | Reserve and configure minting tag NFTs | [Minting tags guide](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag) |
-| `Transfer.tsx` | FXRP ERC-20 transfers on Flare | [FAssets registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry) |
-| `Redeem.tsx` | `redeemAmount` / `redeemWithTag` + FDC completion | [Redemption](https://dev.flare.network/fassets/developer-guides/fassets-redeem), [FDC payment types](https://dev.flare.network/fdc/attestation-types/payment) |
+| Component         | Description                                                | Docs                                                                                                                                                                                 |
+| ----------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Settings.tsx`    | Asset Manager settings, minting cap, FXRP metadata & price | [FAssets settings](https://dev.flare.network/fassets/developer-guides/fassets-settings-solidity), [operational parameters](https://dev.flare.network/fassets/operational-parameters) |
+| `DirectMint.tsx`  | XRPL → FXRP direct mint (memo or tag)                      | [Direct minting](https://dev.flare.network/fassets/direct-minting), [minting tags](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag)                    |
+| `MintingTags.tsx` | Reserve and configure minting tag NFTs                     | [Minting tags guide](https://dev.flare.network/fassets/developer-guides/fassets-direct-minting-tag)                                                                                  |
+| `Transfer.tsx`    | FXRP ERC-20 transfers on Flare                             | [FAssets registry](https://dev.flare.network/fassets/developer-guides/fassets-asset-manager-address-contracts-registry)                                                              |
+| `Redeem.tsx`      | `redeemAmount` / `redeemWithTag` + FDC completion          | [Redemption](https://dev.flare.network/fassets/developer-guides/fassets-redeem), [FDC payment types](https://dev.flare.network/fdc/attestation-types/payment)                        |
 
 ### Removed flows
 

@@ -117,9 +117,6 @@ const eslintConfig = [
       ],
     },
   },
-  {
-    ignores: ['src/types/truffle-types/**/*.d.ts'],
-  },
 ];
 
 export default eslintConfig;

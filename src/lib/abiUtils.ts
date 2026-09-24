@@ -1,524 +1,431 @@
-// Utility functions for selecting network-specific ABIs and hooks
-// Maps chain IDs to the appropriate ABIs and hooks from @flarenetwork/flare-wagmi-periphery-package
-import { flare, flareTestnet, songbird, songbirdTestnet } from 'wagmi/chains';
+// Network-specific ABIs from @flarenetwork/flare-periphery-contract-artifacts.
+// AssetManager is a diamond: use composed slices / published extensions, not IAssetManager.
+// Fragment arrays in peripheryAbi.ts type the live package ABIs for viem and wagmi.
 
+import {
+  flare as flareChain,
+  flareTestnet,
+  songbird as songbirdChain,
+  songbirdTestnet,
+} from 'wagmi/chains';
+import {
+  createUseReadContract,
+  createUseWatchContractEvent,
+  createUseWriteContract,
+} from 'wagmi/codegen';
 
-import { ftsoV2InterfaceAbi as costonFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as costonIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAgentOwnerRegistry';
 import {
-  iAssetManagerAbi as costonIAssetManagerAbi,
-  useReadIAssetManager as costonUseReadIAssetManager,
-  useWatchIAssetManagerEvent as costonUseWatchIAssetManagerEvent,
-  useWriteIAssetManager as costonUseWriteIAssetManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IAssetManager';
-import {
-  ifAssetAbi as costonIFAssetAbi,
-  useReadIfAsset as costonUseReadIFAsset,
-  useWriteIfAsset as costonUseWriteIFAsset,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFAsset';
-import {
-  iDirectMintingAbi as costonIDirectMintingAbi,
-  useWatchIDirectMintingEvent as costonUseWatchIDirectMintingEvent,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IDirectMinting';
-import { useWriteIFdcHub as costonUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcHub';
-import {
-  iMintingTagManagerAbi as costonIMintingTagManagerAbi,
-  useReadIMintingTagManager as costonUseReadIMintingTagManager,
-  useWriteIMintingTagManager as costonUseWriteIMintingTagManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IMintingTagManager';
-import { iFdcRequestFeeConfigurationsAbi as costonIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as costonIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IFlareSystemsManager';
-import { iPaymentVerificationAbi as costonIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as costonIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as coston2FtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as coston2IAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAgentOwnerRegistry';
-import {
-  iAssetManagerAbi as coston2IAssetManagerAbi,
-  useReadIAssetManager as coston2UseReadIAssetManager,
-  useWatchIAssetManagerEvent as coston2UseWatchIAssetManagerEvent,
-  useWriteIAssetManager as coston2UseWriteIAssetManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IAssetManager';
-import {
-  ifAssetAbi as coston2IFAssetAbi,
-  useReadIfAsset as coston2UseReadIFAsset,
-  useWriteIfAsset as coston2UseWriteIFAsset,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFAsset';
-import {
-  iDirectMintingAbi as coston2IDirectMintingAbi,
-  useWatchIDirectMintingEvent as coston2UseWatchIDirectMintingEvent,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IDirectMinting';
-import { useWriteIFdcHub as coston2UseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcHub';
-import {
-  iMintingTagManagerAbi as coston2IMintingTagManagerAbi,
-  useReadIMintingTagManager as coston2UseReadIMintingTagManager,
-  useWriteIMintingTagManager as coston2UseWriteIMintingTagManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IMintingTagManager';
-import { iFdcRequestFeeConfigurationsAbi as coston2IFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as coston2IFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IFlareSystemsManager';
-import { iPaymentVerificationAbi as coston2IPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as coston2IReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/coston2/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as flareFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as flareIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAgentOwnerRegistry';
-import {
-  iAssetManagerAbi as flareIAssetManagerAbi,
-  useReadIAssetManager as flareUseReadIAssetManager,
-  useWatchIAssetManagerEvent as flareUseWatchIAssetManagerEvent,
-  useWriteIAssetManager as flareUseWriteIAssetManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IAssetManager';
-import {
-  ifAssetAbi as flareIFAssetAbi,
-  useReadIfAsset as flareUseReadIFAsset,
-  useWriteIfAsset as flareUseWriteIFAsset,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFAsset';
-import {
-  iDirectMintingAbi as flareIDirectMintingAbi,
-  useWatchIDirectMintingEvent as flareUseWatchIDirectMintingEvent,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IDirectMinting';
-import { useWriteIFdcHub as flareUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcHub';
-import {
-  iMintingTagManagerAbi as flareIMintingTagManagerAbi,
-  useReadIMintingTagManager as flareUseReadIMintingTagManager,
-  useWriteIMintingTagManager as flareUseWriteIMintingTagManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IMintingTagManager';
-import { iFdcRequestFeeConfigurationsAbi as flareIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as flareIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IFlareSystemsManager';
-import { iPaymentVerificationAbi as flareIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as flareIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/flare/IReferencedPaymentNonexistenceVerification';
-import { ftsoV2InterfaceAbi as songbirdFtsoV2InterfaceAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/FtsoV2Interface';
-import { iAgentOwnerRegistryAbi as songbirdIAgentOwnerRegistryAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAgentOwnerRegistry';
-import {
-  iAssetManagerAbi as songbirdIAssetManagerAbi,
-  useReadIAssetManager as songbirdUseReadIAssetManager,
-  useWatchIAssetManagerEvent as songbirdUseWatchIAssetManagerEvent,
-  useWriteIAssetManager as songbirdUseWriteIAssetManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IAssetManager';
-import {
-  ifAssetAbi as songbirdIFAssetAbi,
-  useReadIfAsset as songbirdUseReadIFAsset,
-  useWriteIfAsset as songbirdUseWriteIFAsset,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFAsset';
-import {
-  iDirectMintingAbi as songbirdIDirectMintingAbi,
-  useWatchIDirectMintingEvent as songbirdUseWatchIDirectMintingEvent,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IDirectMinting';
-import { useWriteIFdcHub as songbirdUseWriteIFdcHub } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcHub';
-import {
-  iMintingTagManagerAbi as songbirdIMintingTagManagerAbi,
-  useReadIMintingTagManager as songbirdUseReadIMintingTagManager,
-  useWriteIMintingTagManager as songbirdUseWriteIMintingTagManager,
-} from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IMintingTagManager';
-import { iFdcRequestFeeConfigurationsAbi as songbirdIFdcRequestFeeConfigurationsAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFdcRequestFeeConfigurations';
-import { iFlareSystemsManagerAbi as songbirdIFlareSystemsManagerAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IFlareSystemsManager';
-import { iPaymentVerificationAbi as songbirdIPaymentVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IPaymentVerification';
-import { iReferencedPaymentNonexistenceVerificationAbi as songbirdIReferencedPaymentNonexistenceVerificationAbi } from '@flarenetwork/flare-wagmi-periphery-package/contracts/songbird/IReferencedPaymentNonexistenceVerification';
+  coston,
+  coston2,
+  flare,
+  songbird,
+} from '@flarenetwork/flare-periphery-contract-artifacts';
 
-import { type ReadContractReturnType } from 'viem';
+import { type Abi, type ReadContractReturnType } from 'viem';
 
-import { mintingTagManagerExtraWriteAbi } from '@/lib/mintingTagManagerExtras';
+import { SYSTEM_REDEMPTION_FEE_PAID_EVENT } from '@/lib/fxrpRedemptions';
+import {
+  ftsoV2InterfaceAbi,
+  iAssetManagerAgentsAbi,
+  iAssetManagerInfoAbi,
+  iAssetManagerRedemptionAbi,
+  iDirectMintingAbi,
+  iDirectMintingSettingsAbi,
+  iFAssetAbi,
+  iFdcHubAbi,
+  iFlareSystemsManagerAbi,
+  iMintingTagManagerAbi,
+  iRedeemExtendedAbi,
+  iRedeemExtendedSettingsAbi,
+  iReferencedPaymentNonexistenceVerificationAbi,
+} from '@/lib/peripheryAbi';
 
-export function getAssetManagerAbi(chainId: number) {
+const networks = {
+  flare,
+  coston2,
+  songbird,
+  coston,
+} as const;
+
+type NetworkName = keyof typeof networks;
+
+function networkName(chainId: number): NetworkName {
   switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIAssetManagerAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IAssetManagerAbi;
-    case songbird.id: // Songbird
-      return songbirdIAssetManagerAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIAssetManagerAbi;
+    case flareChain.id:
+      return 'flare';
+    case flareTestnet.id:
+      return 'coston2';
+    case songbirdChain.id:
+      return 'songbird';
+    case songbirdTestnet.id:
+      return 'coston';
     default:
-      // Default to Flare for backwards compatibility
-      return flareIAssetManagerAbi;
+      return 'flare';
   }
 }
 
-/**
- * Type helper to extract the return type of getSettings from the AssetManager ABI
- * This provides proper type inference for settings objects returned from useAssetManager
- */
-export type AssetManagerAbi = ReturnType<typeof getAssetManagerAbi>;
+type NamedAbiItem = { name?: string };
+
+/** Live interface ABI from the artifacts package, typed as the app's fragment. */
+function fromArtifacts<const T extends readonly NamedAbiItem[]>(
+  chainId: number,
+  interfaceName: string,
+  typed: T
+): T {
+  const names = new Set(typed.map(item => item.name));
+  const live = getInterfaceAbi(chainId, interfaceName).filter(
+    (item): item is Extract<Abi[number], { name: string }> =>
+      'name' in item && names.has(item.name)
+  );
+  if (live.length !== typed.length) {
+    throw new Error(
+      `Interface "${interfaceName}" on chain ${chainId} is missing ABI items expected from @flarenetwork/flare-periphery-contract-artifacts`
+    );
+  }
+  return live as unknown as T;
+}
+
+export function getInterfaceAbi(chainId: number, interfaceName: string): Abi {
+  const abi = networks[networkName(chainId)].interfaceAbis[interfaceName];
+  if (!Array.isArray(abi)) {
+    throw new Error(
+      `Interface ABI "${interfaceName}" not found for chain ${chainId}`
+    );
+  }
+  return abi as Abi;
+}
+
 export type GetSettingsReturnType = ReadContractReturnType<
-  AssetManagerAbi,
+  typeof iAssetManagerInfoAbi,
   'getSettings'
 >;
+export type GetAllAgentsReturnType = ReadContractReturnType<
+  typeof iAssetManagerAgentsAbi,
+  'getAllAgents'
+>;
+export type GetAgentInfoReturnType = ReadContractReturnType<
+  typeof iAssetManagerAgentsAbi,
+  'getAgentInfo'
+>;
 
-/**
- * Helper function to properly type settings from useAssetManager hook
- * @param rawSettings - The raw settings object from useAssetManager (may be untyped)
- * @returns Properly typed settings object or undefined
- */
 export function getTypedSettings(
   rawSettings: unknown
 ): GetSettingsReturnType | undefined {
   return rawSettings as GetSettingsReturnType | undefined;
 }
 
-/**
- * Select the appropriate AgentOwnerRegistry ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific AgentOwnerRegistry ABI
- */
-export function getAgentOwnerRegistryAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIAgentOwnerRegistryAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IAgentOwnerRegistryAbi;
-    case songbird.id: // Songbird
-      return songbirdIAgentOwnerRegistryAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIAgentOwnerRegistryAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIAgentOwnerRegistryAbi;
-  }
+export function getAssetManagerAgentsAbi(chainId: number) {
+  return fromArtifacts(chainId, 'IAssetManagerAgents', iAssetManagerAgentsAbi);
 }
 
-/**
- * Select the appropriate FDC Hub Request Attestation hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific FDC Hub Request Attestation hook
- */
-export function getRequestAttestationHook(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseWriteIFdcHub();
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIFdcHub();
-    case songbird.id: // Songbird
-      return songbirdUseWriteIFdcHub();
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIFdcHub();
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseWriteIFdcHub();
-  }
+export function getAssetManagerRedemptionAbi(chainId: number) {
+  return fromArtifacts(
+    chainId,
+    'IAssetManagerRedemption',
+    iAssetManagerRedemptionAbi
+  );
 }
 
-/**
- * Select the appropriate FDC Request Fee Configurations ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific FDC Request Fee Configurations ABI
- */
+/** Redemption + redeem-with-tag events for receipt log decoding. */
+export function getRedemptionEventAbi(chainId: number) {
+  return [
+    ...fromArtifacts(
+      chainId,
+      'IAssetManagerRedemption',
+      iAssetManagerRedemptionAbi
+    ),
+    ...fromArtifacts(chainId, 'IRedeemExtended', iRedeemExtendedAbi),
+    SYSTEM_REDEMPTION_FEE_PAID_EVENT,
+  ] as const;
+}
+
+export function getReadIAssetManagerInfoGetSettings(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IAssetManagerInfo', iAssetManagerInfoAbi),
+    functionName: 'getSettings',
+  });
+}
+
+export function getReadIAssetManagerAgentsGetAllAgents(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IAssetManagerAgents', iAssetManagerAgentsAbi),
+    functionName: 'getAllAgents',
+  });
+}
+
+export function getReadIDirectMintingDirectMintingPaymentAddress(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IDirectMinting', iDirectMintingAbi),
+    functionName: 'directMintingPaymentAddress',
+  });
+}
+
+export function getReadIDirectMintingSettingsGetDirectMintingFeeBips(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IDirectMintingSettings',
+      iDirectMintingSettingsAbi
+    ),
+    functionName: 'getDirectMintingFeeBIPS',
+  });
+}
+
+export function getReadIDirectMintingSettingsGetDirectMintingMinimumFeeUba(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IDirectMintingSettings',
+      iDirectMintingSettingsAbi
+    ),
+    functionName: 'getDirectMintingMinimumFeeUBA',
+  });
+}
+
+export function getReadIDirectMintingSettingsGetDirectMintingExecutorFeeUba(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IDirectMintingSettings',
+      iDirectMintingSettingsAbi
+    ),
+    functionName: 'getDirectMintingExecutorFeeUBA',
+  });
+}
+
+export function getReadIDirectMintingSettingsGetMintingTagManager(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IDirectMintingSettings',
+      iDirectMintingSettingsAbi
+    ),
+    functionName: 'getMintingTagManager',
+  });
+}
+
+export function getReadIRedeemExtendedSettingsMinimumRedeemAmountUba(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IRedeemExtendedSettings',
+      iRedeemExtendedSettingsAbi
+    ),
+    functionName: 'minimumRedeemAmountUBA',
+  });
+}
+
+export function getWriteIRedeemExtendedRedeemAmount(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IRedeemExtended', iRedeemExtendedAbi),
+    functionName: 'redeemAmount',
+  })();
+}
+
+export function getWriteIRedeemExtendedRedeemWithTag(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IRedeemExtended', iRedeemExtendedAbi),
+    functionName: 'redeemWithTag',
+  })();
+}
+
+export function getWriteIFdcHubRequestAttestation(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IFdcHub', iFdcHubAbi),
+    functionName: 'requestAttestation',
+  })();
+}
+
 export function getFdcRequestFeeConfigurationsAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIFdcRequestFeeConfigurationsAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IFdcRequestFeeConfigurationsAbi;
-    case songbird.id: // Songbird
-      return songbirdIFdcRequestFeeConfigurationsAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIFdcRequestFeeConfigurationsAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIFdcRequestFeeConfigurationsAbi;
-  }
+  return getInterfaceAbi(chainId, 'IFdcRequestFeeConfigurations');
 }
 
-/**
- * Select the appropriate Flare Systems Manager ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific Flare Systems Manager ABI
- */
 export function getFlareSystemsManagerAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIFlareSystemsManagerAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IFlareSystemsManagerAbi;
-    case songbird.id: // Songbird
-      return songbirdIFlareSystemsManagerAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIFlareSystemsManagerAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIFlareSystemsManagerAbi;
-  }
+  return getInterfaceAbi(chainId, 'IFlareSystemsManager');
 }
 
-/**
- * Select the appropriate Payment Verification ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific Payment Verification ABI
- */
-export function getPaymentVerificationAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIPaymentVerificationAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IPaymentVerificationAbi;
-    case songbird.id: // Songbird
-      return songbirdIPaymentVerificationAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIPaymentVerificationAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIPaymentVerificationAbi;
-  }
+export function getReadIFlareSystemsManagerFirstVotingRoundStartTs(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IFlareSystemsManager',
+      iFlareSystemsManagerAbi
+    ),
+    functionName: 'firstVotingRoundStartTs',
+  });
 }
 
-/**
- * Select the appropriate Referenced Payment Nonexistence Verification ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific Referenced Payment Nonexistence Verification ABI
- */
+export function getReadIFlareSystemsManagerVotingEpochDurationSeconds(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(
+      chainId,
+      'IFlareSystemsManager',
+      iFlareSystemsManagerAbi
+    ),
+    functionName: 'votingEpochDurationSeconds',
+  });
+}
+
 export function getReferencedPaymentNonexistenceVerificationAbi(
   chainId: number
 ) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIReferencedPaymentNonexistenceVerificationAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IReferencedPaymentNonexistenceVerificationAbi;
-    case songbird.id: // Songbird
-      return songbirdIReferencedPaymentNonexistenceVerificationAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIReferencedPaymentNonexistenceVerificationAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIReferencedPaymentNonexistenceVerificationAbi;
-  }
+  return fromArtifacts(
+    chainId,
+    'IReferencedPaymentNonexistenceVerification',
+    iReferencedPaymentNonexistenceVerificationAbi
+  );
 }
 
-/**
- * Select the appropriate FTSO V2 Interface ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific FTSO V2 Interface ABI
- */
 export function getFtsoV2InterfaceAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareFtsoV2InterfaceAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2FtsoV2InterfaceAbi;
-    case songbird.id: // Songbird
-      return songbirdFtsoV2InterfaceAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonFtsoV2InterfaceAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareFtsoV2InterfaceAbi;
-  }
+  return fromArtifacts(chainId, 'FtsoV2Interface', ftsoV2InterfaceAbi);
 }
 
-/**
- * Select the appropriate IFAsset ABI based on the chain ID
- * @param chainId - The chain ID to get the ABI for
- * @returns The network-specific IFAsset ABI
- */
-export function getIFAssetAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareIFAssetAbi;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2IFAssetAbi;
-    case songbird.id: // Songbird
-      return songbirdIFAssetAbi;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonIFAssetAbi;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareIFAssetAbi;
-  }
+export function getReadIfAssetName(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'name',
+  });
 }
 
-/**
- * Select the appropriate AssetManager write hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific AssetManager write hook
- */
-export function getWriteIAssetManager(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseWriteIAssetManager();
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIAssetManager();
-    case songbird.id: // Songbird
-      return songbirdUseWriteIAssetManager();
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIAssetManager();
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseWriteIAssetManager();
-  }
+export function getReadIfAssetSymbol(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'symbol',
+  });
 }
 
-/**
- * Select the appropriate AssetManager Watch Event hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific AssetManager Watch Event hook
- */
-export function getWatchIAssetManagerEvent(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseWatchIAssetManagerEvent;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWatchIAssetManagerEvent;
-    case songbird.id: // Songbird
-      return songbirdUseWatchIAssetManagerEvent;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseWatchIAssetManagerEvent;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseWatchIAssetManagerEvent;
-  }
+export function getReadIfAssetDecimals(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'decimals',
+  });
 }
 
-/**
- * Select the appropriate AssetManager Read hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific AssetManager Read hook
- */
-export function getReadIAssetManager(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseReadIAssetManager;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseReadIAssetManager;
-    case songbird.id: // Songbird
-      return songbirdUseReadIAssetManager;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseReadIAssetManager;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseReadIAssetManager;
-  }
+export function getReadIfAssetAssetName(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'assetName',
+  });
 }
 
-/**
- * Select the appropriate IFAsset Read hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific IFAsset Read hook
- */
-export function getReadIFAsset(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseReadIFAsset;
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseReadIFAsset;
-    case songbird.id: // Songbird
-      return songbirdUseReadIFAsset;
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseReadIFAsset;
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseReadIFAsset;
-  }
+export function getReadIfAssetAssetSymbol(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'assetSymbol',
+  });
 }
 
-/**
- * Select the appropriate IFAsset Write hook based on the chain ID
- * @param chainId - The chain ID to get the hook for
- * @returns The network-specific IFAsset Write hook
- */
-export function getWriteIFAsset(chainId: number) {
-  switch (chainId) {
-    case flare.id: // Flare Mainnet
-      return flareUseWriteIFAsset();
-    case flareTestnet.id: // Coston2 Testnet
-      return coston2UseWriteIFAsset();
-    case songbird.id: // Songbird
-      return songbirdUseWriteIFAsset();
-    case songbirdTestnet.id: // Coston Testnet
-      return costonUseWriteIFAsset();
-    default:
-      // Default to Flare for backwards compatibility
-      return flareUseWriteIFAsset();
-  }
+export function getReadIfAssetBalanceOf(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'balanceOf',
+  });
 }
 
-/**
- * Select the appropriate IDirectMinting ABI based on the chain ID
- */
-export function getDirectMintingAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id:
-      return flareIDirectMintingAbi;
-    case flareTestnet.id:
-      return coston2IDirectMintingAbi;
-    case songbird.id:
-      return songbirdIDirectMintingAbi;
-    case songbirdTestnet.id:
-      return costonIDirectMintingAbi;
-    default:
-      return flareIDirectMintingAbi;
-  }
+export function getReadIfAssetTotalSupply(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'totalSupply',
+  });
 }
 
-/**
- * Select the appropriate IDirectMinting Watch Event hook based on the chain ID
- */
-export function getWatchIDirectMintingEvent(chainId: number) {
-  switch (chainId) {
-    case flare.id:
-      return flareUseWatchIDirectMintingEvent;
-    case flareTestnet.id:
-      return coston2UseWatchIDirectMintingEvent;
-    case songbird.id:
-      return songbirdUseWatchIDirectMintingEvent;
-    case songbirdTestnet.id:
-      return costonUseWatchIDirectMintingEvent;
-    default:
-      return flareUseWatchIDirectMintingEvent;
-  }
+export function getWriteIfAssetTransfer(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IFAsset', iFAssetAbi),
+    functionName: 'transfer',
+  })();
 }
 
-/**
- * Select the appropriate IMintingTagManager ABI based on the chain ID
- */
-export function getMintingTagManagerAbi(chainId: number) {
-  switch (chainId) {
-    case flare.id:
-      return flareIMintingTagManagerAbi;
-    case flareTestnet.id:
-      return coston2IMintingTagManagerAbi;
-    case songbird.id:
-      return songbirdIMintingTagManagerAbi;
-    case songbirdTestnet.id:
-      return costonIMintingTagManagerAbi;
-    default:
-      return flareIMintingTagManagerAbi;
-  }
+export function getWatchIDirectMintingDirectMintingExecutedEvent(
+  chainId: number
+) {
+  return createUseWatchContractEvent({
+    abi: fromArtifacts(chainId, 'IDirectMinting', iDirectMintingAbi),
+    eventName: 'DirectMintingExecuted',
+  });
 }
 
-/** Base periphery ABI plus write helpers missing from older package releases. */
-export function getMintingTagManagerFullAbi(chainId: number) {
-  return [...getMintingTagManagerAbi(chainId), ...mintingTagManagerExtraWriteAbi];
+export function getReadIMintingTagManagerReservationFee(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'reservationFee',
+  });
 }
 
-/**
- * Select the appropriate IMintingTagManager Read hook based on the chain ID
- */
-export function getReadIMintingTagManager(chainId: number) {
-  switch (chainId) {
-    case flare.id:
-      return flareUseReadIMintingTagManager;
-    case flareTestnet.id:
-      return coston2UseReadIMintingTagManager;
-    case songbird.id:
-      return songbirdUseReadIMintingTagManager;
-    case songbirdTestnet.id:
-      return costonUseReadIMintingTagManager;
-    default:
-      return flareUseReadIMintingTagManager;
-  }
+export function getReadIMintingTagManagerReservedTagsForOwner(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'reservedTagsForOwner',
+  });
 }
 
-/**
- * Select the appropriate IMintingTagManager Write hook based on the chain ID
- */
-export function getWriteIMintingTagManager(chainId: number) {
-  switch (chainId) {
-    case flare.id:
-      return flareUseWriteIMintingTagManager();
-    case flareTestnet.id:
-      return coston2UseWriteIMintingTagManager();
-    case songbird.id:
-      return songbirdUseWriteIMintingTagManager();
-    case songbirdTestnet.id:
-      return costonUseWriteIMintingTagManager();
-    default:
-      return flareUseWriteIMintingTagManager();
-  }
+export function getReadIMintingTagManagerMintingRecipient(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'mintingRecipient',
+  });
+}
+
+export function getReadIMintingTagManagerAllowedExecutor(chainId: number) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'allowedExecutor',
+  });
+}
+
+export function getReadIMintingTagManagerPendingAllowedExecutorChange(
+  chainId: number
+) {
+  return createUseReadContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'pendingAllowedExecutorChange',
+  });
+}
+
+export function getWriteIMintingTagManagerReserve(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'reserve',
+  })();
+}
+
+export function getWriteIMintingTagManagerSetMintingRecipient(
+  chainId: number
+) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'setMintingRecipient',
+  })();
+}
+
+export function getWriteIMintingTagManagerSetAllowedExecutor(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'setAllowedExecutor',
+  })();
+}
+
+export function getWriteIMintingTagManagerTransfer(chainId: number) {
+  return createUseWriteContract({
+    abi: fromArtifacts(chainId, 'IMintingTagManager', iMintingTagManagerAbi),
+    functionName: 'transfer',
+  })();
 }

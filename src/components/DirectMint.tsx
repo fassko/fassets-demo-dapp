@@ -2,31 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import {
-  ExternalLink,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Tag,
-  Zap,
-} from 'lucide-react';
-
+import { ExternalLink, Loader2, Plus, RefreshCw, Tag, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 import { useForm } from 'react-hook-form';
+
 import { zodResolver } from '@hookform/resolvers/zod';
 
 import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
-import { z } from 'zod';
-
 import { type Address } from 'viem';
+
+import { z } from 'zod';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { MintingHistoryTable } from '@/components/ui/MintingHistoryTable';
 import {
   Select,
   SelectContent,
@@ -36,25 +30,33 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFXRPMintings } from '@/hooks/useFXRPMintings';
 import {
-  getReadIAssetManager,
-  getReadIMintingTagManager,
-  getWatchIDirectMintingEvent,
-  getWriteIMintingTagManager,
+  getReadIDirectMintingDirectMintingPaymentAddress,
+  getReadIDirectMintingSettingsGetDirectMintingExecutorFeeUba,
+  getReadIDirectMintingSettingsGetDirectMintingFeeBips,
+  getReadIDirectMintingSettingsGetDirectMintingMinimumFeeUba,
+  getReadIDirectMintingSettingsGetMintingTagManager,
+  getReadIMintingTagManagerMintingRecipient,
+  getReadIMintingTagManagerReservationFee,
+  getReadIMintingTagManagerReservedTagsForOwner,
+  getTypedSettings,
+  getWatchIDirectMintingDirectMintingExecutedEvent,
+  getWriteIMintingTagManagerReserve,
 } from '@/lib/abiUtils';
-import { getExplorerUrl } from '@/lib/utils';
-import { XRP_CONFIG } from '@/lib/xrpUtils';
-import {
-  buildDirectMintingMemo,
-  getXrplTestnetExplorerUrl,
-} from '@/lib/directMintUtils';
-import { isZeroAddress } from '@/lib/mintingTagUtils';
 import {
   computeDirectMintBreakdownFromGrossDrops,
   computeMinimumDirectMintGrossDrops,
   formatXrpFromDrops,
   formatXrpPlaceholder,
 } from '@/lib/directMintFeeBreakdown';
+import {
+  buildDirectMintingMemo,
+  getXrplTestnetExplorerUrl,
+} from '@/lib/directMintUtils';
+import { isZeroAddress } from '@/lib/mintingTagUtils';
+import { getExplorerUrl } from '@/lib/utils';
+import { XRP_CONFIG } from '@/lib/xrpUtils';
 
 const DirectMintFormSchema = z.object({
   amountXrp: z
@@ -97,9 +99,24 @@ export default function DirectMint() {
 
   const {
     assetManagerAddress,
+    settings: rawSettings,
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+  const tokenAddress = getTypedSettings(rawSettings)?.fAsset as
+    | `0x${string}`
+    | undefined;
+
+  const {
+    mintings,
+    isLoading: isLoadingMintings,
+    error: mintingsError,
+    refetch: refetchMintings,
+  } = useFXRPMintings({
+    assetManagerAddress,
+    tokenAddress,
+    recipient: effectiveAddress,
+  });
 
   const [coreVaultXrplAddress, setCoreVaultXrplAddress] = useState<
     string | null
@@ -131,37 +148,41 @@ export default function DirectMint() {
 
   const watchedAmount = watch('amountXrp');
 
-  // Fetch directMintingPaymentAddress and fee settings from AssetManager
-  const useReadIAssetManager = getReadIAssetManager(chainId);
+  // Fetch directMintingPaymentAddress and fee settings from AssetManager slices
+  const useReadPaymentAddress =
+    getReadIDirectMintingDirectMintingPaymentAddress(chainId);
+  const useReadFeeBIPS =
+    getReadIDirectMintingSettingsGetDirectMintingFeeBips(chainId);
+  const useReadMinimumFeeUBA =
+    getReadIDirectMintingSettingsGetDirectMintingMinimumFeeUba(chainId);
+  const useReadExecutorFeeUBA =
+    getReadIDirectMintingSettingsGetDirectMintingExecutorFeeUba(chainId);
+  const useReadMintingTagManager =
+    getReadIDirectMintingSettingsGetMintingTagManager(chainId);
 
-  const { data: paymentAddressData } = useReadIAssetManager({
+  const { data: paymentAddressData } = useReadPaymentAddress({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'directMintingPaymentAddress',
     query: { enabled: !!assetManagerAddress },
   });
 
-  const { data: feeBIPSData } = useReadIAssetManager({
+  const { data: feeBIPSData } = useReadFeeBIPS({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getDirectMintingFeeBIPS',
     query: { enabled: !!assetManagerAddress },
   });
 
-  const { data: minimumFeeUBAData } = useReadIAssetManager({
+  const { data: minimumFeeUBAData } = useReadMinimumFeeUBA({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getDirectMintingMinimumFeeUBA',
     query: { enabled: !!assetManagerAddress },
   });
 
-  const { data: executorFeeUBAData } = useReadIAssetManager({
+  const { data: executorFeeUBAData } = useReadExecutorFeeUBA({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getDirectMintingExecutorFeeUBA',
     query: { enabled: !!assetManagerAddress },
   });
 
   // MintingTagManager address (resolved via AssetManager.getMintingTagManager())
-  const { data: mintingTagManagerAddressData } = useReadIAssetManager({
+  const { data: mintingTagManagerAddressData } = useReadMintingTagManager({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getMintingTagManager',
     query: { enabled: !!assetManagerAddress && mintMode === 'tag' },
   });
   const mintingTagManagerAddress = mintingTagManagerAddressData as
@@ -169,11 +190,15 @@ export default function DirectMint() {
     | undefined;
 
   // Tag-mode reads against MintingTagManager
-  const useReadIMintingTagManager = getReadIMintingTagManager(chainId);
+  const useReadReservationFee =
+    getReadIMintingTagManagerReservationFee(chainId);
+  const useReadReservedTagsForOwner =
+    getReadIMintingTagManagerReservedTagsForOwner(chainId);
+  const useReadMintingRecipient =
+    getReadIMintingTagManagerMintingRecipient(chainId);
 
-  const { data: reservationFeeData } = useReadIMintingTagManager({
+  const { data: reservationFeeData } = useReadReservationFee({
     address: mintingTagManagerAddress,
-    functionName: 'reservationFee',
     query: { enabled: !!mintingTagManagerAddress && mintMode === 'tag' },
   });
 
@@ -181,36 +206,32 @@ export default function DirectMint() {
     data: reservedTagsData,
     refetch: refetchReservedTags,
     isLoading: isLoadingReservedTags,
-  } = useReadIMintingTagManager({
+  } = useReadReservedTagsForOwner({
     address: mintingTagManagerAddress,
-    functionName: 'reservedTagsForOwner',
-    args: connectedAddress
-      ? [connectedAddress as `0x${string}`]
-      : undefined,
+    args: connectedAddress ? [connectedAddress as `0x${string}`] : undefined,
     query: {
       enabled:
         !!mintingTagManagerAddress && !!connectedAddress && mintMode === 'tag',
     },
   });
 
-  const { data: mintingRecipientData } = useReadIMintingTagManager({
-      address: mintingTagManagerAddress,
-      functionName: 'mintingRecipient',
-      args: selectedTag ? [BigInt(selectedTag)] : undefined,
-      query: {
-        enabled:
-          !!mintingTagManagerAddress && !!selectedTag && mintMode === 'tag',
-      },
-    });
+  const { data: mintingRecipientData } = useReadMintingRecipient({
+    address: mintingTagManagerAddress,
+    args: selectedTag ? [BigInt(selectedTag)] : undefined,
+    query: {
+      enabled:
+        !!mintingTagManagerAddress && !!selectedTag && mintMode === 'tag',
+    },
+  });
 
-  // Tag-mode writes (single hook reused for reserve + setMintingRecipient)
+  // Tag-mode write: MintingTagManager.reserve()
   const {
     data: tagTxHash,
-    writeContract: writeTagManager,
+    writeContract: reserveTag,
     isPending: isTagWritePending,
     error: tagWriteError,
     reset: resetTagWrite,
-  } = getWriteIMintingTagManager(chainId);
+  } = getWriteIMintingTagManagerReserve(chainId);
 
   const { isLoading: isTagTxConfirming, isSuccess: isTagTxConfirmed } =
     useWaitForTransactionReceipt({ hash: tagTxHash });
@@ -218,13 +239,13 @@ export default function DirectMint() {
   // Track which tag-management action is in flight so we can react to confirmation
   const pendingTagActionRef = useRef<'reserve' | null>(null);
 
-  // Watch for DirectMintingExecuted on the AssetManager (uses IDirectMinting ABI)
+  // Watch for DirectMintingExecuted on the AssetManager (IDirectMinting slice)
   // https://dev.flare.network/fassets/direct-minting
-  const useWatchIDirectMintingEvent = getWatchIDirectMintingEvent(chainId);
+  const useWatchDirectMintingExecuted =
+    getWatchIDirectMintingDirectMintingExecutedEvent(chainId);
   const isAwaitingExecution = paymentState.status === 'awaiting-execution';
-  useWatchIDirectMintingEvent({
+  useWatchDirectMintingExecuted({
     address: assetManagerAddress as `0x${string}`,
-    eventName: 'DirectMintingExecuted',
     enabled: !!assetManagerAddress && isAwaitingExecution,
     onLogs: logs => {
       setPaymentState(prev => {
@@ -260,8 +281,15 @@ export default function DirectMint() {
     },
   });
 
+  const isMinted = paymentState.status === 'minted';
   useEffect(() => {
-    if (paymentAddressData) setCoreVaultXrplAddress(paymentAddressData as string);
+    if (!isMinted) return;
+    refetchMintings();
+  }, [isMinted, refetchMintings]);
+
+  useEffect(() => {
+    if (paymentAddressData)
+      setCoreVaultXrplAddress(paymentAddressData as string);
   }, [paymentAddressData]);
 
   useEffect(() => {
@@ -274,20 +302,18 @@ export default function DirectMint() {
   }, [minimumFeeUBAData]);
 
   const executorFeeUBA =
-    executorFeeUBAData !== undefined ? (executorFeeUBAData as bigint) : undefined;
+    executorFeeUBAData !== undefined
+      ? (executorFeeUBAData as bigint)
+      : undefined;
 
   const directMintFeeParamsReady =
-    feeBIPS !== null &&
-    minimumFeeUBA !== null &&
-    executorFeeUBA !== undefined;
+    feeBIPS !== null && minimumFeeUBA !== null && executorFeeUBA !== undefined;
 
   const directMintBreakdown = useMemo(() => {
     if (!directMintFeeParamsReady || !watchedAmount) return undefined;
     const parsed = parseFloat(watchedAmount);
     if (isNaN(parsed) || parsed <= 0) return undefined;
-    const grossDrops = BigInt(
-      Math.floor(parsed * XRP_CONFIG.DROPS_PER_XRP)
-    );
+    const grossDrops = BigInt(Math.floor(parsed * XRP_CONFIG.DROPS_PER_XRP));
     return computeDirectMintBreakdownFromGrossDrops(
       grossDrops,
       feeBIPS as bigint,
@@ -314,7 +340,7 @@ export default function DirectMint() {
   }, [directMintFeeParamsReady, feeBIPS, minimumFeeUBA, executorFeeUBA]);
 
   // Auto-select the first reserved tag if none selected
-  const reservedTags = reservedTagsData as readonly bigint[] | undefined;
+  const reservedTags = reservedTagsData;
   useEffect(() => {
     if (
       mintMode === 'tag' &&
@@ -327,7 +353,7 @@ export default function DirectMint() {
   }, [mintMode, reservedTags, selectedTag]);
 
   // Read recipient currently configured for the selected tag (zero-address = unset)
-  const configuredRecipient = mintingRecipientData as `0x${string}` | undefined;
+  const configuredRecipient = mintingRecipientData;
 
   const tagMintRecipient =
     configuredRecipient && !isZeroAddress(configuredRecipient)
@@ -348,18 +374,17 @@ export default function DirectMint() {
     }
   }, [isTagTxConfirmed, refetchReservedTags, resetTagWrite]);
 
-  const reservationFee = reservationFeeData as bigint | undefined;
+  const reservationFee = reservationFeeData;
 
   const handleReserveTag = useCallback(() => {
     if (!mintingTagManagerAddress || reservationFee === undefined) return;
     setTagSetupError(null);
     pendingTagActionRef.current = 'reserve';
-    writeTagManager({
+    reserveTag({
       address: mintingTagManagerAddress,
-      functionName: 'reserve',
       value: reservationFee,
     });
-  }, [mintingTagManagerAddress, reservationFee, writeTagManager]);
+  }, [mintingTagManagerAddress, reservationFee, reserveTag]);
 
   // Surface tag-write errors in the UI without crashing the page
   useEffect(() => {
@@ -430,7 +455,8 @@ export default function DirectMint() {
     if (!effectiveAddress) {
       setPaymentState({
         status: 'error',
-        message: 'Please connect your Flare wallet to set the recipient address',
+        message:
+          'Please connect your Flare wallet to set the recipient address',
       });
       return;
     }
@@ -510,7 +536,8 @@ export default function DirectMint() {
         status: 'pending',
         uuid: payload.uuid,
         qrPng: payload.refs.qr_png,
-        deeplink: payload.next?.always ?? `https://xumm.app/sign/${payload.uuid}`,
+        deeplink:
+          payload.next?.always ?? `https://xumm.app/sign/${payload.uuid}`,
       });
 
       startPolling(payload.uuid);
@@ -618,24 +645,31 @@ export default function DirectMint() {
 
           {/* Recipient */}
           <div className='space-y-1'>
-            <Label className='text-emerald-900'>Recipient (Flare Address)</Label>
+            <Label className='text-emerald-900'>
+              Recipient (Flare Address)
+            </Label>
             {mintMode === 'memo' ? (
               <>
                 <div className='rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-sm text-emerald-700 break-all'>
                   {effectiveAddress ?? (
-                    <span className='text-red-500'>Please connect your wallet</span>
+                    <span className='text-red-500'>
+                      Please connect your wallet
+                    </span>
                   )}
                 </div>
                 <p className='text-xs text-emerald-600'>
-                  Memo mode encodes this connected wallet in the XRPL payment memo.
-                  FXRP is minted to this address.
+                  Memo mode encodes this connected wallet in the XRPL payment
+                  memo. FXRP is minted to this address.
                 </p>
               </>
             ) : (
               <p className='text-xs text-emerald-600'>
-                Tag mode mints FXRP to the on-chain recipient for your selected tag.
-                Configure tags on the{' '}
-                <Link href='/tags' className='text-emerald-700 hover:underline font-medium'>
+                Tag mode mints FXRP to the on-chain recipient for your selected
+                tag. Configure tags on the{' '}
+                <Link
+                  href='/tags'
+                  className='text-emerald-700 hover:underline font-medium'
+                >
                   Tags page
                 </Link>
                 .
@@ -687,7 +721,10 @@ export default function DirectMint() {
                   MintingTagManager.reserve()
                 </code>
                 , set its recipient on the{' '}
-                <Link href='/tags' className='text-emerald-800 hover:underline font-medium'>
+                <Link
+                  href='/tags'
+                  className='text-emerald-800 hover:underline font-medium'
+                >
                   Tags page
                 </Link>
                 , then send XRPL payments using{' '}
@@ -930,9 +967,7 @@ export default function DirectMint() {
                 event is emitted.
               </p>
               <div className='flex items-center gap-2 text-sm flex-wrap'>
-                <span className='font-medium text-emerald-900'>
-                  XRPL Tx:
-                </span>
+                <span className='font-medium text-emerald-900'>XRPL Tx:</span>
                 <a
                   href={getXrplTestnetExplorerUrl(paymentState.xrplTxHash)}
                   target='_blank'
@@ -978,9 +1013,7 @@ export default function DirectMint() {
                   </span>
                 </div>
                 <div className='flex items-center gap-2 flex-wrap'>
-                  <span className='font-medium text-emerald-900'>
-                    XRPL Tx:
-                  </span>
+                  <span className='font-medium text-emerald-900'>XRPL Tx:</span>
                   <a
                     href={getXrplTestnetExplorerUrl(paymentState.xrplTxHash)}
                     target='_blank'
@@ -1056,9 +1089,7 @@ export default function DirectMint() {
                     {...register('amountXrp')}
                     id='amountXrp'
                     type='number'
-                    placeholder={
-                      minimumMintAmountPlaceholder ?? 'Loading…'
-                    }
+                    placeholder={minimumMintAmountPlaceholder ?? 'Loading…'}
                     step='any'
                     min='0'
                     className='border-emerald-300 focus:ring-emerald-500'
@@ -1075,10 +1106,12 @@ export default function DirectMint() {
                           <Loader2 className='h-4 w-4 animate-spin shrink-0' />
                           Loading fee parameters…
                         </p>
-                      ) : directMintBreakdown === undefined ? null : directMintBreakdown === null ? (
+                      ) : directMintBreakdown ===
+                        undefined ? null : directMintBreakdown === null ? (
                         <p className='text-amber-900'>
-                          This amount is too small to cover the on-chain executor
-                          fee and minimum minting fee. Enter a larger value.
+                          This amount is too small to cover the on-chain
+                          executor fee and minimum minting fee. Enter a larger
+                          value.
                         </p>
                       ) : (
                         <>
@@ -1086,10 +1119,11 @@ export default function DirectMint() {
                             Estimated fee breakdown
                           </p>
                           <p className='text-xs text-emerald-600 leading-snug'>
-                            Derived from your XRPL payment (rounded down to whole
-                            drops). Minting fee is the larger of the percentage
-                            of estimated net mint and the contract minimum — same
-                            rule as AssetManager direct minting settings.
+                            Derived from your XRPL payment (rounded down to
+                            whole drops). Minting fee is the larger of the
+                            percentage of estimated net mint and the contract
+                            minimum — same rule as AssetManager direct minting
+                            settings.
                           </p>
                           <dl className='space-y-1.5 text-emerald-800 border-t border-emerald-200/80 pt-2 mt-1'>
                             <div className='flex justify-between gap-3'>
@@ -1184,8 +1218,8 @@ export default function DirectMint() {
                             )}
                           </dl>
                           <p className='text-xs text-emerald-600'>
-                            Minting and executor fees are taken from your payment
-                            when direct minting executes on Flare.
+                            Minting and executor fees are taken from your
+                            payment when direct minting executes on Flare.
                           </p>
                         </>
                       )}
@@ -1222,6 +1256,17 @@ export default function DirectMint() {
                 )}
               </form>
             )}
+
+          <MintingHistoryTable
+            mintings={mintings}
+            isLoading={isLoadingMintings}
+            error={mintingsError}
+            chainId={chainId}
+            connectedAddress={effectiveAddress}
+            onRefresh={() => {
+              refetchMintings();
+            }}
+          />
         </CardContent>
       </Card>
     </div>

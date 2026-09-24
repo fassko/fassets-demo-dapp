@@ -3,7 +3,7 @@ import { XRP_CONFIG } from '@/lib/xrpUtils';
 const BIPS_DENOM = BigInt(10_000);
 
 /** Minting fee in drops for a given net mint amount (same rule as on-chain). */
-export function directMintingFeeForNetUBA(
+function directMintingFeeForNetUBA(
   netMintUBA: bigint,
   feeBIPS: bigint,
   minimumFeeUBA: bigint
@@ -56,13 +56,9 @@ export function computeDirectMintBreakdownFromGrossDrops(
     }
   }
 
-  const { proportionalFeeUBA, appliedMintingFeeUBA } = directMintingFeeForNetUBA(
-    bestNet,
-    feeBIPS,
-    minimumFeeUBA
-  );
-  const accounted =
-    bestNet + appliedMintingFeeUBA + executorFeeUBA;
+  const { proportionalFeeUBA, appliedMintingFeeUBA } =
+    directMintingFeeForNetUBA(bestNet, feeBIPS, minimumFeeUBA);
+  const accounted = bestNet + appliedMintingFeeUBA + executorFeeUBA;
   const unallocatedUBA = grossPaymentUBA - accounted;
 
   return {
@@ -161,7 +157,5 @@ export function formatXrpFromDrops(drops: bigint, fractionDigits = 6): string {
 export function formatXrpPlaceholder(drops: bigint): string {
   const n = Number(drops) / XRP_CONFIG.DROPS_PER_XRP;
   if (!Number.isFinite(n)) return '';
-  return n
-    .toFixed(6)
-    .replace(/\.?0+$/, '');
+  return n.toFixed(6).replace(/\.?0+$/, '');
 }

@@ -1,7 +1,6 @@
 import { type Address, getAddress, isAddress } from 'viem';
 
-export const ZERO_ADDRESS =
-  '0x0000000000000000000000000000000000000000' as const;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const;
 
 export function tryParseFlareRecipient(value: string): Address | null {
   const t = value.trim();

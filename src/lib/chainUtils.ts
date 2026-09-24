@@ -56,12 +56,6 @@ export function getExplorerName(chainId: number): string {
   }
 }
 
-// Check if chain supports FAssets
-export function supportsFAssets(chainId: number): boolean {
-  // FAssets are available on Flare and Coston2
-  return chainId === 14 || chainId === 114;
-}
-
 // Get the appropriate chain from viem/wagmi based on chainId
 export function getChainById(chainId: number): Chain | null {
   switch (chainId) {

@@ -18,9 +18,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { TransferHistoryTable } from '@/components/ui/TransferHistoryTable';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
-import { getTypedSettings, getWriteIFAsset } from '@/lib/abiUtils';
+import { useFXRPTransfers } from '@/hooks/useFXRPTransfers';
+import { getTypedSettings, getWriteIfAssetTransfer } from '@/lib/abiUtils';
 import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
@@ -66,8 +68,23 @@ export default function Transfer() {
   // FXRP is an ERC20 token
   // FXRP address comes from the settings
   // dev.flare.network/fassets/developer-guides/fassets-fxrp-address
-  const { fxrpBalance, refetchFxrpBalance, balanceError, isConnected } =
-    useFXRPBalance();
+  const {
+    fxrpBalance,
+    tokenDecimals,
+    refetchFxrpBalance,
+    balanceError,
+    isConnected,
+  } = useFXRPBalance();
+
+  const {
+    transfers,
+    isLoading: isLoadingTransfers,
+    error: transfersError,
+    refetch: refetchTransfers,
+  } = useFXRPTransfers({
+    tokenAddress: settings?.fAsset as `0x${string}` | undefined,
+    decimals: tokenDecimals,
+  });
 
   // React Hook Form
   const {
@@ -93,7 +110,7 @@ export default function Transfer() {
     mutateAsync: transferContract,
     isPending: isTransferPending,
     error: writeError,
-  } = getWriteIFAsset(chainId);
+  } = getWriteIfAssetTransfer(chainId);
 
   // Wait for transaction receipt
   const { isLoading: isConfirming, isSuccess: isTransferSuccess } =
@@ -132,6 +149,7 @@ export default function Transfer() {
       setSuccess(`Successfully sent ${watchedAmount} FXRP`);
       reset();
       refetchFxrpBalance();
+      refetchTransfers();
     }
   }, [
     isTransferSuccess,
@@ -139,6 +157,7 @@ export default function Transfer() {
     watchedAmount,
     reset,
     refetchFxrpBalance,
+    refetchTransfers,
   ]);
 
   const refreshBalances = async () => {
@@ -162,12 +181,14 @@ export default function Transfer() {
         throw new Error('AssetManager settings not loaded');
       }
 
-      // Convert amount to wei using correct decimals
-      // Get the decimals from the asset manager settings
-      // https://dev.flare.network/fassets/reference/IAssetManager#getsettings
-      const decimals = Number(settings.assetDecimals);
+      if (tokenDecimals === undefined) {
+        throw new Error('FXRP token decimals not loaded');
+      }
+
+      // Convert amount using IFAsset.decimals()
+      // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
       const amountInWei = BigInt(
-        Math.floor(parseFloat(data.amount) * Math.pow(10, decimals))
+        Math.floor(parseFloat(data.amount) * Math.pow(10, tokenDecimals))
       );
 
       // Call the transfer function using contract-specific hook
@@ -177,7 +198,6 @@ export default function Transfer() {
         // Use the FXRP token address from the settings
         // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
         address: settings.fAsset as `0x${string}`,
-        functionName: 'transfer',
         args: [data.recipientAddress as `0x${string}`, amountInWei],
       });
     } catch (error) {
@@ -263,7 +283,12 @@ export default function Transfer() {
 
             <Button
               type='submit'
-              disabled={isProcessing || !isConnected || isLoadingSettings}
+              disabled={
+                isProcessing ||
+                !isConnected ||
+                isLoadingSettings ||
+                tokenDecimals === undefined
+              }
               className='w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 cursor-pointer'
             >
               {isProcessing ? (
@@ -317,6 +342,19 @@ export default function Transfer() {
               </Alert>
             )}
           </form>
+
+          <div className='mt-8'>
+            <TransferHistoryTable
+              transfers={transfers}
+              isLoading={isLoadingTransfers}
+              isConnected={isConnected}
+              error={transfersError}
+              chainId={chainId}
+              onRefresh={() => {
+                refetchTransfers();
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

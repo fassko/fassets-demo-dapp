@@ -3,7 +3,14 @@
 
 import { useChainId } from 'wagmi';
 
-import { getReadIFAsset, getTypedSettings } from '@/lib/abiUtils';
+import {
+  getReadIfAssetAssetName,
+  getReadIfAssetAssetSymbol,
+  getReadIfAssetDecimals,
+  getReadIfAssetName,
+  getReadIfAssetSymbol,
+  getTypedSettings,
+} from '@/lib/abiUtils';
 
 import { useAssetManager } from './useAssetManager';
 
@@ -15,58 +22,57 @@ export function useFXRPTokenDetails() {
   const settings = getTypedSettings(rawSettings);
 
   const fAssetAddress = settings?.fAsset as `0x${string}` | undefined;
+  const tokenQuery = { enabled: !!fAssetAddress };
 
-  // Use typed hook from flare-wagmi-periphery-package
-  const useReadIFAsset = getReadIFAsset(chainId);
+  const useReadName = getReadIfAssetName(chainId);
+  const useReadSymbol = getReadIfAssetSymbol(chainId);
+  const useReadDecimals = getReadIfAssetDecimals(chainId);
+  const useReadAssetName = getReadIfAssetAssetName(chainId);
+  const useReadAssetSymbol = getReadIfAssetAssetSymbol(chainId);
 
   const {
     data: tokenName,
     isLoading: isLoadingName,
     refetch: refetchName,
-  } = useReadIFAsset({
+  } = useReadName({
     address: fAssetAddress,
-    functionName: 'name',
-    query: { enabled: !!fAssetAddress },
+    query: tokenQuery,
   });
 
   const {
     data: tokenSymbol,
     isLoading: isLoadingSymbol,
     refetch: refetchSymbol,
-  } = useReadIFAsset({
+  } = useReadSymbol({
     address: fAssetAddress,
-    functionName: 'symbol',
-    query: { enabled: !!fAssetAddress },
+    query: tokenQuery,
   });
 
   const {
     data: tokenDecimals,
     isLoading: isLoadingDecimals,
     refetch: refetchDecimals,
-  } = useReadIFAsset({
+  } = useReadDecimals({
     address: fAssetAddress,
-    functionName: 'decimals',
-    query: { enabled: !!fAssetAddress },
+    query: tokenQuery,
   });
 
   const {
     data: assetName,
     isLoading: isLoadingAssetName,
     refetch: refetchAssetName,
-  } = useReadIFAsset({
+  } = useReadAssetName({
     address: fAssetAddress,
-    functionName: 'assetName',
-    query: { enabled: !!fAssetAddress },
+    query: tokenQuery,
   });
 
   const {
     data: assetSymbol,
     isLoading: isLoadingAssetSymbol,
     refetch: refetchAssetSymbol,
-  } = useReadIFAsset({
+  } = useReadAssetSymbol({
     address: fAssetAddress,
-    functionName: 'assetSymbol',
-    query: { enabled: !!fAssetAddress },
+    query: tokenQuery,
   });
 
   const isLoading =
@@ -88,11 +94,12 @@ export function useFXRPTokenDetails() {
 
   return {
     fAssetAddress,
-    tokenName: tokenName ? String(tokenName) : undefined,
-    tokenSymbol: tokenSymbol ? String(tokenSymbol) : undefined,
-    tokenDecimals: tokenDecimals !== undefined ? Number(tokenDecimals) : undefined,
-    assetName: assetName ? String(assetName) : undefined,
-    assetSymbol: assetSymbol ? String(assetSymbol) : undefined,
+    tokenName,
+    tokenSymbol,
+    tokenDecimals:
+      tokenDecimals !== undefined ? Number(tokenDecimals) : undefined,
+    assetName,
+    assetSymbol,
     isLoading,
     refetchAll,
   };

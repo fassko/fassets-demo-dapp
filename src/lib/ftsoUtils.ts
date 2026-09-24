@@ -9,8 +9,7 @@ import { getFtsoV2Address } from './flareContracts';
 
 // FTSO feed ID (bytes21)
 // XRP/USD feed - used for FXRP price on all networks
-export const XRP_USD_FEED_ID =
-  '0x015852502f55534400000000000000000000000000' as const;
+const XRP_USD_FEED_ID = '0x015852502f55534400000000000000000000000000' as const;
 
 export interface FTSOPriceData {
   price: number;

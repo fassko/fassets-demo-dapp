@@ -2,21 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import Link from 'next/link';
-
 import { ArrowRight, ExternalLink, Loader2, Tag } from 'lucide-react';
+import Link from 'next/link';
 
 import { useForm } from 'react-hook-form';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import {
-  useAccount,
-  useChainId,
-  useWaitForTransactionReceipt,
-} from 'wagmi';
+import { useAccount, useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
-import { decodeEventLog, keccak256, type ReadContractReturnType } from 'viem';
+import { decodeEventLog, keccak256 } from 'viem';
 
 import { z } from 'zod';
 
@@ -26,6 +21,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FXRPBalanceCard } from '@/components/ui/fxrp-balance-card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
+import { RedemptionHistoryTable } from '@/components/ui/RedemptionHistoryTable';
+import { RedemptionLimitsTable } from '@/components/ui/RedemptionLimitsTable';
 import {
   Select,
   SelectContent,
@@ -34,26 +32,25 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import RedemptionEventCard from '@/components/ui/RedemptionEventCard';
-import { RedemptionLimitsTable } from '@/components/ui/RedemptionLimitsTable';
 import XRPLBalanceCard from '@/components/ui/XRPLBalanceCard';
 import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
+import { useFXRPRedemptions } from '@/hooks/useFXRPRedemptions';
+import { useMinimumRedeemAmountUBA } from '@/hooks/useMinimumRedeemAmountUBA';
+import { useMintingTagDetails } from '@/hooks/useMintingTagDetails';
+import { useSystemRedemptionFee } from '@/hooks/useSystemRedemptionFee';
+import { useVotingEpochParams } from '@/hooks/useVotingEpochParams';
 import {
-  getAssetManagerAbi,
-  getReadIAssetManager,
-  getReadIMintingTagManager,
-  getRequestAttestationHook,
+  getReadIDirectMintingSettingsGetMintingTagManager,
+  getReadIMintingTagManagerReservedTagsForOwner,
+  getRedemptionEventAbi,
   getTypedSettings,
-  getWriteIAssetManager,
+  getWriteIFdcHubRequestAttestation,
+  getWriteIRedeemExtendedRedeemAmount,
+  getWriteIRedeemExtendedRedeemWithTag,
 } from '@/lib/abiUtils';
-import {
-  fetchMintingTagsDetails,
-  type MintingTagDetails,
-} from '@/lib/mintingTagDetails';
-import { isZeroAddress } from '@/lib/mintingTagUtils';
 import { copyToClipboardWithTimeout } from '@/lib/clipboard';
 import {
   FDC_CONSTANTS,
@@ -64,13 +61,19 @@ import {
   submitAttestationRequest,
   verifyReferencedPaymentNonexistence,
 } from '@/lib/fdcUtils';
+import { isZeroAddress } from '@/lib/mintingTagUtils';
 import {
   formatRedeemAmountPlaceholder,
   formatUbaAsAsset,
   getRedemptionQueueTotalValueUBA,
   validateRedeemAmountUBA,
 } from '@/lib/redeemValidation';
-import { getExplorerUrl } from '@/lib/utils';
+import {
+  computeRedemptionFeeBreakdown,
+  formatBipsPercent,
+  parseAssetAmountToUBA,
+} from '@/lib/redemptionFeeBreakdown';
+import { getExplorerUrl, truncateAddress } from '@/lib/utils';
 import {
   getAccountBalance,
   getLatestLedgerInfoWithFDCDeadlines,
@@ -101,10 +104,7 @@ function makeRedeemSchema(mode: RedemptionMode) {
       destinationTag: z
         .string()
         .min(1, 'Destination tag is required')
-        .refine(
-          val => /^\d+$/.test(val),
-          'Tag must be a non-negative integer'
-        ),
+        .refine(val => /^\d+$/.test(val), 'Tag must be a non-negative integer'),
     });
   }
 
@@ -124,10 +124,191 @@ function makeRedeemSchema(mode: RedemptionMode) {
 
 type RedeemXRPFormData = z.infer<ReturnType<typeof makeRedeemSchema>>;
 
+function RedeemMintingTagRow({
+  tagId,
+  mintingTagManagerAddress,
+  isSelected,
+  onSelect,
+}: {
+  tagId: bigint;
+  mintingTagManagerAddress: `0x${string}` | undefined;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const id = tagId.toString();
+  const { details, isLoading } = useMintingTagDetails({
+    mintingTagManagerAddress,
+    tagId,
+  });
+
+  return (
+    <tr
+      role='button'
+      tabIndex={0}
+      onClick={onSelect}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
+      className={
+        isSelected
+          ? 'bg-green-100/80 border-b border-green-200 cursor-pointer'
+          : 'border-b border-green-100 hover:bg-green-50/50 cursor-pointer'
+      }
+    >
+      <td className='px-4 py-3 font-mono font-semibold text-green-900'>
+        #{id}
+      </td>
+      <td className='px-4 py-3 font-mono text-xs text-green-800 break-all max-w-[200px]'>
+        {isLoading && !details
+          ? '…'
+          : details && !isZeroAddress(details.recipient)
+            ? details.recipient
+            : '— not set —'}
+      </td>
+      <td className='px-4 py-3 text-xs'>
+        {isSelected ? (
+          <span className='font-medium text-green-900'>Selected</span>
+        ) : (
+          <span className='text-green-600'>Click to use</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function formatFeeAsset(uba: bigint, decimals: number, unit: string): string {
+  return `${formatUbaAsAsset(uba, decimals)} ${unit}`;
+}
+
+function RedemptionFeePreview({
+  assetDecimals,
+  agentFeeBIPS,
+  systemFeeBIPS,
+  systemFeeReceiver,
+  isLoading,
+  error,
+  breakdown,
+  chainId,
+  redeemFn,
+}: {
+  assetDecimals: number;
+  agentFeeBIPS?: bigint;
+  systemFeeBIPS?: bigint;
+  systemFeeReceiver?: `0x${string}`;
+  isLoading: boolean;
+  error: string | null;
+  breakdown: ReturnType<typeof computeRedemptionFeeBreakdown>;
+  chainId: number;
+  redeemFn: 'redeemAmount' | 'redeemWithTag';
+}) {
+  const receiverSet =
+    systemFeeReceiver !== undefined && !isZeroAddress(systemFeeReceiver);
+
+  return (
+    <div className='mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2 text-sm'>
+      <p className='font-semibold text-green-900'>Estimated fees</p>
+      <p className='text-xs text-green-600'>
+        Charged one after the other on{' '}
+        <code className='bg-green-100 px-1 rounded'>{redeemFn}</code>. The
+        system fee is taken first. The agent fee is taken from what remains.
+      </p>
+      {isLoading ? (
+        <p className='text-green-700 flex items-center gap-2'>
+          <Loader2 className='h-4 w-4 animate-spin shrink-0' />
+          Loading fee parameters…
+        </p>
+      ) : error ? (
+        <p className='text-amber-900'>{error}</p>
+      ) : !breakdown ||
+        agentFeeBIPS === undefined ||
+        systemFeeBIPS === undefined ? (
+        <p className='text-green-700'>Enter a positive FXRP amount.</p>
+      ) : (
+        <dl className='space-y-1.5 text-green-800 border-t border-green-200 pt-2'>
+          <div className='flex justify-between gap-3'>
+            <dt>FXRP burned</dt>
+            <dd className='font-mono shrink-0'>
+              {formatFeeAsset(breakdown.burnedUBA, assetDecimals, 'FXRP')}
+            </dd>
+          </div>
+          {breakdown.truncatedUBA > 0n && (
+            <p className='text-xs text-green-600'>
+              {formatFeeAsset(breakdown.truncatedUBA, assetDecimals, 'FXRP')} of
+              the entered amount is below minting granularity and is not
+              redeemed.
+            </p>
+          )}
+          <div className='flex justify-between gap-3'>
+            <dt>System fee ({formatBipsPercent(systemFeeBIPS)})</dt>
+            <dd className='font-mono shrink-0'>
+              {formatFeeAsset(breakdown.systemFeeUBA, assetDecimals, 'FXRP')}
+            </dd>
+          </div>
+          <p className='text-xs text-green-600'>
+            {systemFeeBIPS === 0n ? (
+              receiverSet ? (
+                'The rate is zero, so nothing is minted to the system redemption fee receiver.'
+              ) : (
+                'No receiver is set, so this fee is not charged.'
+              )
+            ) : receiverSet ? (
+              <>
+                Minted as FXRP to{' '}
+                <a
+                  href={getExplorerUrl(chainId, systemFeeReceiver, 'address')}
+                  target='_blank'
+                  rel='noopener noreferrer'
+                  className='font-mono underline'
+                >
+                  {truncateAddress(systemFeeReceiver)}
+                </a>
+                .
+              </>
+            ) : (
+              'Minted as FXRP to the system redemption fee receiver.'
+            )}
+          </p>
+          <div className='flex justify-between gap-3'>
+            <dt>Agent fee ({formatBipsPercent(agentFeeBIPS)})</dt>
+            <dd className='font-mono shrink-0'>
+              {formatFeeAsset(breakdown.agentFeeUBA, assetDecimals, 'XRP')}
+            </dd>
+          </div>
+          <p className='text-xs text-green-600'>
+            Taken from the amount left after the system fee. The agent pays the
+            rest on XRPL and keeps this underlying. When the payment is
+            confirmed, that agent&apos;s redemption pool fee share of this fee
+            is minted as new FXRP into the agent&apos;s collateral pool. The
+            rest stays with the agent.
+          </p>
+          <div className='flex justify-between gap-3 font-semibold text-green-900 border-t border-green-200 pt-1.5'>
+            <dt>XRP you receive</dt>
+            <dd className='font-mono shrink-0'>
+              {formatFeeAsset(
+                breakdown.redeemerPayoutUBA,
+                assetDecimals,
+                'XRP'
+              )}
+            </dd>
+          </div>
+          <p className='text-xs text-green-600'>
+            Estimate for one agent request. A redemption split across agents
+            rounds each request on its own.
+          </p>
+        </dl>
+      )}
+    </div>
+  );
+}
+
 export default function Redeem() {
   const chainId = useChainId();
   const { address: connectedAddress } = useAccount();
-  const [redemptionMode, setRedemptionMode] = useState<RedemptionMode>('amount');
+  const [redemptionMode, setRedemptionMode] =
+    useState<RedemptionMode>('amount');
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const effectiveAddress = mounted ? connectedAddress : undefined;
@@ -135,6 +316,9 @@ export default function Redeem() {
   const [error, setError] = useState<React.ReactNode | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [remainingLots, setRemainingLots] = useState<string | null>(null);
+  const [remainingAmountUBA, setRemainingAmountUBA] = useState<string | null>(
+    null
+  );
 
   const [xrplBalance, setXrplBalance] = useState<string>('0');
   const [xrplAddress, setXrplAddress] = useState<string>('');
@@ -146,6 +330,7 @@ export default function Redeem() {
     paymentAddress: string;
     valueUBA: string;
     feeUBA: string;
+    systemFeeUBA: string;
     firstUnderlyingBlock: string;
     lastUnderlyingBlock: string;
     lastUnderlyingTimestamp: string;
@@ -193,6 +378,13 @@ export default function Redeem() {
   // Use utility function to properly type settings from ABI
   const settings = getTypedSettings(rawSettings);
 
+  const {
+    effectiveSystemRedemptionFeeBIPS,
+    systemRedemptionFeeReceiver,
+    isLoading: isLoadingSystemFee,
+    error: systemFeeError,
+  } = useSystemRedemptionFee(assetManagerAddress);
+
   // FXRP balance hook
   // Use the useFXRPBalance hook to get the FXRP balance
   // FXRP is an ERC20 token
@@ -201,11 +393,22 @@ export default function Redeem() {
   const {
     fxrpBalance,
     fxrpBalanceData,
+    tokenDecimals,
     refetchFxrpBalance,
     balanceError,
     userAddress,
     isConnected,
   } = useFXRPBalance();
+
+  const {
+    redemptions,
+    isLoading: isLoadingRedemptions,
+    error: redemptionsError,
+    refetch: refetchRedemptions,
+  } = useFXRPRedemptions({
+    assetManagerAddress,
+    redeemer: effectiveAddress,
+  });
 
   // FDC contracts hook
   // It gets the FDC contracts from the Flare Contracts Registry
@@ -216,21 +419,19 @@ export default function Redeem() {
     error: addressError,
   } = useFdcContracts();
 
-  // Read minimumRedeemAmountUBA — needed for tag-mode validation
-  const useReadIAssetManager = getReadIAssetManager(chainId);
-  const { data: minimumRedeemAmountUBAData } = useReadIAssetManager({
-    address: assetManagerAddress as `0x${string}`,
-    functionName: 'minimumRedeemAmountUBA',
-    query: { enabled: !!assetManagerAddress },
-  });
-  const minimumRedeemAmountUBA = minimumRedeemAmountUBAData as
-    | bigint
-    | undefined;
+  const { firstVotingRoundStartTs, votingEpochDurationSeconds } =
+    useVotingEpochParams({
+      flareSystemsManagerAddress: fdcAddresses?.flareSystemsManager,
+    });
+
+  const { minimumRedeemAmountUBA } =
+    useMinimumRedeemAmountUBA(assetManagerAddress);
 
   // Minting tags — XRPL destination tags owned by the connected wallet
-  const { data: mintingTagManagerAddressData } = useReadIAssetManager({
+  const useReadMintingTagManager =
+    getReadIDirectMintingSettingsGetMintingTagManager(chainId);
+  const { data: mintingTagManagerAddressData } = useReadMintingTagManager({
     address: assetManagerAddress as `0x${string}`,
-    functionName: 'getMintingTagManager',
     query: {
       enabled: !!assetManagerAddress && redemptionMode === 'tag',
     },
@@ -239,64 +440,31 @@ export default function Redeem() {
     | `0x${string}`
     | undefined;
 
-  const useReadIMintingTagManager = getReadIMintingTagManager(chainId);
-  const {
-    data: reservedTagsData,
-    isLoading: isLoadingReservedTags,
-  } = useReadIMintingTagManager({
-    address: mintingTagManagerAddress,
-    functionName: 'reservedTagsForOwner',
-    args: effectiveAddress ? [effectiveAddress] : undefined,
-    query: {
-      enabled:
-        !!mintingTagManagerAddress &&
-        !!effectiveAddress &&
-        redemptionMode === 'tag',
-    },
-  });
-  const reservedTags = reservedTagsData as readonly bigint[] | undefined;
+  const useReadReservedTagsForOwner =
+    getReadIMintingTagManagerReservedTagsForOwner(chainId);
+  const { data: reservedTagsData, isLoading: isLoadingReservedTags } =
+    useReadReservedTagsForOwner({
+      address: mintingTagManagerAddress,
+      args: effectiveAddress ? [effectiveAddress] : undefined,
+      query: {
+        enabled:
+          !!mintingTagManagerAddress &&
+          !!effectiveAddress &&
+          redemptionMode === 'tag',
+      },
+    });
+  const reservedTags = reservedTagsData;
 
-  const [tagDetails, setTagDetails] = useState<MintingTagDetails[]>([]);
-  const [isLoadingTagDetails, setIsLoadingTagDetails] = useState(false);
   const [selectedMintingTag, setSelectedMintingTag] = useState<string | null>(
     null
   );
-
-  useEffect(() => {
-    if (
-      !mintingTagManagerAddress ||
-      !reservedTags?.length ||
-      redemptionMode !== 'tag'
-    ) {
-      setTagDetails([]);
-      return;
-    }
-
-    let cancelled = false;
-    setIsLoadingTagDetails(true);
-    fetchMintingTagsDetails(mintingTagManagerAddress, reservedTags, chainId)
-      .then(details => {
-        if (!cancelled) setTagDetails(details);
-      })
-      .catch(err => {
-        console.error('Error loading minting tag details:', err);
-        if (!cancelled) setTagDetails([]);
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingTagDetails(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [mintingTagManagerAddress, reservedTags, chainId, redemptionMode]);
 
   const [redemptionQueueTotalValueUBA, setRedemptionQueueTotalValueUBA] =
     useState<bigint | null>(null);
   const [isLoadingQueueTotal, setIsLoadingQueueTotal] = useState(false);
 
   useEffect(() => {
-    if (!assetManagerAddress) {
+    if (!assetManagerAddress || settings?.maxRedeemedTickets === undefined) {
       setRedemptionQueueTotalValueUBA(null);
       return;
     }
@@ -304,7 +472,11 @@ export default function Redeem() {
     let cancelled = false;
     setIsLoadingQueueTotal(true);
 
-    getRedemptionQueueTotalValueUBA(assetManagerAddress, chainId)
+    getRedemptionQueueTotalValueUBA(
+      assetManagerAddress,
+      chainId,
+      settings.maxRedeemedTickets
+    )
       .then(total => {
         if (!cancelled) setRedemptionQueueTotalValueUBA(total);
       })
@@ -319,14 +491,14 @@ export default function Redeem() {
     return () => {
       cancelled = true;
     };
-  }, [assetManagerAddress, chainId]);
+  }, [assetManagerAddress, chainId, settings?.maxRedeemedTickets]);
 
   // FDC Attestation contract functions using contract-specific hook
   const {
     mutateAsync: requestAttestation,
     data: attestationHash,
     error: writeAttestationError,
-  } = getRequestAttestationHook(chainId);
+  } = getWriteIFdcHubRequestAttestation(chainId);
 
   // Wait for the FDC attestation transaction receipt
   const { data: attestationReceipt, isSuccess: isAttestationSuccess } =
@@ -352,7 +524,29 @@ export default function Redeem() {
   const watchedAmount = watch('amount');
   const watchedDestinationTag = watch('destinationTag');
 
-  const assetDecimals = settings ? Number(settings.assetDecimals) : 6;
+  const redemptionFeeBreakdown = useMemo(() => {
+    if (
+      !settings ||
+      effectiveSystemRedemptionFeeBIPS === undefined ||
+      !watchedAmount
+    ) {
+      return null;
+    }
+    const amountUBA = parseAssetAmountToUBA(
+      watchedAmount,
+      Number(settings.assetDecimals)
+    );
+    if (amountUBA === null || amountUBA <= 0n) return null;
+    return computeRedemptionFeeBreakdown({
+      amountUBA,
+      assetMintingGranularityUBA: settings.assetMintingGranularityUBA,
+      effectiveSystemRedemptionFeeBIPS,
+      redemptionFeeBIPS: BigInt(settings.redemptionFeeBIPS),
+    });
+  }, [effectiveSystemRedemptionFeeBIPS, settings, watchedAmount]);
+
+  const assetDecimals =
+    tokenDecimals ?? (settings ? Number(settings.assetDecimals) : 6);
 
   const handleMintingTagSelect = useCallback(
     (tagId: string) => {
@@ -366,39 +560,34 @@ export default function Redeem() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setValue('destinationTag', value, { shouldValidate: true });
-      if (
-        selectedMintingTag !== null &&
-        value !== selectedMintingTag
-      ) {
+      if (selectedMintingTag !== null && value !== selectedMintingTag) {
         setSelectedMintingTag(null);
       }
     },
     [setValue, selectedMintingTag]
   );
 
-  const selectedTagDetail = useMemo(
-    () =>
-      tagDetails.find(d => d.tagId.toString() === selectedMintingTag),
-    [tagDetails, selectedMintingTag]
-  );
+  const { details: selectedTagDetail } = useMintingTagDetails({
+    mintingTagManagerAddress,
+    tagId: selectedMintingTag ? BigInt(selectedMintingTag) : undefined,
+    enabled: redemptionMode === 'tag',
+  });
   const walletBalanceUBA = fxrpBalanceData as bigint | undefined;
 
   const minimumRedeemAmountPlaceholder = useMemo(() => {
     if (minimumRedeemAmountUBA === undefined) return undefined;
-    return formatRedeemAmountPlaceholder(
-      minimumRedeemAmountUBA,
-      assetDecimals
-    );
+    return formatRedeemAmountPlaceholder(minimumRedeemAmountUBA, assetDecimals);
   }, [minimumRedeemAmountUBA, assetDecimals]);
 
-  // Write contract for redeem function using contract-specific hook
+  // Write contracts for redeemAmount / redeemWithTag (IRedeemExtended)
   // https://dev.flare.network/fassets/reference/IAssetManager#redeem
-  const {
-    data: redeemHash,
-    mutateAsync: redeemContract,
-    isPending: isRedeemPending,
-    error: writeError,
-  } = getWriteIAssetManager(chainId);
+  const redeemAmountWrite = getWriteIRedeemExtendedRedeemAmount(chainId);
+  const redeemWithTagWrite = getWriteIRedeemExtendedRedeemWithTag(chainId);
+  const redeemHash =
+    redemptionMode === 'tag' ? redeemWithTagWrite.data : redeemAmountWrite.data;
+  const isRedeemPending =
+    redeemAmountWrite.isPending || redeemWithTagWrite.isPending;
+  const writeError = redeemAmountWrite.error ?? redeemWithTagWrite.error;
 
   // Wait for transaction receipt
   const {
@@ -423,12 +612,28 @@ export default function Redeem() {
         status: receipt.status,
       });
 
-      // Process each log in the transaction receipt
+      // Process each log in the transaction receipt. System fee events can
+      // land before or after RedemptionRequested, so collect both first.
+      let capturedRedemption: {
+        agentVault: string;
+        redeemer: string;
+        requestId: string;
+        paymentAddress: string;
+        valueUBA: string;
+        feeUBA: string;
+        firstUnderlyingBlock: string;
+        lastUnderlyingBlock: string;
+        lastUnderlyingTimestamp: string;
+        paymentReference: string;
+        executor: string;
+        executorFeeNatWei: string;
+      } | null = null;
+      const systemFeeByRequestId = new Map<string, string>();
+
       for (const log of receipt.logs) {
         try {
-          // Try to decode the log as various events
           const decodedLog = decodeEventLog({
-            abi: getAssetManagerAbi(chainId),
+            abi: getRedemptionEventAbi(chainId),
             data: log.data,
             topics: log.topics,
           });
@@ -438,7 +643,15 @@ export default function Redeem() {
             decodedLog.args
           );
 
-          // RedemptionRequestIncomplete event — partial redemption (only relevant for redeemAmount)
+          if (decodedLog.eventName === 'SystemRedemptionFeePaid') {
+            systemFeeByRequestId.set(
+              decodedLog.args.requestId.toString(),
+              decodedLog.args.feeUBA.toString()
+            );
+            continue;
+          }
+
+          // RedemptionRequestIncomplete — partial lot-based redemption
           // https://dev.flare.network/fassets/reference/IAssetManagerEvents
           if (decodedLog.eventName === 'RedemptionRequestIncomplete') {
             const remaining = decodedLog.args.remainingLots?.toString();
@@ -450,14 +663,26 @@ export default function Redeem() {
             continue;
           }
 
+          // RedemptionAmountIncomplete — partial amount-based redemption
+          if (decodedLog.eventName === 'RedemptionAmountIncomplete') {
+            const remaining = decodedLog.args.remainingAmountUBA?.toString();
+            console.log(
+              'RedemptionAmountIncomplete — remaining UBA:',
+              remaining
+            );
+            if (remaining) setRemainingAmountUBA(remaining);
+            continue;
+          }
+
           // RedemptionRequested or RedemptionWithTagRequested
           // Both events share the same fields used by the FDC flow below; the
           // tagged variant additionally carries `destinationTag` which we surface
           // in the success message.
           // https://dev.flare.network/fassets/reference/IAssetManagerEvents
           if (
-            decodedLog.eventName === 'RedemptionRequested' ||
-            decodedLog.eventName === 'RedemptionWithTagRequested'
+            capturedRedemption === null &&
+            (decodedLog.eventName === 'RedemptionRequested' ||
+              decodedLog.eventName === 'RedemptionWithTagRequested')
           ) {
             console.log('=== RedemptionRequested Event ===');
             console.log('Agent Vault:', decodedLog.args.agentVault);
@@ -486,8 +711,7 @@ export default function Redeem() {
             );
             console.log('=====================================');
 
-            // Store the single event in state for UI display
-            setRedemptionEvent({
+            capturedRedemption = {
               agentVault: decodedLog.args.agentVault,
               redeemer: decodedLog.args.redeemer,
               requestId: decodedLog.args.requestId.toString(),
@@ -503,11 +727,7 @@ export default function Redeem() {
               paymentReference: decodedLog.args.paymentReference,
               executor: decodedLog.args.executor,
               executorFeeNatWei: decodedLog.args.executorFeeNatWei.toString(),
-            });
-
-            // Break after finding the first RedemptionRequested event
-            // For this demo app we only need to process the first event
-            break;
+            };
           }
         } catch (error) {
           // This log is not a recognized event, continue to next log
@@ -515,14 +735,22 @@ export default function Redeem() {
         }
       }
 
-      const tagSuffix =
-        redemptionMode === 'tag' ? ` with destination tag` : '';
+      if (capturedRedemption) {
+        setRedemptionEvent({
+          ...capturedRedemption,
+          systemFeeUBA:
+            systemFeeByRequestId.get(capturedRedemption.requestId) ?? '0',
+        });
+      }
+
+      const tagSuffix = redemptionMode === 'tag' ? ` with destination tag` : '';
       setSuccess(
         `Successfully submitted redemption of ${watchedAmount} XRP${tagSuffix} to ${xrplAddress}`
       );
       reset();
       setSelectedMintingTag(null);
       refetchFxrpBalance();
+      refetchRedemptions();
 
       // Get the latest testXRP index after successful redemption
       getTestXrpIndex();
@@ -535,6 +763,7 @@ export default function Redeem() {
     xrplAddress,
     reset,
     refetchFxrpBalance,
+    refetchRedemptions,
   ]);
 
   const getTestXrpIndex = useCallback(async () => {
@@ -695,19 +924,22 @@ export default function Redeem() {
 
     const decimals = Number(settings!.assetDecimals);
 
+    if (minimumRedeemAmountUBA === undefined) {
+      throw new Error('Minimum redeem amount not loaded');
+    }
+
     try {
       await validateRedeemAmountUBA(
         amountUBA,
         assetManagerAddress,
-        chainId
+        chainId,
+        settings!.maxRedeemedTickets,
+        minimumRedeemAmountUBA
       );
     } catch (err) {
       if (!(err instanceof Error)) throw err;
 
-      const minHint =
-        minimumRedeemAmountUBA !== undefined
-          ? formatUbaAsAsset(minimumRedeemAmountUBA, decimals)
-          : null;
+      const minHint = formatUbaAsAsset(minimumRedeemAmountUBA, decimals);
       const queueHint =
         redemptionQueueTotalValueUBA !== null
           ? formatUbaAsAsset(redemptionQueueTotalValueUBA, decimals)
@@ -732,6 +964,7 @@ export default function Redeem() {
     setError(null);
     setSuccess(null);
     setRemainingLots(null);
+    setRemainingAmountUBA(null);
 
     try {
       if (!settings) {
@@ -749,48 +982,41 @@ export default function Redeem() {
       const executor = '0x0000000000000000000000000000000000000000' as const;
 
       if (redemptionMode === 'amount') {
-        const amountXrp = parseFloat(data.amount);
-        if (isNaN(amountXrp) || amountXrp <= 0) {
+        const amountUBA = parseAssetAmountToUBA(
+          data.amount,
+          Number(settings.assetDecimals)
+        );
+        if (amountUBA === null || amountUBA <= 0n) {
           throw new Error('Amount must be positive');
         }
-
-        // Convert XRP to UBA (1 XRP = 10^assetDecimals UBA, typically 6 for XRP)
-        const decimals = Number(settings.assetDecimals);
-        const amountUBA = BigInt(
-          Math.floor(amountXrp * Math.pow(10, decimals))
-        );
 
         await assertValidRedeemAmount(amountUBA);
 
         // https://dev.flare.network/fassets/reference/IAssetManager#redeemamount
-        await redeemContract({
+        await redeemAmountWrite.mutateAsync({
           address: assetManagerAddress,
-          functionName: 'redeemAmount',
           args: [amountUBA, data.xrplAddress, executor],
         });
       } else {
         // 'tag' mode — redeemWithTag(amountUBA, xrplAddress, executor, destinationTag)
-        const amountXrp = parseFloat(data.amount);
-        if (isNaN(amountXrp) || amountXrp <= 0) {
+        const amountUBA = parseAssetAmountToUBA(
+          data.amount,
+          Number(settings.assetDecimals)
+        );
+        if (amountUBA === null || amountUBA <= 0n) {
           throw new Error('Amount must be positive');
         }
         if (!data.destinationTag) {
           throw new Error('Destination tag is required');
         }
 
-        const decimals = Number(settings.assetDecimals);
-        const amountUBA = BigInt(
-          Math.floor(amountXrp * Math.pow(10, decimals))
-        );
-
         await assertValidRedeemAmount(amountUBA);
 
         const destinationTag = BigInt(data.destinationTag);
 
         // https://dev.flare.network/fassets/reference/IAssetManager#redeemwithtag
-        await redeemContract({
+        await redeemWithTagWrite.mutateAsync({
           address: assetManagerAddress,
-          functionName: 'redeemWithTag',
           args: [amountUBA, data.xrplAddress, executor, destinationTag],
         });
       }
@@ -846,7 +1072,9 @@ export default function Redeem() {
           )
         );
       } else {
-        setError(createErrorWithLink(`Redemption failed: ${writeError.message}`));
+        setError(
+          createErrorWithLink(`Redemption failed: ${writeError.message}`)
+        );
       }
       setIsProcessing(false);
     }
@@ -965,7 +1193,9 @@ export default function Redeem() {
       isAttestationSuccess &&
       attestationReceipt &&
       attestationData &&
-      attestationData.roundId === null
+      attestationData.roundId === null &&
+      firstVotingRoundStartTs !== undefined &&
+      votingEpochDurationSeconds !== undefined
     ) {
       const processAttestationTransaction = async () => {
         try {
@@ -975,6 +1205,8 @@ export default function Redeem() {
           }
           const roundId = await calculateRoundId(
             { receipt: { blockNumber: attestationReceipt.blockNumber } },
+            firstVotingRoundStartTs,
+            votingEpochDurationSeconds,
             fdcAddresses,
             chainId
           );
@@ -1036,6 +1268,8 @@ export default function Redeem() {
     isAttestationSuccess,
     attestationReceipt,
     attestationData,
+    firstVotingRoundStartTs,
+    votingEpochDurationSeconds,
     fdcAddresses,
     chainId,
   ]);
@@ -1141,6 +1375,7 @@ export default function Redeem() {
               setSuccess(null);
               setError(null);
               setRemainingLots(null);
+              setRemainingAmountUBA(null);
             }}
             className='mb-4'
           >
@@ -1153,7 +1388,7 @@ export default function Redeem() {
               <code className='bg-green-100 px-1 rounded'>redeemAmount</code>.
               If liquidity is partial, a{' '}
               <code className='bg-green-100 px-1 rounded'>
-                RedemptionRequestIncomplete
+                RedemptionAmountIncomplete
               </code>{' '}
               event reports the remainder. See the limits table above.
             </TabsContent>
@@ -1227,7 +1462,7 @@ export default function Redeem() {
                           Manage tags →
                         </Link>
                       </div>
-                      {isLoadingReservedTags || isLoadingTagDetails ? (
+                      {isLoadingReservedTags ? (
                         <div className='flex items-center gap-2 p-4 text-sm text-green-700'>
                           <Loader2 className='h-4 w-4 animate-spin' />
                           Loading tags…
@@ -1261,51 +1496,16 @@ export default function Redeem() {
                             <tbody>
                               {reservedTags.map(tagId => {
                                 const id = tagId.toString();
-                                const detail = tagDetails.find(
-                                  d => d.tagId.toString() === id
-                                );
-                                const isSelected = selectedMintingTag === id;
                                 return (
-                                  <tr
+                                  <RedeemMintingTagRow
                                     key={id}
-                                    role='button'
-                                    tabIndex={0}
-                                    onClick={() => handleMintingTagSelect(id)}
-                                    onKeyDown={e => {
-                                      if (
-                                        e.key === 'Enter' ||
-                                        e.key === ' '
-                                      ) {
-                                        e.preventDefault();
-                                        handleMintingTagSelect(id);
-                                      }
-                                    }}
-                                    className={
-                                      isSelected
-                                        ? 'bg-green-100/80 border-b border-green-200 cursor-pointer'
-                                        : 'border-b border-green-100 hover:bg-green-50/50 cursor-pointer'
+                                    tagId={tagId}
+                                    mintingTagManagerAddress={
+                                      mintingTagManagerAddress
                                     }
-                                  >
-                                    <td className='px-4 py-3 font-mono font-semibold text-green-900'>
-                                      #{id}
-                                    </td>
-                                    <td className='px-4 py-3 font-mono text-xs text-green-800 break-all max-w-[200px]'>
-                                      {detail && !isZeroAddress(detail.recipient)
-                                        ? detail.recipient
-                                        : '— not set —'}
-                                    </td>
-                                    <td className='px-4 py-3 text-xs'>
-                                      {isSelected ? (
-                                        <span className='font-medium text-green-900'>
-                                          Selected
-                                        </span>
-                                      ) : (
-                                        <span className='text-green-600'>
-                                          Click to use
-                                        </span>
-                                      )}
-                                    </td>
-                                  </tr>
+                                    isSelected={selectedMintingTag === id}
+                                    onSelect={() => handleMintingTagSelect(id)}
+                                  />
                                 );
                               })}
                             </tbody>
@@ -1399,9 +1599,7 @@ export default function Redeem() {
                 <Input
                   {...register('amount')}
                   type='number'
-                  placeholder={
-                    minimumRedeemAmountPlaceholder ?? 'Loading…'
-                  }
+                  placeholder={minimumRedeemAmountPlaceholder ?? 'Loading…'}
                   step='any'
                   min='0'
                   className='border-green-300 focus:ring-green-500 focus:border-green-500'
@@ -1414,76 +1612,31 @@ export default function Redeem() {
                 <p className='text-xs text-green-600'>
                   FXRP amount to redeem. Lot size:{' '}
                   {settings?.lotSizeAMG
-                    ? (
-                        Number(settings.lotSizeAMG) / Math.pow(10, 6)
-                      ).toFixed(6)
+                    ? (Number(settings.lotSizeAMG) / Math.pow(10, 6)).toFixed(6)
                     : '0'}{' '}
                   XRP — non-multiple amounts may be partially filled.
                 </p>
-                {watchedAmount &&
-                  watchedAmount !== '' &&
-                  !isNaN(parseFloat(watchedAmount)) &&
-                  (() => {
-                    const fxrpToBurn = parseFloat(watchedAmount);
-                    const feeBIPS = settings?.redemptionFeeBIPS
-                      ? Number(settings.redemptionFeeBIPS)
-                      : 0;
-                    const fee = (fxrpToBurn * feeBIPS) / 10000;
-                    const net = fxrpToBurn - fee;
-                    const redeemFn =
-                      redemptionMode === 'tag' ? 'redeemWithTag' : 'redeemAmount';
-
-                    return (
-                      <div className='mt-2 p-3 bg-green-50 border border-green-200 rounded-md space-y-2'>
-                        <p className='text-sm text-green-800'>
-                          <span className='font-semibold'>FXRP to burn:</span>{' '}
-                          {fxrpToBurn} FXRP
-                        </p>
-                        <p className='text-xs text-green-600'>
-                          (via{' '}
-                          <code className='bg-green-100 px-1 rounded'>
-                            {redeemFn}
-                          </code>
-                          )
-                        </p>
-
-                        <div className='pt-2 border-t border-green-200 space-y-1'>
-                          {feeBIPS > 0 ? (
-                            <>
-                              <p className='text-sm text-green-800'>
-                                <span className='font-semibold'>
-                                  Redemption Fee:
-                                </span>{' '}
-                                {fee.toFixed(6)} XRP
-                              </p>
-                              <p className='text-xs text-green-600'>
-                                ({feeBIPS / 100}% deducted from XRP value)
-                              </p>
-                              <div className='pt-1 border-t border-green-300'>
-                                <p className='text-sm font-semibold text-green-900'>
-                                  <span>XRP to be redeemed:</span>{' '}
-                                  {net.toFixed(6)} XRP
-                                </p>
-                                <p className='text-xs text-green-600'>
-                                  (Net amount after fee deduction)
-                                </p>
-                              </div>
-                            </>
-                          ) : (
-                            <div className='pt-1 border-t border-green-300'>
-                              <p className='text-sm font-semibold text-green-900'>
-                                <span>XRP to be redeemed:</span>{' '}
-                                {fxrpToBurn.toFixed(6)} XRP
-                              </p>
-                              <p className='text-xs text-green-600'>
-                                (No redemption fee)
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                {watchedAmount && watchedAmount !== '' && (
+                  <RedemptionFeePreview
+                    assetDecimals={Number(settings?.assetDecimals ?? 6)}
+                    agentFeeBIPS={
+                      settings?.redemptionFeeBIPS === undefined
+                        ? undefined
+                        : BigInt(settings.redemptionFeeBIPS)
+                    }
+                    systemFeeBIPS={effectiveSystemRedemptionFeeBIPS}
+                    systemFeeReceiver={systemRedemptionFeeReceiver}
+                    isLoading={isLoadingSystemFee || isLoadingSettings}
+                    error={systemFeeError}
+                    breakdown={redemptionFeeBreakdown}
+                    chainId={chainId}
+                    redeemFn={
+                      redemptionMode === 'tag'
+                        ? 'redeemWithTag'
+                        : 'redeemAmount'
+                    }
+                  />
+                )}
               </div>
             </div>
 
@@ -1535,8 +1688,18 @@ export default function Redeem() {
                 <AlertDescription>
                   Partial redemption — {remainingLots} lot
                   {remainingLots === '1' ? '' : 's'} could not be filled
-                  (insufficient agent liquidity). The unfilled FAssets remain
-                  in your wallet; submit another redemption to retry.
+                  (insufficient agent liquidity). The unfilled FAssets remain in
+                  your wallet; submit another redemption to retry.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {remainingAmountUBA && (
+              <Alert className='bg-amber-50 border-amber-200 text-amber-900'>
+                <AlertDescription>
+                  Partial redemption — {remainingAmountUBA} UBA could not be
+                  filled (insufficient agent liquidity). The unfilled FAssets
+                  remain in your wallet; submit another redemption to retry.
                 </AlertDescription>
               </Alert>
             )}
@@ -1575,6 +1738,19 @@ export default function Redeem() {
               deadlineTimestamp={deadlineTimestamp}
             />
           </form>
+
+          <div className='mt-8'>
+            <RedemptionHistoryTable
+              redemptions={redemptions}
+              isLoading={isLoadingRedemptions}
+              error={redemptionsError}
+              chainId={chainId}
+              connectedAddress={effectiveAddress}
+              onRefresh={() => {
+                refetchRedemptions();
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

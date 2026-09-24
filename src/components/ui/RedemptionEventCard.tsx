@@ -12,6 +12,7 @@ import {
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { formatXrpFromDrops } from '@/lib/directMintFeeBreakdown';
 
 interface RedemptionEvent {
   requestId: string;
@@ -20,7 +21,10 @@ interface RedemptionEvent {
   redeemer: string;
   paymentAddress: string;
   valueUBA: string;
+  /** Agent fee in UBA (`underlyingFeeUBA`). */
   feeUBA: string;
+  /** System fee in UBA. Zero when the request did not charge one. */
+  systemFeeUBA?: string;
   executor: string;
   executorFeeNatWei: string;
   firstUnderlyingBlock: string;
@@ -263,7 +267,7 @@ export default function RedemptionEventCard({
             </code>
           </div>
           <div className='flex items-center gap-2'>
-            <span className='font-medium text-green-900'>Fee UBA:</span>
+            <span className='font-medium text-green-900'>Agent fee UBA:</span>
             <code className='px-2 py-1 bg-green-100 rounded text-sm font-mono flex-1'>
               {redemptionEvent.feeUBA}
             </code>
@@ -337,14 +341,20 @@ export default function RedemptionEventCard({
             </code>
           </div>
           <div className='flex items-center gap-2'>
-            <span className='font-medium text-green-900'>Fee UBA:</span>
+            <span className='font-medium text-green-900'>Agent fee UBA:</span>
             <code className='px-2 py-1 bg-green-100 rounded text-sm font-mono'>
               {redemptionEvent.feeUBA}
             </code>
           </div>
           <div className='flex items-center gap-2'>
+            <span className='font-medium text-green-900'>System fee UBA:</span>
+            <code className='px-2 py-1 bg-green-100 rounded text-sm font-mono'>
+              {redemptionEvent.systemFeeUBA ?? '0'}
+            </code>
+          </div>
+          <div className='flex items-center gap-2'>
             <span className='font-medium text-green-900'>
-              Net Amount (UBA):
+              XRPL payout (UBA):
             </span>
             <code className='px-2 py-1 bg-green-100 rounded text-sm font-mono'>
               {(
@@ -355,16 +365,23 @@ export default function RedemptionEventCard({
           </div>
           <div className='flex items-center gap-2'>
             <span className='font-medium text-green-900'>
-              Net Amount (XRP):
+              XRPL payout (XRP):
             </span>
             <code className='px-2 py-1 bg-green-100 rounded text-sm font-mono'>
-              {(
-                (BigInt(redemptionEvent.valueUBA) -
-                  BigInt(redemptionEvent.feeUBA)) /
-                BigInt(1000000)
-              ).toString()}
+              {formatXrpFromDrops(
+                BigInt(redemptionEvent.valueUBA) -
+                  BigInt(redemptionEvent.feeUBA)
+              )}
             </code>
           </div>
+          <p className='text-xs text-green-600'>
+            The system fee was taken from the burned amount first and minted as
+            FXRP to the system redemption fee receiver. Value UBA is what
+            remains. The agent fee is taken from that remainder; the agent pays
+            the rest on XRPL. When the payment is confirmed, the agent&apos;s
+            redemption pool fee share of the agent fee is minted as FXRP into
+            that agent&apos;s collateral pool.
+          </p>
           <div className='flex items-center gap-2'>
             <span className='font-medium text-green-900'>
               Payment Reference:

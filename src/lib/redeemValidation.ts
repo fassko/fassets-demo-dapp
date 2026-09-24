@@ -1,23 +1,18 @@
 import type { Address } from 'viem';
 
-import { getAssetManagerAbi } from '@/lib/abiUtils';
+import { getAssetManagerRedemptionAbi } from '@/lib/abiUtils';
 import { createFlarePublicClient } from '@/lib/publicClient';
 
 /** Sum of `ticketValueUBA` across all tickets in the redemption queue. */
 export async function getRedemptionQueueTotalValueUBA(
   assetManagerAddress: Address,
-  chainId: number
+  chainId: number,
+  maxRedeemedTickets: bigint | number
 ): Promise<bigint> {
   const publicClient = createFlarePublicClient(chainId);
-  const abi = getAssetManagerAbi(chainId);
+  const redemptionAbi = getAssetManagerRedemptionAbi(chainId);
 
-  const settings = await publicClient.readContract({
-    address: assetManagerAddress,
-    abi,
-    functionName: 'getSettings',
-  });
-
-  const pageSize = BigInt(settings.maxRedeemedTickets);
+  const pageSize = BigInt(maxRedeemedTickets);
 
   let totalValueUBA = BigInt(0);
   let firstRedemptionTicketId = BigInt(0);
@@ -25,7 +20,7 @@ export async function getRedemptionQueueTotalValueUBA(
   while (true) {
     const [queue, nextRedemptionTicketId] = await publicClient.readContract({
       address: assetManagerAddress,
-      abi,
+      abi: redemptionAbi,
       functionName: 'redemptionQueue',
       args: [firstRedemptionTicketId, pageSize],
     });
@@ -46,19 +41,18 @@ export async function getRedemptionQueueTotalValueUBA(
 export async function validateRedeemAmountUBA(
   requestedAmountUBA: bigint,
   assetManagerAddress: Address,
-  chainId: number
-): Promise<{ minimumRedeemAmountUBA: bigint; redemptionQueueTotalValueUBA: bigint }> {
-  const publicClient = createFlarePublicClient(chainId);
-  const abi = getAssetManagerAbi(chainId);
-
-  const [minimumRedeemAmountUBA, redemptionQueueTotalValueUBA] = await Promise.all([
-    publicClient.readContract({
-      address: assetManagerAddress,
-      abi,
-      functionName: 'minimumRedeemAmountUBA',
-    }),
-    getRedemptionQueueTotalValueUBA(assetManagerAddress, chainId),
-  ]);
+  chainId: number,
+  maxRedeemedTickets: bigint | number,
+  minimumRedeemAmountUBA: bigint
+): Promise<{
+  minimumRedeemAmountUBA: bigint;
+  redemptionQueueTotalValueUBA: bigint;
+}> {
+  const redemptionQueueTotalValueUBA = await getRedemptionQueueTotalValueUBA(
+    assetManagerAddress,
+    chainId,
+    maxRedeemedTickets
+  );
 
   if (requestedAmountUBA < minimumRedeemAmountUBA) {
     throw new Error(
