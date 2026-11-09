@@ -2,6 +2,7 @@
 
 import Header from '@/components/Header';
 import Navigation from '@/components/Navigation';
+import { SystemPauseBanner } from '@/components/SystemPauseStatus';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -17,7 +18,10 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </div>
       <div className='p-4 md:p-8'>
-        <main className='flex flex-col gap-2'>{children}</main>
+        <main className='flex flex-col gap-2'>
+          <SystemPauseBanner />
+          {children}
+        </main>
       </div>
     </div>
   );

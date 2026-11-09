@@ -319,6 +319,62 @@ export const iAssetManagerInfoAbi = [
   },
 ] as const;
 
+// https://dev.flare.network/fassets/emergency-pause#check-pause-status
+export const iAssetManagerPauseAbi = [
+  {
+    inputs: [],
+    name: 'emergencyPauseLevel',
+    outputs: [
+      {
+        internalType: 'enum EmergencyPause.Level',
+        name: '',
+        type: 'uint8',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'emergencyPaused',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'emergencyPausedUntil',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'mintingPaused',
+    outputs: [
+      {
+        internalType: 'bool',
+        name: '',
+        type: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
 export const iAssetManagerAgentsAbi = [
   {
     inputs: [

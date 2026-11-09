@@ -15,6 +15,7 @@ import { decodeEventLog, keccak256 } from 'viem';
 
 import { z } from 'zod';
 
+import { PausedActionAlert } from '@/components/SystemPauseStatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +36,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import XRPLBalanceCard from '@/components/ui/XRPLBalanceCard';
 import XRPLedgerInfoCard from '@/components/ui/XRPLedgerInfoCard';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFAssetSystemPause } from '@/hooks/useFAssetSystemPause';
 import { useFdcContracts } from '@/hooks/useFdcContracts';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import { useFXRPRedemptions } from '@/hooks/useFXRPRedemptions';
@@ -374,6 +376,7 @@ export default function Redeem() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+  const pause = useFAssetSystemPause();
 
   // Use utility function to properly type settings from ABI
   const settings = getTypedSettings(rawSettings);
@@ -976,6 +979,19 @@ export default function Redeem() {
 
       if (!isConnected) {
         throw new Error('Please connect your wallet');
+      }
+
+      if (!pause.isReady) {
+        throw new Error(
+          pause.error ??
+            'Pause status is still loading. Wait until emergencyPaused() is known before redeeming.'
+        );
+      }
+
+      if (pause.emergencyPaused) {
+        throw new Error(
+          'FAsset system is paused. Redemption reverts with EmergencyPauseActive until emergencyPaused() is false.'
+        );
       }
 
       const executor = '0x0000000000000000000000000000000000000000' as const;
@@ -1639,10 +1655,22 @@ export default function Redeem() {
               </div>
             </div>
 
+            {pause.emergencyPaused && (
+              <PausedActionAlert>
+                FAsset system is paused. Redemption reverts with
+                EmergencyPauseActive until emergencyPaused() is false.
+              </PausedActionAlert>
+            )}
+
             <Button
               type='submit'
               disabled={
-                !mounted || isProcessing || !isConnected || isLoadingSettings
+                !mounted ||
+                isProcessing ||
+                !isConnected ||
+                isLoadingSettings ||
+                !pause.isReady ||
+                pause.emergencyPaused === true
               }
               className='w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-400 cursor-pointer'
             >

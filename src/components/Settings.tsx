@@ -12,10 +12,12 @@ import {
 
 import { useChainId } from 'wagmi';
 
+import { SystemPauseCard } from '@/components/SystemPauseStatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFAssetSystemPause } from '@/hooks/useFAssetSystemPause';
 import { useFXRPPrice } from '@/hooks/useFXRPPrice';
 import { useFXRPTokenDetails } from '@/hooks/useFXRPTokenDetails';
 import { useMintingCapData } from '@/hooks/useMintingCapData';
@@ -50,6 +52,8 @@ export default function Settings() {
     refetch: refetchMintingCap,
   } = useMintingCapData();
 
+  const { refetch: refetchPause } = useFAssetSystemPause();
+
   const { priceData } = useFXRPPrice();
   const {
     fAssetAddress,
@@ -66,7 +70,11 @@ export default function Settings() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([refetchSettings(), refetchMintingCap()]);
+      await Promise.all([
+        refetchSettings(),
+        refetchMintingCap(),
+        refetchPause(),
+      ]);
     } finally {
       setIsRefreshing(false);
     }
@@ -421,6 +429,8 @@ export default function Settings() {
                 </Card>
               </div>
             )}
+
+            <SystemPauseCard />
           </div>
         </CardContent>
       </Card>

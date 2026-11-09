@@ -12,6 +12,7 @@ import { useChainId, useWaitForTransactionReceipt } from 'wagmi';
 
 import { z } from 'zod';
 
+import { PausedActionAlert } from '@/components/SystemPauseStatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,9 +21,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { TransferHistoryTable } from '@/components/ui/TransferHistoryTable';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFAssetSystemPause } from '@/hooks/useFAssetSystemPause';
 import { useFXRPBalance } from '@/hooks/useFXRPBalance';
 import { useFXRPTransfers } from '@/hooks/useFXRPTransfers';
 import { getTypedSettings, getWriteIfAssetTransfer } from '@/lib/abiUtils';
+import { blocksTransfer } from '@/lib/fassetPause';
 import { getExplorerUrl } from '@/lib/utils';
 
 // Form data types
@@ -59,6 +62,11 @@ export default function Transfer() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+  const pause = useFAssetSystemPause();
+  const transferPaused = blocksTransfer(
+    pause.emergencyPaused,
+    pause.emergencyPauseLevel
+  );
 
   // Use utility function to properly type settings from ABI
   const settings = getTypedSettings(rawSettings);
@@ -185,6 +193,19 @@ export default function Transfer() {
         throw new Error('FXRP token decimals not loaded');
       }
 
+      if (!pause.isReady) {
+        throw new Error(
+          pause.error ??
+            'Pause status is still loading. Wait until it is known before transferring FXRP.'
+        );
+      }
+
+      if (blocksTransfer(pause.emergencyPaused, pause.emergencyPauseLevel)) {
+        throw new Error(
+          'FXRP transfers are paused at FULL_AND_TRANSFER. The transfer reverts with EmergencyPauseActive.'
+        );
+      }
+
       // Convert amount using IFAsset.decimals()
       // https://dev.flare.network/fassets/developer-guides/fassets-fxrp-address
       const amountInWei = BigInt(
@@ -281,13 +302,22 @@ export default function Transfer() {
               </div>
             </div>
 
+            {transferPaused && (
+              <PausedActionAlert>
+                FXRP transfers are paused at FULL_AND_TRANSFER. The transfer
+                reverts with EmergencyPauseActive.
+              </PausedActionAlert>
+            )}
+
             <Button
               type='submit'
               disabled={
                 isProcessing ||
                 !isConnected ||
                 isLoadingSettings ||
-                tokenDecimals === undefined
+                tokenDecimals === undefined ||
+                !pause.isReady ||
+                transferPaused
               }
               className='w-full bg-cyan-600 hover:bg-cyan-700 disabled:bg-gray-400 cursor-pointer'
             >

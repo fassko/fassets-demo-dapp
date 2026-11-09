@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useChainId } from 'wagmi';
 
 import ConnectWallet from '@/components/ConnectWallet';
+import { SystemPauseBadge } from '@/components/SystemPauseStatus';
 import { getChainName } from '@/lib/chainUtils';
 
 export default function Header() {
@@ -35,6 +36,7 @@ export default function Header() {
                     {getChainName(chainId)}
                   </span>
                 )}
+                {mounted && <SystemPauseBadge />}
               </div>
               <p className='text-xs md:text-sm text-gray-600 truncate hidden sm:block'>
                 Mint, Transfer, and Redeem FAssets

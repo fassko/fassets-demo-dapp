@@ -28,6 +28,7 @@ import {
   ftsoV2InterfaceAbi,
   iAssetManagerAgentsAbi,
   iAssetManagerInfoAbi,
+  iAssetManagerPauseAbi,
   iAssetManagerRedemptionAbi,
   iDirectMintingAbi,
   iDirectMintingSettingsAbi,
@@ -144,6 +145,11 @@ export function getReadIAssetManagerInfoGetSettings(chainId: number) {
     abi: fromArtifacts(chainId, 'IAssetManagerInfo', iAssetManagerInfoAbi),
     functionName: 'getSettings',
   });
+}
+
+/** Pause views on IAssetManagerInfo. https://dev.flare.network/fassets/emergency-pause#check-pause-status */
+export function getAssetManagerPauseAbi(chainId: number) {
+  return fromArtifacts(chainId, 'IAssetManagerInfo', iAssetManagerPauseAbi);
 }
 
 export function getReadIAssetManagerAgentsGetAllAgents(chainId: number) {

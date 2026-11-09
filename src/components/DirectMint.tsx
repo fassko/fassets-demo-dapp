@@ -15,6 +15,7 @@ import { type Address } from 'viem';
 
 import { z } from 'zod';
 
+import { PausedActionAlert } from '@/components/SystemPauseStatus';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,6 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAssetManager } from '@/hooks/useAssetManager';
+import { useFAssetSystemPause } from '@/hooks/useFAssetSystemPause';
 import { useFXRPMintings } from '@/hooks/useFXRPMintings';
 import {
   getReadIDirectMintingDirectMintingPaymentAddress,
@@ -103,6 +105,7 @@ export default function DirectMint() {
     isLoading: isLoadingSettings,
     error: assetManagerError,
   } = useAssetManager();
+  const pause = useFAssetSystemPause();
   const tokenAddress = getTypedSettings(rawSettings)?.fAsset as
     `0x${string}` | undefined;
 
@@ -442,6 +445,18 @@ export default function DirectMint() {
   }
 
   async function onSubmit(data: DirectMintFormData) {
+    // https://dev.flare.network/fassets/emergency-pause#check-pause-status
+    if (!pause.isReady || pause.emergencyPaused) {
+      setPaymentState({
+        status: 'error',
+        message: pause.emergencyPaused
+          ? 'FAsset system is paused. Wait until emergencyPaused() is false before sending XRP. executeDirectMinting reverts with EmergencyPauseActive.'
+          : (pause.error ??
+            'Pause status is still loading. Wait until emergencyPaused() is known before sending XRP.'),
+      });
+      return;
+    }
+
     if (!coreVaultXrplAddress) {
       setPaymentState({
         status: 'error',
@@ -1225,9 +1240,25 @@ export default function DirectMint() {
                   )}
                 </div>
 
+                {pause.emergencyPaused && (
+                  <PausedActionAlert>
+                    FAsset system is paused
+                    {pause.emergencyPauseLevel !== undefined
+                      ? ` (${pause.emergencyPauseLevel})`
+                      : ''}
+                    . Wait until emergencyPaused() is false before sending XRP.
+                    executeDirectMinting reverts with EmergencyPauseActive.
+                  </PausedActionAlert>
+                )}
+
                 <Button
                   type='submit'
-                  disabled={isCreating || !isReady}
+                  disabled={
+                    isCreating ||
+                    !isReady ||
+                    !pause.isReady ||
+                    pause.emergencyPaused === true
+                  }
                   className='w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 cursor-pointer'
                 >
                   {isCreating ? (
